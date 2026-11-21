@@ -12,6 +12,10 @@
  * - drag-end across columns PATCHes the task with the new column_id and the
  *   task's expected_version (real onDragEnd captured from DndContext)
  * - same-column reorder swaps sort_orders with two sequential PATCHes
+ * - the drawer can move a task to another column without pointer drag,
+ *   showing pending/failure states and reading the updated task afterward
+ * - a move that resolves after switching tasks does not affect the new task
+ * - drawers rendered without column metadata never expose raw column ids
  * - drag end without a destination does nothing
  * - deleting a task from the drawer DELETEs it, toasts, and closes the drawer
  *
@@ -72,6 +76,7 @@ jest.mock('@dnd-kit/utilities', () => ({
 }));
 
 import { KanbanBoard } from '../KanbanBoard';
+import { TaskDetailDrawer } from '../TaskDetailDrawer';
 
 const boardId = 'b-1';
 
@@ -124,13 +129,13 @@ const tasksPayload: BoardTask[] = [
   makeTask({ id: 't-3', title: 'Ship v1.0', column_id: 'col-done', sort_order: 0 }),
 ];
 
-function renderBoard() {
+function renderBoard(boardOverride: typeof board = board) {
   const qc = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={qc}>
-      <KanbanBoard board={board} />
+      <KanbanBoard board={boardOverride} />
     </QueryClientProvider>
   );
 }
@@ -138,12 +143,19 @@ function renderBoard() {
 describe('KanbanBoard', () => {
   let patches: { id: string; input: any }[];
   let creates: { title: string; column_id: string }[];
-
+  // One PATCH handler is installed for every test. Per-test behavior is
+  // selected with patchMode/patchGate instead of layering server.use overrides.
+  let patchMode: 'success' | 'fail';
+  let patchGate: Promise<void> | null;
+  let releasePatch: (() => void) | null;
   beforeEach(() => {
     jest.clearAllMocks();
     capturedOnDragEnd = null;
     patches = [];
     creates = [];
+    patchMode = 'success';
+    patchGate = null;
+    releasePatch = null;
 
     server.resetHandlers();
     server.use(
@@ -156,6 +168,12 @@ describe('KanbanBoard', () => {
       }),
       rest.patch(`http://127.0.0.1:8000/api/boards/${boardId}/tasks/:taskId`, async (req, res, ctx) => {
         patches.push({ id: String(req.params.taskId), input: req.body as any });
+        if (patchGate) {
+          await patchGate;
+        }
+        if (patchMode === 'fail') {
+          return res(ctx.status(400), ctx.json({ detail: 'Move rejected' }));
+        }
         const orig = tasksPayload.find((t) => t.id === String(req.params.taskId))!;
         return res(ctx.status(200), ctx.json({ ...orig, ...(req.body as any) }));
       }),
@@ -310,6 +328,158 @@ describe('KanbanBoard', () => {
       id: 't-2',
       input: { expected_version: 1, sort_order: 0 },
     });
+  });
+
+  it('moves a task between columns from the drawer with the expected_version', async () => {
+    renderBoard();
+    await screen.findByText('Design landing page');
+
+    fireEvent.click(screen.getByText('Design landing page'));
+    const dialog = await screen.findByRole('dialog');
+    const currentColumn = within(dialog).getByLabelText('Current column: To Do');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Done' }));
+
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0]).toEqual({
+      id: 't-1',
+      input: { expected_version: 1, column_id: 'col-done' },
+    });
+
+    // The drawer uses the updated task from the query cache, not the snapshot
+    // captured when it was opened.
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Move to To Do' })).toBeInTheDocument();
+    });
+    expect(within(dialog).queryByRole('button', { name: 'Move to Done' })).not.toBeInTheDocument();
+
+    // The destination button disappeared, so focus moved to the stable
+    // current-column label inside the drawer instead of falling to <body>.
+    expect(currentColumn).toHaveAttribute('aria-label', 'Current column: Done');
+    await waitFor(() => expect(currentColumn).toHaveFocus());
+  });
+
+  it('keeps the destination visible and disables moves while a drawer move is in flight', async () => {
+    patchGate = new Promise<void>((resolve) => {
+      releasePatch = () => resolve();
+    });
+
+    const boardWithReview = {
+      ...board,
+      columns: [
+        ...columns,
+        { id: 'col-review', board_id: boardId, name: 'In Review', position: 2, wip_limit: null, version_id: 1, task_count: 0 },
+      ],
+    };
+
+    renderBoard(boardWithReview);
+    await screen.findByText('Design landing page');
+
+    fireEvent.click(screen.getByText('Design landing page'));
+    const dialog = await screen.findByRole('dialog');
+    const currentColumn = within(dialog).getByLabelText('Current column: To Do');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Done' }));
+
+    expect(await within(dialog).findByRole('status')).toHaveTextContent('Moving to Done');
+    // The optimistic cache has already moved the task, but the requested
+    // destination must remain rendered and busy for the whole request.
+    const moveButton = within(dialog).getByRole('button', { name: 'Move to Done' });
+    expect(moveButton).toBeDisabled();
+    expect(moveButton).toHaveAttribute('aria-busy', 'true');
+    expect(within(dialog).getByRole('button', { name: 'Move to In Review' })).toBeDisabled();
+    expect(currentColumn).toHaveAttribute('aria-label', 'Current column: To Do');
+    expect(currentColumn).toHaveFocus();
+
+    await waitFor(() => expect(releasePatch).not.toBeNull());
+    act(() => releasePatch!());
+
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Move to To Do' })).toBeInTheDocument();
+    });
+    expect(within(dialog).queryByRole('status')).not.toBeInTheDocument();
+    expect(currentColumn).toHaveAttribute('aria-label', 'Current column: Done');
+    await waitFor(() => expect(currentColumn).toHaveFocus());
+  });
+
+  it('reports a failed drawer move and restores the task to its original column', async () => {
+    patchMode = 'fail';
+
+    renderBoard();
+    await screen.findByText('Design landing page');
+
+    fireEvent.click(screen.getByText('Design landing page'));
+    const dialog = await screen.findByRole('dialog');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Done' }));
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent("Couldn't move task");
+    expect(mockToast.error).toHaveBeenCalledWith(expect.stringContaining("Couldn't save"));
+
+    await waitFor(() => {
+      expect(within(dialog).getByRole('button', { name: 'Move to Done' })).toBeEnabled();
+      expect(within(dialog).queryByRole('button', { name: 'Move to To Do' })).not.toBeInTheDocument();
+      expect(within(dialog).getByLabelText('Current column: To Do')).toBeInTheDocument();
+    });
+  });
+
+  it('ignores a drawer move that finishes after switching tasks', async () => {
+    patchGate = new Promise<void>((resolve) => {
+      releasePatch = () => resolve();
+    });
+
+    renderBoard();
+    await screen.findByText('Design landing page');
+
+    fireEvent.click(screen.getByText('Design landing page'));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Move to Done' }));
+    expect(await within(dialog).findByRole('status')).toHaveTextContent('Moving to Done');
+
+    fireEvent.click(screen.getByText('Write copy'));
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toHaveAttribute('aria-label', 'Task: Write copy');
+    });
+    const switchedDialog = screen.getByRole('dialog');
+
+    // Fail the old task's in-flight request only after the drawer has switched.
+    // The hook-level toast proves the old mutation settled; the new task must
+    // not inherit its alert or lose its own state.
+    patchMode = 'fail';
+    await waitFor(() => expect(releasePatch).not.toBeNull());
+    act(() => releasePatch!());
+    await waitFor(() =>
+      expect(mockToast.error).toHaveBeenCalledWith(expect.stringContaining("Couldn't save"))
+    );
+
+    // The stale callback must not clear or report state on the new task.
+    await waitFor(() => {
+      expect(within(switchedDialog).queryByRole('status')).not.toBeInTheDocument();
+      expect(within(switchedDialog).queryByRole('alert')).not.toBeInTheDocument();
+    });
+    expect(within(switchedDialog).getByRole('button', { name: 'Move to Done' })).toBeEnabled();
+  });
+
+  it('does not expose raw column ids when column metadata is omitted', async () => {
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    });
+    render(
+      <QueryClientProvider client={qc}>
+        <TaskDetailDrawer
+          boardId={boardId}
+          task={tasksPayload[0]}
+          open
+          onClose={() => {}}
+          onDelete={() => {}}
+        />
+      </QueryClientProvider>
+    );
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByLabelText('Current column: Unknown column')).toBeInTheDocument();
+    expect(within(dialog).queryByText('col-todo')).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole('button', { name: /^Move to / })).not.toBeInTheDocument();
   });
 
   it('does nothing when drag ends without a destination', async () => {

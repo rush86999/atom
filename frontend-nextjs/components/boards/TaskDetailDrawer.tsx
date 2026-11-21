@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { X, Trash2, Send, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import {
+  type BoardColumn,
   type BoardTask,
   listComments,
   postComment,
@@ -18,6 +19,7 @@ import { CanvasWorkspacePanel } from './CanvasWorkspacePanel';
 interface Props {
   boardId: string;
   task: BoardTask | null;
+  columns?: BoardColumn[];
   open: boolean;
   onClose: () => void;
   onDelete: (task: BoardTask) => void;
@@ -39,6 +41,11 @@ interface TaskDraft {
   newComment: string;
 }
 
+interface PendingMove {
+  toColumnId: string;
+  fromColumnId: string;
+}
+
 function createTaskDraft(taskKey: string, task: BoardTask | null): TaskDraft {
   return {
     taskKey,
@@ -48,19 +55,50 @@ function createTaskDraft(taskKey: string, task: BoardTask | null): TaskDraft {
   };
 }
 
-export function TaskDetailDrawer({ boardId, task, open, onClose, onDelete }: Props) {
+export function TaskDetailDrawer({
+  boardId,
+  task,
+  columns = [],
+  open,
+  onClose,
+  onDelete,
+}: Props) {
   const patchTask = usePatchTask(boardId);
   const taskKey = `${boardId}:${task?.id ?? ''}`;
   const [draft, setDraft] = useState<TaskDraft>(() => createTaskDraft(taskKey, task));
   const activeDraft = draft.taskKey === taskKey ? draft : createTaskDraft(taskKey, task);
   const [comments, setComments] = useState<BoardComment[]>([]);
   const [showDecomposeModal, setShowDecomposeModal] = useState(false);
+  const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
+  const [moveError, setMoveError] = useState<string | null>(null);
+  const moveRequestRef = useRef(0);
+  const moveInFlightRef = useRef(false);
+  const currentColumnRef = useRef<HTMLSpanElement>(null);
+  const focusCurrentColumnRef = useRef(false);
   const taskId = task?.id ?? null;
 
   useEffect(() => {
     if (!taskId) return;
     listComments(boardId, taskId).then(setComments).catch(() => setComments([]));
   }, [boardId, taskId]);
+
+  // Switching tasks (or closing the drawer) invalidates callbacks from any
+  // move that was still in flight. Without this token an old request could
+  // clear the new task's pending state or surface its error on the wrong task.
+  useEffect(() => {
+    moveRequestRef.current += 1;
+    moveInFlightRef.current = false;
+    setPendingMove(null);
+    setMoveError(null);
+  }, [taskKey]);
+
+  // Once a successful move removes the focused destination button, keep
+  // keyboard focus inside the drawer on the (stable) current-column label.
+  useEffect(() => {
+    if (!focusCurrentColumnRef.current) return;
+    focusCurrentColumnRef.current = false;
+    currentColumnRef.current?.focus();
+  }, [pendingMove, task?.column_id]);
 
   if (!task) {
     return null;
@@ -89,6 +127,45 @@ export function TaskDetailDrawer({ boardId, task, open, onClose, onDelete }: Pro
     });
   };
 
+  const moveToColumn = (column: BoardColumn) => {
+    if (column.id === task.column_id || pendingMove !== null || moveInFlightRef.current) return;
+    moveInFlightRef.current = true;
+    const requestId = ++moveRequestRef.current;
+    const fromColumnId = task.column_id;
+
+    setPendingMove({ toColumnId: column.id, fromColumnId });
+    setMoveError(null);
+    // The destination button becomes disabled while the request is in flight.
+    // Move focus to the stable column label now so disabling it cannot drop
+    // keyboard focus to <body>.
+    currentColumnRef.current?.focus();
+
+    patchTask.mutate(
+      {
+        taskId: task.id,
+        input: { expected_version: task.version_id, column_id: column.id },
+      },
+      {
+        onSuccess: (result) => {
+          if (moveRequestRef.current !== requestId) return;
+          moveInFlightRef.current = false;
+          setPendingMove(null);
+          if (result.conflict) {
+            setMoveError('Another tab edited this task. Try the move again.');
+            return;
+          }
+          focusCurrentColumnRef.current = true;
+        },
+        onError: (error) => {
+          if (moveRequestRef.current !== requestId) return;
+          moveInFlightRef.current = false;
+          setPendingMove(null);
+          setMoveError((error as Error).message);
+        },
+      },
+    );
+  };
+
   const submitComment = async () => {
     if (!activeDraft.newComment.trim()) return;
     try {
@@ -101,6 +178,18 @@ export function TaskDetailDrawer({ boardId, task, open, onClose, onDelete }: Pro
   };
 
   const allowedNext = STATUS_GRAPH[task.status] || [];
+
+  // The shared optimistic cache updates the task's column_id as soon as the
+  // PATCH starts. Keep rendering the source column while the move is pending
+  // so the requested destination button stays present (and focusable) rather
+  // than disappearing underneath the user.
+  const displayColumnId = pendingMove?.fromColumnId ?? task.column_id;
+  const displayColumnName =
+    columns.find((column) => column.id === displayColumnId)?.name ?? 'Unknown column';
+  const moveDestinationName =
+    columns.find((column) => column.id === pendingMove?.toColumnId)?.name ?? 'selected column';
+  const moveTargets = columns.filter((column) => column.id !== displayColumnId);
+  const isMovePending = pendingMove !== null;
 
   return (
     <>
@@ -125,6 +214,48 @@ export function TaskDetailDrawer({ boardId, task, open, onClose, onDelete }: Pro
           </div>
 
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div>
+              <label className="text-xs font-medium uppercase text-gray-500">Column</label>
+              <div className="mt-1 flex flex-wrap gap-1">
+                <span
+                  ref={currentColumnRef}
+                  tabIndex={-1}
+                  aria-label={`Current column: ${displayColumnName}`}
+                  className="rounded bg-gray-200 px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {displayColumnName}
+                </span>
+                {moveTargets.map((column) => (
+                  <button
+                    key={column.id}
+                    type="button"
+                    onClick={() => moveToColumn(column)}
+                    disabled={isMovePending}
+                    aria-label={`Move to ${column.name}`}
+                    aria-busy={pendingMove?.toColumnId === column.id}
+                    className="rounded border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    → {column.name}
+                  </button>
+                ))}
+                {columns.length === 0 && (
+                  <span className="px-1 py-1 text-xs text-gray-500">
+                    Column moves unavailable.
+                  </span>
+                )}
+              </div>
+              {pendingMove && (
+                <p role="status" className="mt-1 text-xs text-gray-500">
+                  Moving to {moveDestinationName}…
+                </p>
+              )}
+              {moveError && (
+                <p role="alert" className="mt-1 text-xs text-red-600">
+                  Couldn&apos;t move task: {moveError}
+                </p>
+              )}
+            </div>
+
             <div>
               <label className="text-xs font-medium uppercase text-gray-500">Status</label>
               <div className="mt-1 flex flex-wrap gap-1">
