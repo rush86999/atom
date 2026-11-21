@@ -11,6 +11,12 @@ servers, and the bootstrap helper refuses occupied or managed schemas.  Full
 general migration parity (upgrading existing databases and replaying every
 historical revision through Alembic) remains an explicit open item; this path
 is create_all plus the two PostgreSQL FTS parity steps only.
+
+``--check-upgrade`` is the read-only companion for already-managed PostgreSQL
+schemas.  It verifies the connection's schema/encoding, that a real
+``alembic_version`` table exists, and that every recorded revision is a full,
+exact, unique identifier from the release graph.  It performs no writes; the
+caller may run ``alembic upgrade heads`` only after the check succeeds.
 """
 
 from __future__ import annotations
@@ -137,6 +143,86 @@ def validate_encoding(conn: Any) -> None:
         raise InitializationRefused(
             f"database server_encoding is {encoding!r}; expected 'UTF8'"
         )
+
+
+def resolve_schema(conn: Any, schema: str | None) -> str:
+    """Return the connection's current schema, refusing an explicit mismatch."""
+
+    current = conn.exec_driver_sql("SELECT current_schema()").scalar_one()
+    if current is None:
+        raise InitializationRefused(
+            "current_schema() is unresolved; refusing to check unqualified schema"
+        )
+    if schema is not None and schema != current:
+        raise InitializationRefused(
+            f"requested schema {schema!r} does not match current_schema() "
+            f"{current!r}; refusing to check the wrong schema"
+        )
+    return current
+
+
+def require_alembic_version(conn: Any, schema: str) -> None:
+    """Require a real alembic_version table in the bound PostgreSQL schema."""
+
+    from sqlalchemy import text
+
+    present = conn.execute(
+        text("""
+        SELECT EXISTS (
+            SELECT 1
+            FROM pg_class AS c
+            JOIN pg_namespace AS n ON n.oid = c.relnamespace
+            WHERE n.nspname = :schema
+              AND c.relname = 'alembic_version'
+              AND c.relkind IN ('r', 'p')
+        )
+        """),
+        {"schema": schema},
+    ).scalar_one()
+    if not present:
+        raise InitializationRefused(
+            f"schema {schema!r} has no alembic_version table; "
+            "refusing an unmanaged or marker-only state"
+        )
+
+
+def read_managed_revisions(conn: Any) -> list[Any]:
+    """Read recorded revision IDs without modifying the managed schema."""
+
+    # The bound schema is PostgreSQL's current_schema(), which is also the
+    # resolution target for this unqualified read.
+    rows = conn.exec_driver_sql("SELECT version_num FROM alembic_version").all()
+    return [row[0] for row in rows]
+
+
+def validate_managed_revisions(
+    revisions: Sequence[Any], scripts: Any
+) -> list[str]:
+    """Require nonempty unique full revision IDs that exist in the graph."""
+
+    values = list(revisions)
+    if not values:
+        raise InitializationRefused("alembic_version is empty")
+
+    if any(not isinstance(value, str) or not value for value in values):
+        raise InitializationRefused(
+            "alembic_version contains an invalid revision ID"
+        )
+
+    if len(set(values)) != len(values):
+        raise InitializationRefused(
+            "alembic_version contains duplicate revision IDs"
+        )
+
+    known = {revision.revision for revision in scripts.walk_revisions()}
+    unknown = sorted(set(values) - known)
+    if unknown:
+        raise InitializationRefused(
+            "alembic_version contains unknown or abbreviated revision IDs: "
+            + ", ".join(unknown)
+        )
+
+    return sorted(values)
 
 
 def resolve_heads(scripts: Any) -> list[str]:
@@ -271,22 +357,60 @@ def run(
     return 0
 
 
+def check_upgrade(
+    adapters: Adapters,
+    *,
+    schema: str | None = None,
+    out: Callable[[str], None] = print,
+) -> int:
+    """Verify a managed PostgreSQL schema can be upgraded; never write."""
+
+    preflight(adapters.engine)
+    with adapters.engine.connect() as conn:
+        resolved = resolve_schema(conn, schema)
+        validate_encoding(conn)
+        require_alembic_version(conn, resolved)
+        revisions = validate_managed_revisions(
+            read_managed_revisions(conn), adapters.scripts
+        )
+
+    out(
+        "managed PostgreSQL schema is eligible for upgrade: "
+        + ", ".join(revisions)
+    )
+    return 0
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
     adapters: Adapters | None = None,
 ) -> int:
     parser = argparse.ArgumentParser(
-        description="Initialize an empty, UTF-8 PostgreSQL schema exactly once."
+        description=(
+            "Initialize an empty, UTF-8 PostgreSQL schema exactly once, or "
+            "check a managed schema before upgrading it."
+        )
     )
     parser.add_argument(
         "--schema",
         help="explicit schema; must match PostgreSQL current_schema()",
     )
+    parser.add_argument(
+        "--check-upgrade",
+        action="store_true",
+        help=(
+            "read-only verification of an existing managed PostgreSQL schema; "
+            "does not initialize or upgrade"
+        ),
+    )
     args = parser.parse_args(argv)
 
     try:
-        return run(adapters or load_adapters(), schema=args.schema)
+        resolved_adapters = adapters or load_adapters()
+        if args.check_upgrade:
+            return check_upgrade(resolved_adapters, schema=args.schema)
+        return run(resolved_adapters, schema=args.schema)
     except RuntimeError as exc:
         print(f"refused: {exc}", file=sys.stderr)
         return 2

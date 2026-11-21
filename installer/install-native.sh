@@ -177,19 +177,30 @@ echo ""
 # fresh checkout — the tree carries six unmerged branch heads and the
 # branches have cross-branch ALTER/CREATE dependencies, so no ordering
 # can build an empty database (verified on an isolated clean install).
-# The app's own startup path is the schema authority for fresh
-# databases (main_api_app: create_all + sqlite drift repair — the same
-# code every boot runs). The installer therefore initializes via that
-# path and ADOPTS the schema with alembic's supported `stamp heads`, so
-# later incremental migrations apply normally. Heads are NOT merged and
+# For SQLite and other non-PostgreSQL backends the app's own startup path
+# remains the schema authority for fresh databases (main_api_app:
+# create_all + sqlite drift repair — the same code every boot runs) and
+# the installer ADOPTS that schema with alembic's supported
+# `stamp heads`, so later incremental migrations apply normally.
+# PostgreSQL uses the transactional scripts.initialize_postgres
+# initializer instead, which performs its own occupancy check (so an
+# empty-looking routine/type-only schema is refused there) and stamps the
+# release heads in the same transaction. Heads are NOT merged and
 # create_all is not substituted for upgrades on existing databases.
 # Fresh-schema adoption ONLY for a verified EMPTY database. An existing
 # database must go through the validated alembic upgrade path (or stop
 # with an actionable message) — silently stamping an existing database
-# "current" would mask real drift (owner correction 2026-10-08).
+# "current" would mask real drift (owner correction 2026-10-08). For
+# managed PostgreSQL state the read-only `--check-upgrade` gate runs
+# first; `alembic upgrade heads` runs only if it succeeds.
 echo "🗄️  Initializing database schema..."
 cd backend
 source venv/bin/activate
+DB_DIALECT=$(python - <<'PYDIALECT'
+from core.database import engine
+print(engine.dialect.name)
+PYDIALECT
+)
 DB_STATE=$(python - <<'PYSTATE'
 import sys
 from sqlalchemy import inspect
@@ -205,11 +216,33 @@ PYSTATE
 )
 case "$DB_STATE" in
     EMPTY)
-        python -c "from core.database import engine; from core.models import Base; Base.metadata.create_all(engine); print('schema created')"
-        alembic stamp heads
-        echo "✅ Fresh database initialized (schema created, migration state stamped)"
+        if [ "$DB_DIALECT" = "postgresql" ]; then
+            # PostgreSQL freshness is decided by the initializer itself: it
+            # refuses occupied schemas, including routine/type-only schemas
+            # that a table-name check would look empty.  All DDL, FTS parity,
+            # and head stamping run in one transaction.
+            echo "   Empty PostgreSQL state — running transactional initializer..."
+            python -m scripts.initialize_postgres
+            echo "✅ Fresh PostgreSQL database initialized (transactional initializer)"
+        else
+            python -c "from core.database import engine; from core.models import Base; Base.metadata.create_all(engine); print('schema created')"
+            alembic stamp heads
+            echo "✅ Fresh database initialized (schema created, migration state stamped)"
+        fi
         ;;
     MANAGED)
+        if [ "$DB_DIALECT" = "postgresql" ]; then
+            # Read-only gate: schema binding, UTF8, a real alembic_version
+            # table, and full exact revisions from this release graph.  A
+            # legacy managed database without the bootstrap marker is valid;
+            # empty, abbreviated, unknown, or marker-only state is refused.
+            echo "   Existing PostgreSQL database — verifying managed state..."
+            python -m scripts.initialize_postgres --check-upgrade || {
+                echo "❌ Managed PostgreSQL state check failed; no upgrade was run."
+                echo "   Repair alembic_version or the release graph, then retry."
+                exit 1
+            }
+        fi
         echo "   Existing database with migration history — applying validated upgrades..."
         alembic upgrade heads || {
             echo "❌ Upgrade failed. The database may be PARTIALLY migrated —"

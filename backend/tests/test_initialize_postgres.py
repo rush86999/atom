@@ -31,11 +31,24 @@ class _Result:
 
 
 class _Connection:
-    def __init__(self, *, label, events, encoding="UTF8", catalog_rows=()):
+    def __init__(
+        self,
+        *,
+        label,
+        events,
+        encoding="UTF8",
+        catalog_rows=(),
+        current_schema="public",
+        has_alembic_version=True,
+        revisions=(),
+    ):
         self.label = label
         self.events = events
         self.encoding = encoding
         self.catalog_rows = catalog_rows
+        self.current_schema = current_schema
+        self.has_alembic_version = has_alembic_version
+        self.revisions = list(revisions)
 
     def __enter__(self):
         return self
@@ -43,10 +56,19 @@ class _Connection:
     def __exit__(self, exc_type, exc, tb):
         return False
 
+    def execute(self, statement, parameters=None):
+        return self.exec_driver_sql(str(statement), parameters)
+
     def exec_driver_sql(self, sql, parameters=None):
         self.events.append((self.label, "sql", sql))
         if "server_encoding" in sql:
             return _Result(scalar=self.encoding)
+        if sql.strip() == "SELECT current_schema()":
+            return _Result(scalar=self.current_schema)
+        if "relname = 'alembic_version'" in sql:
+            return _Result(scalar=self.has_alembic_version)
+        if "version_num" in sql:
+            return _Result(rows=[(revision,) for revision in self.revisions])
         if "attgenerated" in sql:
             return _Result(rows=self.catalog_rows)
         return _Result()
@@ -164,6 +186,9 @@ def _adapters(
     metadata_tables=None,
     catalog_rows=None,
     initializer_error=None,
+    current_schema="public",
+    has_alembic_version=True,
+    revisions=(),
 ):
     events = []
     callback_conn = _Connection(
@@ -171,8 +196,11 @@ def _adapters(
         events=events,
         encoding=encoding,
         catalog_rows=_catalog_rows() if catalog_rows is None else catalog_rows,
+        current_schema=current_schema,
+        has_alembic_version=has_alembic_version,
+        revisions=revisions,
     )
-    engine = _Engine(dialect_name=dialect_name, connection=None)
+    engine = _Engine(dialect_name=dialect_name, connection=callback_conn)
     metadata = _Metadata(events=events, tables=metadata_tables)
     scripts = _Scripts(heads, known=known)
     initializer = _Initializer(
@@ -452,6 +480,165 @@ class InitializePostgresTests(unittest.TestCase):
 
         self.assertEqual(_Context.last.stamped[1], "heads")
         self.assertFalse([event for event in events if event[1] == "commit"])
+
+
+class CheckUpgradeTests(unittest.TestCase):
+    REVISIONS = ("20260808_documents_fts", "20260624_reasoning_fts")
+
+    def test_accepts_legacy_managed_state_without_bootstrap_marker(self):
+        adapters, events, initializer, stamp, _, _ = _adapters(
+            revisions=self.REVISIONS
+        )
+        output = []
+
+        result = cli.check_upgrade(adapters, out=output.append)
+
+        self.assertEqual(result, 0)
+        self.assertFalse(initializer.called)
+        self.assertIsNone(stamp.heads)
+        self.assertNotIn(("metadata", "create_all"), events)
+        self.assertIn("20260624_reasoning_fts", output[0])
+        self.assertIn("20260808_documents_fts", output[0])
+
+        statements = [event[2] for event in events if event[1] == "sql"]
+        self.assertTrue(statements)
+        for statement in statements:
+            self.assertIn(
+                statement.lstrip().split(None, 1)[0].upper(),
+                {"SELECT", "SHOW"},
+            )
+        self.assertFalse(
+            [event for event in events if event[1] in {"commit", "rollback"}]
+        )
+
+    def test_accepts_matching_explicit_schema(self):
+        adapters, _, _, _, _, _ = _adapters(
+            revisions=self.REVISIONS, current_schema="tenant"
+        )
+
+        result = cli.check_upgrade(
+            adapters, schema="tenant", out=lambda _: None
+        )
+
+        self.assertEqual(result, 0)
+
+    def test_accepts_legacy_revision_that_is_in_release_graph(self):
+        adapters, _, _, _, _, _ = _adapters(
+            known=self.REVISIONS + ("20250101_legacy",),
+            revisions=("20250101_legacy",),
+        )
+
+        result = cli.check_upgrade(adapters, out=lambda _: None)
+
+        self.assertEqual(result, 0)
+
+    def test_refuses_non_postgres_without_any_sql(self):
+        adapters, events, _, _, _, _ = _adapters(
+            dialect_name="sqlite", revisions=self.REVISIONS
+        )
+
+        with self.assertRaises(cli.InitializationRefused):
+            cli.check_upgrade(adapters)
+
+        self.assertFalse([event for event in events if event[1] == "sql"])
+
+    def test_refuses_schema_binding_mismatch_before_revision_read(self):
+        adapters, events, _, _, _, _ = _adapters(
+            revisions=self.REVISIONS, current_schema="public"
+        )
+
+        with self.assertRaises(cli.InitializationRefused):
+            cli.check_upgrade(adapters, schema="tenant")
+
+        statements = [event[2] for event in events if event[1] == "sql"]
+        self.assertFalse(
+            [statement for statement in statements if "version_num" in statement]
+        )
+
+    def test_refuses_non_utf8_before_table_probe(self):
+        adapters, events, _, _, _, _ = _adapters(
+            encoding="SQL_ASCII", revisions=self.REVISIONS
+        )
+
+        with self.assertRaises(cli.InitializationRefused):
+            cli.check_upgrade(adapters)
+
+        statements = [event[2] for event in events if event[1] == "sql"]
+        self.assertFalse(
+            [statement for statement in statements if "alembic_version" in statement]
+        )
+
+    def test_refuses_missing_alembic_version_table(self):
+        adapters, _, _, _, _, _ = _adapters(
+            has_alembic_version=False, revisions=self.REVISIONS
+        )
+
+        with self.assertRaises(cli.InitializationRefused):
+            cli.check_upgrade(adapters)
+
+    def test_refuses_marker_only_state_without_version_table(self):
+        adapters, _, _, _, _, _ = _adapters(
+            has_alembic_version=False, revisions=()
+        )
+
+        with self.assertRaises(cli.InitializationRefused):
+            cli.check_upgrade(adapters)
+
+    def test_refuses_empty_revision_set(self):
+        adapters, _, _, _, _, _ = _adapters(revisions=())
+
+        with self.assertRaises(cli.InitializationRefused):
+            cli.check_upgrade(adapters)
+
+    def test_refuses_abbreviated_revision(self):
+        adapters, _, _, _, _, _ = _adapters(revisions=("20260624",))
+
+        with self.assertRaises(cli.InitializationRefused):
+            cli.check_upgrade(adapters)
+
+    def test_refuses_unknown_revision(self):
+        adapters, _, _, _, _, _ = _adapters(
+            revisions=("20260101_not_in_graph",)
+        )
+
+        with self.assertRaises(cli.InitializationRefused):
+            cli.check_upgrade(adapters)
+
+    def test_refuses_duplicate_revision_ids(self):
+        adapters, _, _, _, _, _ = _adapters(
+            revisions=(self.REVISIONS[0], self.REVISIONS[0])
+        )
+
+        with self.assertRaises(cli.InitializationRefused):
+            cli.check_upgrade(adapters)
+
+    def test_main_check_upgrade_does_not_initialize(self):
+        adapters, _, initializer, stamp, _, _ = _adapters(
+            revisions=self.REVISIONS
+        )
+
+        result = cli.main(["--check-upgrade"], adapters=adapters)
+
+        self.assertEqual(result, 0)
+        self.assertFalse(initializer.called)
+        self.assertIsNone(stamp.heads)
+
+    def test_main_check_upgrade_refusal_returns_two(self):
+        adapters, _, initializer, _, _, _ = _adapters(revisions=())
+
+        result = cli.main(["--check-upgrade"], adapters=adapters)
+
+        self.assertEqual(result, 2)
+        self.assertFalse(initializer.called)
+
+    def test_main_default_remains_fresh_initialization(self):
+        adapters, _, initializer, stamp, _, _ = _adapters()
+
+        result = cli.main([], adapters=adapters)
+
+        self.assertEqual(result, 0)
+        self.assertTrue(initializer.called)
+        self.assertIsNotNone(stamp.heads)
 
 
 if __name__ == "__main__":
