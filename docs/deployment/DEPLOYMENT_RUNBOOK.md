@@ -90,6 +90,23 @@ record Alembic history. Verify a fresh-install path for your release before
 deploying a new PostgreSQL database. The procedure below applies to an
 existing Alembic-managed schema after a staging rehearsal.
 
+For a fresh-install rehearsal, verify the target PostgreSQL database uses UTF-8
+before provisioning it:
+
+```sql
+SHOW server_encoding;
+```
+
+The expected result is `UTF8`. On a disposable PostgreSQL 16 database using
+`SQL_ASCII`, Atom returned a successful `/alive` response while startup
+failed to write seed data containing non-ASCII characters. A UTF-8 rehearsal
+of the same release created the three bundled personal starter templates and
+preserved them across restart. After boot, sign in as the bootstrap user and
+check the expected starter templates through `GET /api/user/templates`. Repeat
+the read after an orderly restart and compare the template IDs. Run the check
+with a fresh rehearsal database so pre-existing seed rows cannot mask a failed
+startup.
+
 ```bash
 # Check current migration version
 alembic current
