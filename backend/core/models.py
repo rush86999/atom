@@ -2,7 +2,7 @@ from sqlalchemy import (
     Column, Integer, String, DateTime, ForeignKey, Boolean, Float, Text, Index,
     Table, JSON, MetaData, select, update, delete, func, and_, or_, not_,
     UniqueConstraint, Enum as SQLEnum, BigInteger, TypeDecorator, Numeric, Date,
-    CheckConstraint
+    CheckConstraint, text
 )
 from sqlalchemy.orm import relationship, sessionmaker, Session, declared_attr, DeclarativeBase, validates
 from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
@@ -1215,13 +1215,31 @@ class AgentReasoningStep(Base):
     execution = relationship("AgentExecution", backref="reasoning_steps")
 
 
+# Marker consumed by alembic/env.py. Alembic's compare_metadata does not
+# evaluate ``Index.ddl_if``, so this explicit marker lets the online
+# ``include_object`` hook skip the PostgreSQL-only index during SQLite
+# autogeneration while leaving PostgreSQL (and reflected indexes) untouched.
+TURN_FACT_ACTIVE_INDEX_MARKER = "turn_facts_active_hash_postgres_only"
+
+
+def _turn_fact_active_hash_index() -> Index:
+    index = Index(
+        "uq_turn_facts_active_hash",
+        "workspace_id", "content_hash",
+        unique=True,
+        postgresql_where=text("status = 'active'"),
+    ).ddl_if(dialect="postgresql")
+    index.info[TURN_FACT_ACTIVE_INDEX_MARKER] = True
+    return index
+
+
 class TurnFact(Base):
     """
     Durable facts extracted from agent turns (Hermes-style memory-provider layer).
 
     Vectors live in LanceDB (embedded, file-based) keyed by `vector_id`;
     this SQL row is the source of truth for prompt injection (Tier-1).
-    The `(workspace_id, content_hash)` unique constraint enforces dedup —
+    The `(workspace_id, content_hash)` partial unique index enforces dedup —
     extraction may bump confidence or supersede, but never silently drop.
 
     See: docs/architecture/CONTEXT_MEMORY.md for the full design rationale.
@@ -1230,9 +1248,10 @@ class TurnFact(Base):
     __table_args__ = (
         # Partial uniqueness: at most ONE active row per (workspace, hash).
         # Superseded / invalidated rows keep their hash for audit history.
-        # sqlite has no native partial-index DDL in older versions; we enforce
-        # uniqueness at the application layer (TurnFactExtractor._persist_one)
+        # PostgreSQL-only (``ddl_if``) to match the public migration; SQLite
+        # keeps application-layer enforcement (TurnFactExtractor._persist_one)
         # via a SELECT-then-UPDATE + IntegrityError fallback.
+        _turn_fact_active_hash_index(),
         Index(
             "ix_turn_facts_workspace_status_created",
             "workspace_id", "status", "created_at",
