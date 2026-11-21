@@ -46,7 +46,7 @@ export default function AcceptanceCaseEditor({ appId, rpc, sourceRevision }: { a
   const [draft, setDraft] = useState({ name: "", inputKey: "", input: "", expectedKey: "", expected: "" });
   const [busy, setBusy] = useState<"load" | "save" | "run" | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
-  const [result, setResult] = useState<Outcome | null>(null);
+  const [result, setResult] = useState<(Outcome & { sourceSha256: string; testsSha256: string }) | null>(null);
   const rpcRef = useRef(rpc); rpcRef.current = rpc;
   const currentSource = useRef(sourceRevision); currentSource.current = sourceRevision;
 
@@ -121,10 +121,20 @@ export default function AcceptanceCaseEditor({ appId, rpc, sourceRevision }: { a
       const raw = await rpcRef.current("mini_app_run_tests", {
         app_id: appId, expected_tests_sha256: digest, expected_source_sha256: sourceDigest,
       });
-      const data = raw as { success?: unknown; error?: unknown };
+      const data = raw as { success?: unknown; error?: unknown; source_sha256?: unknown; tests_sha256?: unknown };
       if (data.success !== true) throw new Error(typeof data.error === "string" ? data.error : "run failed");
-      if (currentSource.current === sourceRevision) setResult(outcome(raw));
-    } catch (error) { fail(error, "Could not run the tests."); }
+      if (data.source_sha256 !== sourceDigest || data.tests_sha256 !== digest) {
+        throw new Error("The grading result could not be verified.");
+      }
+      if (currentSource.current === sourceRevision) setResult({ ...outcome(raw), sourceSha256: sourceDigest, testsSha256: digest });
+    } catch (error) {
+      const rpcError = error as { actionResult?: { error?: unknown }; message?: unknown };
+      if ((rpcError?.actionResult?.error ?? rpcError?.message) === "mini_app_logic_changed") {
+        setFailure({ message: "Saved logic changed during grading. Reload the saved logic and run the tests again.", stale: false });
+      } else {
+        fail(error, "Could not run the tests.");
+      }
+    }
     finally { setBusy(null); }
   };
 
@@ -171,7 +181,12 @@ export default function AcceptanceCaseEditor({ appId, rpc, sourceRevision }: { a
       <button type="button" onClick={() => void save()} disabled={busy !== null || !digest}>Add case</button>
       {result && (
         <div role="status" aria-live="polite">
-          <p>{result.passed}/{result.total} passed</p>
+          <p>{result.passed}/{result.total} passed for saved logic.</p>
+          <details>
+            <summary>Graded source and tests</summary>
+            <p>Source <code>{result.sourceSha256}</code></p>
+            <p>Tests <code>{result.testsSha256}</code></p>
+          </details>
           {result.failed.length > 0 && (
             <ul aria-label="Failed cases">{result.failed.map((name) => <li key={name}>{name}</li>)}</ul>
           )}

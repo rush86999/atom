@@ -2710,6 +2710,8 @@ async def run_tests(
             continue
 
         if not res.get("success"):
+            if expected_source_sha256 is not None and res.get("error") == "mini_app_logic_changed":
+                return {"interrupted": True, "error": "mini_app_logic_changed"}
             results.append({
                 "name": name,
                 "passed": False,

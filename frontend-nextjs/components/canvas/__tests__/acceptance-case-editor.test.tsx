@@ -18,7 +18,7 @@ test("preserves existing cases and pins saved tests and source", async () => {
     .mockResolvedValueOnce(status([existing], "before"))
     .mockResolvedValueOnce({success: true, tests_sha256: "after"})
     .mockResolvedValueOnce(status([existing], "after"))
-    .mockResolvedValueOnce({success: true, passed: 1, total: 2, results: [{name: "Zeros", passed: false}]});
+    .mockResolvedValueOnce({success: true, source_sha256: "saved-code", tests_sha256: "after", passed: 1, total: 2, results: [{name: "Zeros", passed: false}]});
   render(<AcceptanceCaseEditor appId="app" rpc={rpc} sourceRevision="code" />);
   await screen.findByText("prior");
   draft();
@@ -29,7 +29,7 @@ test("preserves existing cases and pins saved tests and source", async () => {
     tests: [existing, {name: "Zeros", inputs: {values: [0,0]}, expect_state: {total: 0}}],
   });
   fireEvent.click(screen.getByRole("button", {name: "Run saved tests"}));
-  await screen.findByText("1/2 passed");
+  await screen.findByText("1/2 passed for saved logic.");
   expect(rpc).toHaveBeenNthCalledWith(4, "mini_app_run_tests", {
     app_id: "app", expected_tests_sha256: "after", expected_source_sha256: "saved-code",
   });
@@ -49,4 +49,44 @@ test("preserves unsaved case when the server reports a stale snapshot", async ()
   fireEvent.click(screen.getAllByRole("button", {name: "Reload snapshot"})[0]);
   await screen.findByText("newer");
   await waitFor(() => expect((screen.getByLabelText("New case name") as HTMLInputElement).value).toBe("Zeros"));
+});
+
+test("shows a plain successful summary for saved code while the editor shows an unsaved change", async () => {
+  const rpc = jest.fn()
+    .mockResolvedValueOnce(status([existing], "tests"))
+    .mockResolvedValueOnce(status([existing], "tests"))
+    .mockResolvedValueOnce({success: true, source_sha256: "saved-code", tests_sha256: "tests", passed: 1, total: 1, results: [{name: "prior", passed: true}]});
+  const editor = (sourceRevision: string) => <AcceptanceCaseEditor appId="app" rpc={rpc} sourceRevision={sourceRevision} />;
+  const {rerender} = render(editor("return 1"));
+  await screen.findByText("prior");
+  rerender(editor("return 999"));
+  fireEvent.click(screen.getByRole("button", {name: "Run saved tests"}));
+  await screen.findByText("1/1 passed for saved logic.");
+  expect(rpc).toHaveBeenNthCalledWith(3, "mini_app_run_tests", {
+    app_id: "app", expected_tests_sha256: "tests", expected_source_sha256: "saved-code",
+  });
+});
+
+test("shows source-change guidance without an incomplete grade", async () => {
+  const rpc = jest.fn()
+    .mockResolvedValueOnce(status([existing], "tests"))
+    .mockResolvedValueOnce(status([existing], "tests"))
+    .mockRejectedValueOnce({ actionResult: { error: "mini_app_logic_changed" } });
+  render(<AcceptanceCaseEditor appId="app" rpc={rpc} sourceRevision="code" />);
+  await screen.findByText("prior");
+  fireEvent.click(screen.getByRole("button", {name: "Run saved tests"}));
+  await screen.findByText("Saved logic changed during grading. Reload the saved logic and run the tests again.");
+  expect(screen.queryByText(/passed for saved logic/)).toBeNull();
+});
+
+test("withholds a report whose source differs from the requested revision", async () => {
+  const rpc = jest.fn()
+    .mockResolvedValueOnce(status([existing], "tests"))
+    .mockResolvedValueOnce(status([existing], "tests"))
+    .mockResolvedValueOnce({success:true, source_sha256:"different", tests_sha256:"tests", passed:1, total:1});
+  render(<AcceptanceCaseEditor appId="app" rpc={rpc} sourceRevision="code" />);
+  await screen.findByText("prior");
+  fireEvent.click(screen.getByRole("button", {name:"Run saved tests"}));
+  await screen.findByRole("alert");
+  expect(screen.queryByText(/passed for saved logic/)).toBeNull();
 });
