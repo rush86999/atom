@@ -10,6 +10,14 @@ This guide covers deploying the Atom platform to production using Docker Compose
 
 ## Quick Start
 
+> **Run production Compose commands from the repository root.** The production
+> Compose file is `infra/docker-compose.prod.yml`; there is no
+> `docker-compose.prod.yml` at the repository root. Pass
+> `--project-directory .` so Compose resolves the `backend/`,
+> `frontend-nextjs/`, and `backend/piece-engine/` build contexts against the
+> repository. Without it, Compose resolves those paths under `infra/`, where
+> the application trees do not exist.
+
 1. **Clone the repository**:
    ```bash
    git clone git@github.com:rush86999/atom.git
@@ -23,22 +31,46 @@ This guide covers deploying the Atom platform to production using Docker Compose
    # - POSTGRES_PASSWORD (use a strong password)
    # - JWT_SECRET_KEY (openssl rand -hex 32)
    # - BYOK_ENCRYPTION_KEY (openssl rand -hex 32)
-    # - AI provider keys (optional — LLM features disabled without; add via Settings > AI or .env)
+   # - AI provider keys (optional — LLM features disabled without; add via Settings > AI or .env)
    ```
 
-3. **Start the stack**:
+3. **Prepare the database before starting the application**:
+
+   **Existing Alembic-managed database:** the commands below apply to an
+   existing schema whose `server_encoding` is `UTF8`. Rehearse the upgrade
+   against a staging copy before applying it to production.
+
+   **Fresh production installation:** do not run the migration commands below
+   against an empty database. Read the [deployment runbook's migration
+   step](../deployment/DEPLOYMENT_RUNBOOK.md#step-2-run-database-migrations)
+   first: a full `alembic upgrade heads` on an empty PostgreSQL 16 schema fails
+   at revision `b78e9c2f1a3d`, and the application's startup bootstrap does not
+   record Alembic history. Verify a fresh-install path for your release before
+   provisioning a new database, and confirm `SHOW server_encoding;` returns
+   `UTF8`. Do not start the application until that path succeeds.
+
    ```bash
-   docker compose -f docker-compose.prod.yml up -d
+   # Start only PostgreSQL. The backend and frontend are not started yet.
+   docker compose --project-directory . -f infra/docker-compose.prod.yml up -d postgres
+
+   # Clear the backend PYTHONPATH for Alembic so the local migration directory
+   # does not shadow the installed Alembic package.
+   # Review the heads, then apply them in a one-off backend container.
+   docker compose --project-directory . -f infra/docker-compose.prod.yml run --rm -e PYTHONPATH= atom-backend alembic heads
+   docker compose --project-directory . -f infra/docker-compose.prod.yml run --rm -e PYTHONPATH= atom-backend alembic upgrade heads
+
+   # Confirm the applied revisions match the migration heads.
+   docker compose --project-directory . -f infra/docker-compose.prod.yml run --rm -e PYTHONPATH= atom-backend alembic current
    ```
 
-4. **Run database migrations**:
+4. **Start the application after migrations succeed**:
    ```bash
-   docker compose exec atom-backend alembic upgrade head
+   docker compose --project-directory . -f infra/docker-compose.prod.yml up -d
    ```
 
 5. **Access the application**:
    - Frontend: http://localhost:3000
-   - Backend API: http://localhost:8001/docs
+   - Backend API: http://localhost:8001/api/v1/docs
 
 ## Environment Variables
 
@@ -53,19 +85,39 @@ This guide covers deploying the Atom platform to production using Docker Compose
 
 ## Health Checks
 
-- Backend: `curl http://localhost:8001/health`
-- Frontend: `curl http://localhost:3000`
+- Backend reachability: `curl -fsS http://localhost:8001/alive`
+
+  A successful `/alive` response only means the API is reachable. It does not
+  prove that startup seed data was written.
+
+- Seed data: sign in as the bootstrap user, then request `GET /api/user/templates`
+  with the session token:
+
+  ```bash
+  curl -fsS -H "Authorization: Bearer $TOKEN" http://localhost:8001/api/user/templates
+  ```
+
+  Confirm the bundled starter templates are present, repeat the read after an
+  orderly restart, and compare the template IDs. A failed seed write can still
+  leave `/alive` returning success; see the [deployment
+  runbook](../deployment/DEPLOYMENT_RUNBOOK.md#step-2-run-database-migrations)
+  for the full fresh-install rehearsal.
+
+- Frontend: `curl -fsS http://localhost:3000`
 
 ## Scaling
 
 For high availability, consider:
 - Using an external managed PostgreSQL (RDS, Cloud SQL)
 - Deploying multiple backend replicas behind a load balancer
-- Using Redis for session and cache (already in docker-compose.production.yml)
+- Adding Redis for session and cache (not included in `infra/docker-compose.prod.yml`)
 
 ## Monitoring
 
-The `deployment/docker-compose.production.yml` includes Prometheus and Grafana for observability. Access Grafana at http://localhost:3001 (default password: admin).
+`infra/docker-compose.prod.yml` does not include Prometheus or Grafana. Deploy
+them separately if you need dashboards; see the [deployment
+runbook](../deployment/DEPLOYMENT_RUNBOOK.md) for monitoring and verification
+steps.
 # Frontend to Backend Migration - Deployment Guide
 
 ## Overview
@@ -128,7 +180,7 @@ pytest tests/test_user_management_api.py -v
 python -c "from core.models import User, EmailVerificationToken, Tenant; print('Models OK')"
 
 # Check API endpoints
-curl http://localhost:8001/docs | grep "api/users"
+curl -fsS http://localhost:8001/api/v1/openapi.json | jq -e '.paths | keys | any(startswith("/api/users"))'
 ```
 
 **Expected Results**:
@@ -260,9 +312,13 @@ Run comprehensive tests:
 # Deploy backend (zero-downtime deployment)
 ./deploy-backend.sh production
 
-# Verify backend health
-curl https://api.atom.com/health
-# Expected: {"status": "healthy"}
+# Verify the API is reachable
+curl -fsS https://api.atom.com/alive
+# Expected: HTTP 200. Reachability only; this does not confirm seed data.
+
+# Verify signed seed data after signing in as the bootstrap user
+curl -fsS -H "Authorization: Bearer $TOKEN" https://api.atom.com/api/user/templates
+# Expected: the bundled starter templates are listed.
 ```
 
 ### Step 2: Deploy Frontend to Production (Feature Flag Disabled)

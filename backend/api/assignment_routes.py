@@ -2034,14 +2034,29 @@ async def start_employee_objective(
         if agent is None:
             raise HTTPException(status_code=404, detail="Employee agent not found")
 
+    requested_output = str(body.requested_output or "").strip().lower()
+    if requested_output and requested_output not in (
+            "document", "presentation"):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "requested_output must be document or presentation for "
+                "employee-decided artifact work"))
+
     resolved_sources = _resolve_objective_sources(body, current_user, db)
     action_views = _employee_action_views(body.authorized_actions)
+    teaching_recipient = str(
+        (body.task_context or {}).get("recipient") or "") or None
+    teaching_scope = str(
+        (body.task_context or {}).get("task_scope") or "") or None
     teaching = _teaching_snapshot_for_start(
         db,
         agent_id=body.agent_id,
         workspace_id=workspace_id,
-        output_types=[],
+        output_types=[requested_output] if requested_output else [],
         task_context=body.task_context,
+        recipient=teaching_recipient,
+        task_scope=teaching_scope,
         now=datetime.now(timezone.utc).isoformat(),
     )
     if body.teaching_terms:
@@ -2110,7 +2125,7 @@ async def start_employee_objective(
         )
     accepted_actions = list(dict.fromkeys(
         ["retrieve", *list(body.authorized_actions or [])]))
-    if body.requested_output:
+    if requested_output:
         accepted_actions = list(dict.fromkeys(
             [*accepted_actions, "present"]))
     plan = plan_assignment(
@@ -2149,16 +2164,9 @@ async def start_employee_objective(
     # Server-owned compiled-work hold on the model-compiled plan (same
     # contract as the direct creation path).
     _bind_compiled_workload(plan, body.registered_task_id)
-    requested_output = str(body.requested_output or "").strip().lower()
     if requested_output:
         from core.assignment_plan import new_deliverable
 
-        if requested_output not in ("document", "presentation"):
-            raise HTTPException(
-                status_code=422,
-                detail=(
-                    "requested_output must be document or presentation for "
-                    "employee-decided artifact work"))
         artifact_path = allocate_output_path(
             employee, kind=requested_output, title=body.objective,
             assignment_id=f"draft-{uuid.uuid4().hex[:12]}")

@@ -3250,6 +3250,155 @@ def test_objective_only_reads_authorized_evidence(route_env, tmp_path, monkeypat
     assert fresh_record["assignment"]["sources"]
 
 
+def test_requested_output_uses_matching_reviewed_lesson(
+        route_env, tmp_path, monkeypatch):
+    from core.artifact_teaching import resolve_artifact_teaching
+
+    agent_id = _teaching_agent(
+        route_env, "Quote employee", "Georgia", "wholesale")
+    resolution = resolve_artifact_teaching(
+        route_env["db"], agent_id, "document",
+        task_context={"audience": "wholesale"}, workspace_id="ws-1")
+    assert resolution["status"] == "applicable", resolution
+    assert resolution["spec"]["font_name"] == "Georgia", resolution
+    note = tmp_path / "source.txt"
+    note.write_text("The customer requested two units.\n")
+    inspected = {}
+
+    async def capture(context, **_kwargs):
+        inspected.update(context["teaching"])
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "Read the selected source.",
+                "evidence_reads": [{
+                    "step_id": "evidence-1", "title": "Read the source",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", capture)
+    response = route_env["client"].post(
+        "/api/assignments/from-objective", json={
+            "objective": "Prepare a document for the customer",
+            "agent_id": agent_id,
+            "sources": [{"path": str(note), "kind": "document"}],
+            "task_context": {"audience": "wholesale"},
+            "requested_output": "document",
+            "use_model": False,
+        })
+    assert response.status_code == 200, response.text
+    lesson_id = resolution["sources"][0]["id"]
+    assert any(
+        item.get("id") == lesson_id
+        for item in inspected["effective_lesson_ids"]), inspected
+    run_id = response.json()["run_id"]
+    snapshot = route_env["lifecycle"].get_assignment(run_id)["teaching_snapshot"]
+    assert snapshot["output_requirements"]["font_name"] == "Georgia", snapshot
+
+
+def test_requested_output_ignores_lesson_with_other_context(
+        route_env, tmp_path, monkeypatch):
+    from core.artifact_teaching import resolve_artifact_teaching
+
+    agent_id = _teaching_agent(
+        route_env, "Other context employee", "Georgia", "procurement")
+    resolution = resolve_artifact_teaching(
+        route_env["db"], agent_id, "document",
+        task_context={"audience": "wholesale"}, workspace_id="ws-1")
+    assert resolution["status"] == "not_applicable", resolution
+    note = tmp_path / "source.txt"
+    note.write_text("The customer requested two units.\n")
+    inspected = {}
+
+    async def capture(context, **_kwargs):
+        inspected.update(context["teaching"])
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "Read the selected source.",
+                "evidence_reads": [{
+                    "step_id": "evidence-1", "title": "Read the source",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", capture)
+    response = route_env["client"].post(
+        "/api/assignments/from-objective", json={
+            "objective": "Prepare a document for the customer",
+            "agent_id": agent_id,
+            "sources": [{"path": str(note), "kind": "document"}],
+            "task_context": {"audience": "wholesale"},
+            "requested_output": "document",
+            "use_model": False,
+        })
+    assert response.status_code == 200, response.text
+    assert inspected["effective_lesson_ids"] == [], inspected
+    run_id = response.json()["run_id"]
+    snapshot = route_env["lifecycle"].get_assignment(run_id)["teaching_snapshot"]
+    assert snapshot["effective_lesson_ids"] == [], snapshot
+    assert snapshot["output_requirements"] == {}, snapshot
+
+
+def test_objective_without_requested_output_keeps_artifact_teaching_unset(
+        route_env, tmp_path, monkeypatch):
+    agent_id = _teaching_agent(
+        route_env, "No artifact employee", "Georgia", "wholesale")
+    note = tmp_path / "source.txt"
+    note.write_text("The customer requested two units.\n")
+    inspected = {}
+
+    async def capture(context, **_kwargs):
+        inspected.update(context["teaching"])
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "Read the selected source.",
+                "evidence_reads": [{
+                    "step_id": "evidence-1", "title": "Read the source",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", capture)
+    response = route_env["client"].post(
+        "/api/assignments/from-objective", json={
+            "objective": "Read the customer source",
+            "agent_id": agent_id,
+            "sources": [{"path": str(note), "kind": "document"}],
+            "task_context": {"audience": "wholesale"},
+            "teaching_terms": {"currency": "USD"},
+            "use_model": False,
+        })
+    assert response.status_code == 200, response.text
+    assert inspected["effective_lesson_ids"] == [], inspected
+    assert inspected["terms"]["currency"] == "USD", inspected
+    run_id = response.json()["run_id"]
+    assignment = route_env["lifecycle"].get_assignment(run_id)
+    snapshot = assignment["teaching_snapshot"]
+    assert snapshot["effective_lesson_ids"] == [], snapshot
+    assert snapshot["output_requirements"] == {}, snapshot
+    assert not any(
+        step.get("step_id") == "requested-artifact"
+        for step in assignment["steps"]), assignment["steps"]
+
+
 def test_objective_uploaded_document_is_selectable_and_readable(
         route_env, tmp_path, monkeypatch):
     payload = tmp_path / "purchase-order.json"

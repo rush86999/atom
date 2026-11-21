@@ -17,23 +17,53 @@ logger = logging.getLogger(__name__)
 router = BaseAPIRouter(prefix="/api/onboarding", tags=["Onboarding"])
 
 
+_ONBOARDING_COLUMNS = (
+    ("onboarding_completed", "BOOLEAN DEFAULT FALSE"),
+    ("onboarding_step", "VARCHAR DEFAULT 'welcome'"),
+)
+
+
+def _onboarding_column_statements(dialect_name: str) -> tuple:
+    """DDL for the onboarding columns, idempotent where the dialect allows it.
+
+    PostgreSQL supports ADD COLUMN IF NOT EXISTS (9.6+), so re-running startup
+    on an already-migrated database is a silent no-op. SQLite does not support
+    that syntax; it keeps the plain ALTER and relies on duplicate-column
+    handling below.
+    """
+    if_not_exists = " IF NOT EXISTS" if dialect_name == "postgresql" else ""
+    return tuple(
+        f"ALTER TABLE users ADD COLUMN{if_not_exists} {name} {ddl}"
+        for name, ddl in _ONBOARDING_COLUMNS
+    )
+
+
+def _is_duplicate_column_error(exc: Exception) -> bool:
+    """True when ``exc`` only means the column was already there."""
+    if type(getattr(exc, "orig", None)).__name__ == "DuplicateColumn":
+        return True
+    return "duplicate column" in str(exc).lower()
+
+
 def _ensure_onboarding_columns() -> None:
     """Add users.onboarding_completed/onboarding_step if the database predates
     the alembic migration that defines them (create_all never alters existing
     tables). Duplicate-column errors mean the columns already exist — that's
     success. Works on SQLite and PostgreSQL.
     """
-    statements = (
-        "ALTER TABLE users ADD COLUMN onboarding_completed BOOLEAN DEFAULT FALSE",
-        "ALTER TABLE users ADD COLUMN onboarding_step VARCHAR DEFAULT 'welcome'",
-    )
-    with engine.begin() as conn:
-        for stmt in statements:
-            try:
+    for stmt in _onboarding_column_statements(engine.dialect.name):
+        try:
+            # One transaction per statement: an error (including a duplicate
+            # column) aborts only its own transaction, so it cannot poison the
+            # statement that follows. PostgreSQL discards the whole transaction
+            # after any failed command, which is why sharing one transaction
+            # used to skip the second column.
+            with engine.begin() as conn:
                 conn.execute(text(stmt))
-            except Exception as exc:  # duplicate column, already applied
-                if "duplicate column" not in str(exc).lower():
-                    logger.warning("onboarding column ensure failed: %s", exc)
+        except Exception as exc:
+            if _is_duplicate_column_error(exc):
+                continue  # already applied
+            logger.warning("onboarding column ensure failed: %s", exc)
 
 
 try:

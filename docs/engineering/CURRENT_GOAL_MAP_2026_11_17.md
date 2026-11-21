@@ -6,7 +6,7 @@ preserves **143 original claim identities**, **18 canonical goals**, the
 historical **111/123 functional result (90.2%)**, and `app_complete: false`.
 No readiness percentage is invented, no claim is re-scored, and no bounded test
 is promoted to whole-goal acceptance. The
-[November 19 evidence checkpoint](#november-19-evidence-checkpoint)
+[November 20 evidence checkpoint](#november-20-evidence-checkpoint)
 records the latest dated synthetic observations without changing any of those
 preserved values.
 
@@ -16,6 +16,19 @@ still named the #972 release cut and described #932/#919 as drafts after both
 had merged; the banner now carries the current cut. The historical sections and
 negative records in that index remain intact; this map is the current navigation
 layer over them.
+
+## November 20 evidence checkpoint
+
+The app code at `1966ad62281a770e3625401d511e3046d40d3439` matches the tested
+`54891026625580427fe805eff52f50f3698999aa` backend and frontend. The
+following are bounded observations from disposable test environments.
+
+| Area | Observed behavior | Remaining acceptance |
+|---|---|---|
+| Voice and budget | Signed Chromium recorded a synthetic microphone, released the audio track on Stop, and sent audio only on Transcribe. Cached local Whisper returned the expected phrase. A second request returned HTTP 429 with visible budget feedback. The model received one inference and the scratch database recorded one billed attempt at USD 0.003120. | Cloud providers and broader audio-quality coverage remain open. |
+| Canvas editing and grading | Saved-logic history, restore, concurrent-edit refusal, and display of the graded source and test digests were exercised through signed Canvas flows. [Canvas revision PR #1049](https://github.com/rush86999/atom/pull/1049) and [saved-revision grading PR #1052](https://github.com/rush86999/atom/pull/1052) landed. | Browser and server restart recovery for an in-progress grading run remains open. |
+| PostgreSQL production-mode rehearsal | A disposable UTF-8 PostgreSQL 16 database passed signed TXT upload, PostgreSQL lexical search, Canvas readback, and three starter-template checks across two app boots. The draft initializer recorded all seven release heads in the rehearsal. The search test disabled vector search and scoped the query to ingested documents. | The [initializer remains a draft](https://github.com/rush86999/atom/pull/1055), with historical schema parity and deployment integration open. The [runbook documents UTF-8 and seed verification](https://github.com/rush86999/atom/pull/1054). |
+| WorkDrive and employee workflow | The retained downloaded-workbook checks exercised a strict synthetic transport. The stock invoice draft has signed approval, correction, handoff, and payout-membership evidence from isolated fixtures. | The exact live WorkDrive workbook replay and independent settlement evidence for [the stock invoice draft](https://github.com/rush86999/atom/pull/1035) remain open. |
 
 ## November 19 verification follow-up
 
