@@ -673,6 +673,11 @@ def test_registry_declares_effects_and_keeps_uncovered_explicit():
     mini = action_registry.get_action("mini_app_set_tests")
     assert declares_mutation(mini)
     assert get_postcondition("mini_app_set_tests") is not None
+
+    start_grade = action_registry.get_action("mini_app_start_grade")
+    assert declares_mutation(start_grade)
+    assert get_postcondition("mini_app_start_grade") is not None
+
     assert action_registry.get_action("shopify_create_product").effects == [
         {"effect": "create", "scope": "external"}]
     assert declares_mutation(
@@ -1147,3 +1152,224 @@ def test_mini_app_set_tests_verifier_binds_exact_tests_and_operation(tmp_path):
         wrong_request = {**base, "_oracle_expected_tests_sha256": "a" * 64}
         request = asyncio.run(validate("mini_app_set_tests", wrong_request))
         assert request is not None and request.verified is False
+
+
+# ---------------------------------------------------------------------------
+# mini_app_start_grade: durable admission postcondition.
+# ---------------------------------------------------------------------------
+
+_GRADE_SUBMISSION = "7a4f6b62-3c5f-4b6f-9c1e-0f0a0b0c0d0e"
+_GRADE_SOURCE = "a" * 64
+_GRADE_TESTS = "b" * 64
+_GRADE_ARGS = {
+    "app_id": "app-1",
+    "submission_id": _GRADE_SUBMISSION,
+    "expected_source_digest": _GRADE_SOURCE,
+    "expected_tests_digest": _GRADE_TESTS,
+}
+_GRADE_SCOPE = {
+    "tenant_id": "tenant-1",
+    "workspace_id": "ws-1",
+    "user_id": "user-1",
+    "app_id": "app-1",
+}
+
+
+def _grade_store(tmp_path, name="grade.db"):
+    from core.canvas_grade_runs import CanvasGradeRun
+
+    engine = create_engine(f"sqlite:///{tmp_path}/{name}")
+    CanvasGradeRun.__table__.create(engine)
+    return engine, sessionmaker(bind=engine, expire_on_commit=False)
+
+
+def _admit_grade(Session, **overrides):
+    from core.canvas_grade_runs import admit_run
+
+    values = {
+        **_GRADE_SCOPE,
+        "submission_id": _GRADE_SUBMISSION,
+        "source_digest": _GRADE_SOURCE,
+        "test_digest": _GRADE_TESTS,
+    }
+    values.update(overrides)
+    with Session() as db:
+        row = admit_run(db, **values)
+        db.commit()
+        return str(row.id)
+
+
+def _producer_receipt(Session, run_id):
+    """The exact public reply envelope emitted by mini_app_start_grade."""
+    from core.canvas_grade_runs import CanvasGradeRun
+    from tools.mini_app_tool import _grade_reply
+
+    with Session() as db:
+        return _grade_reply(row=db.get(CanvasGradeRun, run_id))
+
+
+def _grade_context(
+        db, receipt, *, args=None, actor_id="user-1",
+        tenant_id="tenant-1", workspace_id="ws-1",
+        receipt_overrides=None):
+    from core.oracle.request_expectations import build_request_expectations
+
+    request_args = {**_GRADE_ARGS, **(args or {})}
+    expected = build_request_expectations(
+        "mini_app_start_grade", request_args,
+        operation_id="op-grade", tenant_id=tenant_id,
+        workspace_id=workspace_id, actor_id=actor_id)
+    ctx = {**(receipt or {}), **expected, "db": db}
+    ctx.update(receipt_overrides or {})
+    return ctx
+
+
+def test_start_grade_expectations_freeze_exact_request_tuple():
+    from core.oracle.request_expectations import build_request_expectations
+
+    expected = build_request_expectations(
+        "mini_app_start_grade", _GRADE_ARGS,
+        operation_id="op-grade", tenant_id="tenant-1",
+        workspace_id="ws-1", actor_id="user-1")
+    assert expected["_oracle_expected_app_id"] == "app-1"
+    assert expected["_oracle_expected_submission_id"] == _GRADE_SUBMISSION
+    assert expected["_oracle_expected_source_digest"] == _GRADE_SOURCE
+    assert expected["_oracle_expected_tests_digest"] == _GRADE_TESTS
+    assert expected["_oracle_expected_actor_id"] == "user-1"
+    assert expected["_oracle_expected_tenant_id"] == "tenant-1"
+    assert expected["_oracle_expected_workspace_id"] == "ws-1"
+
+
+def test_mini_app_start_grade_accepts_uppercase_valid_submission_uuid(tmp_path):
+    _, Session = _grade_store(tmp_path)
+    run_id = _admit_grade(Session)
+    receipt = _producer_receipt(Session, run_id)
+
+    with Session() as caller:
+        result = asyncio.run(validate(
+            "mini_app_start_grade",
+            _grade_context(
+                caller, receipt,
+                args={"submission_id": _GRADE_SUBMISSION.upper()})))
+    assert result is not None and result.verified is True, result
+
+
+def test_mini_app_start_grade_verifies_committed_admission_without_grading(
+        tmp_path):
+    """A committed run row with both pins is verified as admission only."""
+    from core.canvas_grade_runs import claim_run, complete_run
+
+    _, Session = _grade_store(tmp_path)
+    run_id = _admit_grade(Session)
+    with Session() as db:
+        claimed = claim_run(db, run_id, **_GRADE_SCOPE)
+        db.commit()
+        complete_run(
+            db, run_id, **_GRADE_SCOPE, fence=claimed.fence,
+            report={"passed": True, "total": 1})
+        db.commit()
+    receipt = _producer_receipt(Session, run_id)
+
+    with Session() as caller:
+        result = asyncio.run(validate(
+            "mini_app_start_grade",
+            _grade_context(caller, receipt)))
+    assert result is not None and result.verified is True, result
+    assert run_id in result.evidence
+    assert "admission verified" in result.evidence
+    assert "grading not evaluated" in result.evidence
+    assert "passed" not in result.evidence.lower()
+
+
+def test_mini_app_start_grade_uses_fresh_committed_read(tmp_path):
+    """Dirty caller-side values cannot change the authoritative verdict."""
+    _, Session = _grade_store(tmp_path)
+    run_id = _admit_grade(Session)
+    receipt = _producer_receipt(Session, run_id)
+    with Session() as caller:
+        from core.canvas_grade_runs import CanvasGradeRun
+
+        row = caller.get(CanvasGradeRun, run_id)
+        row.source_digest = "c" * 64
+        row.user_id = "dirty-user"
+        # Uncommitted: the fresh verifier session must see the committed pins.
+        result = asyncio.run(validate(
+            "mini_app_start_grade", _grade_context(caller, receipt)))
+    assert result is not None and result.verified is True, result
+
+
+@pytest.mark.parametrize("kwargs", [
+    pytest.param({"args": {"app_id": "other-app"}}, id="app"),
+    pytest.param(
+        {"args": {"submission_id": "11111111-2222-4333-8444-555555555555"}},
+        id="submission"),
+    pytest.param(
+        {"args": {"expected_source_digest": "c" * 64}}, id="source"),
+    pytest.param(
+        {"args": {"expected_tests_digest": "d" * 64}}, id="tests"),
+    pytest.param({"actor_id": "other-user"}, id="actor"),
+    pytest.param({"tenant_id": "tenant-2"}, id="tenant"),
+    pytest.param({"workspace_id": "ws-2"}, id="workspace"),
+    pytest.param(
+        {"receipt_overrides": {"run_id": "missing-run"}}, id="result-run"),
+    pytest.param(
+        {"receipt_overrides": {
+            "submission_id": "11111111-2222-4333-8444-555555555555"}},
+        id="result-submission"),
+    pytest.param(
+        {"receipt_overrides": {"source_digest": "c" * 64}},
+        id="result-source"),
+    pytest.param(
+        {"receipt_overrides": {"tests_digest": "d" * 64}},
+        id="result-tests"),
+])
+def test_mini_app_start_grade_contradiction_is_a_mismatch_not_success(
+        tmp_path, kwargs):
+    _, Session = _grade_store(tmp_path)
+    run_id = _admit_grade(Session)
+    receipt = _producer_receipt(Session, run_id)
+
+    with Session() as caller:
+        result = asyncio.run(validate(
+            "mini_app_start_grade",
+            _grade_context(caller, receipt, **kwargs)))
+    assert result is not None and result.verified is False, (kwargs, result)
+    assert "mismatch" in result.evidence.lower(), (kwargs, result.evidence)
+    assert "unavailable" not in result.evidence.lower(), (
+        kwargs, result.evidence)
+
+
+def test_mini_app_start_grade_unreadable_store_is_unavailable_not_mismatch(
+        tmp_path, monkeypatch):
+    import core.oracle.postcondition_verifiers as verifiers
+
+    _, Session = _grade_store(tmp_path)
+    run_id = _admit_grade(Session)
+    receipt = _producer_receipt(Session, run_id)
+
+    def unavailable(ctx, reader):
+        raise RuntimeError("grade store offline")
+
+    monkeypatch.setattr(verifiers, "_fresh_read_with_db", unavailable)
+    with Session() as caller:
+        result = asyncio.run(validate(
+            "mini_app_start_grade", _grade_context(caller, receipt)))
+    assert result is not None and result.verified is False, result
+    assert "unavailable" in result.evidence.lower(), result.evidence
+    assert "mismatch" not in result.evidence.lower(), result.evidence
+    assert "grade store offline" not in result.evidence
+
+
+def test_mini_app_start_grade_requires_frozen_request_binding(tmp_path):
+    _, Session = _grade_store(tmp_path)
+    run_id = _admit_grade(Session)
+    receipt = _producer_receipt(Session, run_id)
+
+    with Session() as caller:
+        result = asyncio.run(validate(
+            "mini_app_start_grade",
+            _grade_context(caller, receipt, args={
+                "app_id": "", "submission_id": "",
+                "expected_source_digest": "", "expected_tests_digest": ""})))
+    assert result is not None and result.verified is False, result
+    assert "no frozen request binding" in result.evidence.lower()

@@ -6,7 +6,7 @@ preserves **143 original claim identities**, **18 canonical goals**, the
 historical **111/123 functional result (90.2%)**, and `app_complete: false`.
 No readiness percentage is invented, no claim is re-scored, and no bounded test
 is promoted to whole-goal acceptance. The
-[November 20 evidence checkpoint](#november-20-evidence-checkpoint)
+[November 21 evidence checkpoint](#november-21-evidence-checkpoint)
 records the latest dated synthetic observations without changing any of those
 preserved values.
 
@@ -16,6 +16,18 @@ still named the #972 release cut and described #932/#919 as drafts after both
 had merged; the banner now carries the current cut. The historical sections and
 negative records in that index remain intact; this map is the current navigation
 layer over them.
+
+## November 21 evidence checkpoint
+
+The following observations cover disposable fixtures and the individual
+boundaries listed below. The historical claim counts and completion status are
+unchanged.
+
+| Area | Observed behavior | Remaining acceptance |
+|---|---|---|
+| Reviewed terms for employee work | A signed employee-led quote used approved freight of USD 20.00 and produced a USD 370.00 document. After the reviewer approved a correction to USD 31.00, new work produced a USD 381.00 document. The original artifact retained its download digest. Both quotes used a synthetic workbook and a pinned local model. [Reviewed terms PR #1064](https://github.com/rush86999/atom/pull/1064) landed. | Live connector work and broader model and task coverage remain open. |
+| Durable Canvas grading | Signed Chromium recovered a saved report after the start response was dropped and Canvas reopened in the same tab. The database retained one submission and one worker claim. In a separate run, restarting an isolated backend after a claimed job's process stopped produced an interrupted receipt and kept an earlier completed report readable. [Durable grading PR #1065](https://github.com/rush86999/atom/pull/1065) is in review. | Hosted checks and release integration remain open. |
+| PostgreSQL installation | A disposable socket-only PostgreSQL 15.20 rehearsal combined the installer with the Canvas grading code. The initializer committed the proposed release’s seven heads, the managed-target check and ordinary Alembic upgrade succeeded, and the new database accepted a grading claim and report. [Installer PR #1055](https://github.com/rush86999/atom/pull/1055) is in review. | Full production Compose deployment and complete historical migration parity remain open. |
 
 ## November 20 evidence checkpoint
 

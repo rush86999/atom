@@ -818,6 +818,259 @@ async def mini_app_run_tests(args: Dict[str, Any], context: Dict[str, Any]) -> D
         return {"success": False, "error": "Mini-app test run failed"}
 
 
+# ---------------------------------------------------------------------------
+# Durable grading RPC — the synchronous mini_app_run_tests stays the Chat
+# surface; these two actions persist a submission and let the background worker
+# execute the exact same grading path.
+# ---------------------------------------------------------------------------
+def _grade_reply(
+    *,
+    row: Any = None,
+    run_id: Optional[str] = None,
+    submission_id: Optional[str] = None,
+    status: Optional[str] = None,
+    source_digest: Optional[str] = None,
+    tests_digest: Optional[str] = None,
+    error: Optional[str] = None,
+) -> Dict[str, Any]:
+    """The stable reply envelope for the grading RPCs.
+
+    A run that ran and failed uses ``status="failed"`` plus its persisted
+    ``failure_code`` as ``error``. An exact authorized status miss is returned
+    as Python ``None`` (RPC ``data: null``), not this envelope.
+    """
+    if row is not None:
+        out: Dict[str, Any] = {
+            "run_id": str(row.id),
+            "submission_id": str(row.submission_id),
+            "status": str(row.status),
+            "source_digest": row.source_digest,
+            "tests_digest": row.test_digest,
+        }
+        if row.report is not None:
+            out["report"] = row.report
+        if row.failure_code:
+            out["error"] = str(row.failure_code)
+        return out
+
+    out = {
+        "run_id": run_id,
+        "submission_id": submission_id,
+        "status": status or "error",
+        "source_digest": source_digest,
+        "tests_digest": tests_digest,
+    }
+    if error is not None:
+        out["error"] = error
+    return out
+
+
+def _auth_reply_status(error: Optional[str]) -> str:
+    if error == "app_not_found":
+        return "not_found"
+    if error in {
+        "not_app_owner", "user_not_found", "user_inactive", "scope_mismatch",
+    }:
+        return "forbidden"
+    if error in {
+        "mini_app_logic_changed", "mini_app_acceptance_tests_changed",
+        "mini_app_saved_tests_invalid", "digest_required",
+    }:
+        return "rejected"
+    if error in {"run_or_submission_required"}:
+        return "invalid_request"
+    return "error"
+
+
+async def mini_app_start_grade(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+    """Admit a durable grading submission (idempotent by submission UUID)."""
+    from core.canvas_grade_worker import (
+        FAILURE_SUBMISSION_CONFLICT,
+        STATUS_CONFLICT,
+        STATUS_ERROR,
+        STATUS_FORBIDDEN,
+        STATUS_INVALID_REQUEST,
+        CanvasGradeRunConflict,
+        CanvasGradeRunError,
+        start_grade,
+    )
+
+    viewer = _require_actor(context)
+    if not viewer.id:
+        return _grade_reply(
+            status=STATUS_FORBIDDEN, error="Authenticated user is required")
+    app_id = args.get("app_id")
+    if not app_id:
+        return _grade_reply(
+            status=STATUS_INVALID_REQUEST,
+            submission_id=args.get("submission_id"),
+            error="app_id is required",
+        )
+    expected_source = args.get("expected_source_digest")
+    expected_tests = args.get("expected_tests_digest")
+    if not isinstance(expected_source, str) or not expected_source.strip():
+        return _grade_reply(
+            status=STATUS_INVALID_REQUEST,
+            submission_id=args.get("submission_id"),
+            error="expected_source_digest is required",
+        )
+    if not isinstance(expected_tests, str) or not expected_tests.strip():
+        return _grade_reply(
+            status=STATUS_INVALID_REQUEST,
+            submission_id=args.get("submission_id"),
+            error="expected_tests_digest is required",
+        )
+
+    submission_id = args.get("submission_id")
+    try:
+        from core.database import get_db_session
+
+        with get_db_session() as db:
+            try:
+                row, error = start_grade(
+                    db,
+                    user_id=viewer.id,
+                    app_id=app_id,
+                    submission_id=submission_id,
+                    expected_source_digest=expected_source,
+                    expected_tests_digest=expected_tests,
+                )
+            except ValueError as exc:
+                db.rollback()
+                return _grade_reply(
+                    status=STATUS_INVALID_REQUEST,
+                    submission_id=submission_id,
+                    error=str(exc),
+                )
+            except CanvasGradeRunConflict:
+                db.rollback()
+                return _grade_reply(
+                    status=STATUS_CONFLICT,
+                    submission_id=submission_id,
+                    source_digest=expected_source,
+                    tests_digest=expected_tests,
+                    error=FAILURE_SUBMISSION_CONFLICT,
+                )
+            except CanvasGradeRunError as exc:
+                db.rollback()
+                logger.warning("mini_app_start_grade rejected: %s", exc)
+                return _grade_reply(
+                    status=STATUS_ERROR,
+                    submission_id=submission_id,
+                    source_digest=expected_source,
+                    tests_digest=expected_tests,
+                    error="canvas_grade_start_failed",
+                )
+            if error is not None or row is None:
+                db.rollback()
+                return _grade_reply(
+                    status=_auth_reply_status(error),
+                    submission_id=submission_id,
+                    source_digest=expected_source,
+                    tests_digest=expected_tests,
+                    error=error,
+                )
+            # Persist the admission BEFORE building/returning the response.
+            db.commit()
+            db.refresh(row)
+            return _grade_reply(row=row)
+    except Exception as e:  # noqa: BLE001
+        logger.error("mini_app_start_grade failed: %s", e)
+        return _grade_reply(
+            status=STATUS_ERROR,
+            submission_id=submission_id,
+            source_digest=expected_source,
+            tests_digest=expected_tests,
+            error="canvas_grade_start_failed",
+        )
+
+
+async def mini_app_grade_status(
+    args: Dict[str, Any], context: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    """Read a durable grade run by submission id or run id (exactly one).
+
+    An exact authorized miss returns ``None`` (RPC ``data: null``). Invalid,
+    unauthorized, or foreign lookups return typed failure envelopes.
+    """
+    from core.canvas_grade_worker import (
+        STATUS_ERROR,
+        STATUS_FORBIDDEN,
+        STATUS_INVALID_REQUEST,
+        CanvasGradeRunError,
+        get_grade_status,
+    )
+
+    viewer = _require_actor(context)
+    if not viewer.id:
+        return _grade_reply(
+            status=STATUS_FORBIDDEN, error="Authenticated user is required")
+    app_id = args.get("app_id")
+    if not app_id:
+        return _grade_reply(
+            status=STATUS_INVALID_REQUEST,
+            run_id=args.get("run_id"),
+            submission_id=args.get("submission_id"),
+            error="app_id is required",
+        )
+    submission_id = args.get("submission_id")
+    run_id = args.get("run_id")
+    if (submission_id is None) == (run_id is None):
+        return _grade_reply(
+            status=STATUS_INVALID_REQUEST,
+            run_id=run_id,
+            submission_id=submission_id,
+            error="exactly one of submission_id or run_id is required",
+        )
+
+    try:
+        from core.database import get_db_session
+
+        with get_db_session() as db:
+            try:
+                row, error = get_grade_status(
+                    db,
+                    user_id=viewer.id,
+                    app_id=app_id,
+                    submission_id=submission_id,
+                    run_id=run_id,
+                )
+            except ValueError as exc:
+                return _grade_reply(
+                    status=STATUS_INVALID_REQUEST,
+                    run_id=run_id,
+                    submission_id=submission_id,
+                    error=str(exc),
+                )
+            except CanvasGradeRunError as exc:
+                logger.warning("mini_app_grade_status rejected: %s", exc)
+                return _grade_reply(
+                    status=STATUS_ERROR,
+                    run_id=run_id,
+                    submission_id=submission_id,
+                    error="canvas_grade_status_failed",
+                )
+            if error is not None:
+                return _grade_reply(
+                    status=_auth_reply_status(error),
+                    run_id=run_id,
+                    submission_id=submission_id,
+                    error=error,
+                )
+            if row is None:
+                # Exact-scope miss: signed RPC data null, matching the editor.
+                return None
+            return _grade_reply(row=row)
+    except Exception as e:  # noqa: BLE001
+        logger.error("mini_app_grade_status failed: %s", e)
+        return _grade_reply(
+            status=STATUS_ERROR,
+            run_id=run_id,
+            submission_id=submission_id,
+            error="canvas_grade_status_failed",
+        )
+
+
 async def mini_app_logic_history(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     """List the app's logic checkpoints (oldest → newest)."""
     viewer = _require_actor(context)

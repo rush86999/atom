@@ -17,7 +17,7 @@
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
-import AcceptanceCaseEditor from "./AcceptanceCaseEditor";
+import AcceptanceCaseEditor, { type Principal } from "./AcceptanceCaseEditor";
 import LogicRevisionHistory from "./LogicRevisionHistory";
 import {
   Play,
@@ -60,6 +60,9 @@ interface MiniAppHarnessProps {
   // The canvas type this panel is mounted on — the default base type for new
   // apps, so authoring from inside a sheets/email/… canvas builds ON it.
   canvasType?: string;
+  // Canonical authenticated owner for durable acceptance grading. When absent,
+  // grading keeps the established synchronous path.
+  principal?: Principal | null;
 }
 
 interface LogicRunResult {
@@ -237,7 +240,7 @@ function handlerFailureMessage(err: unknown): string | null {
   return typeof failure.error === "string" && failure.error.trim() ? failure.error : null;
 }
 
-export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId, canvasType }: MiniAppHarnessProps) {
+export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId, canvasType, principal }: MiniAppHarnessProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [source, setSource] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -1124,7 +1127,13 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
                 </button>
               </div>
               {showAcceptance && (
-                <AcceptanceCaseEditor key={appId} appId={appId} rpc={rpc.call.bind(rpc)} sourceRevision={source} />
+                <AcceptanceCaseEditor
+                  key={appId}
+                  appId={appId}
+                  rpc={rpc.call.bind(rpc)}
+                  sourceRevision={source}
+                  principal={principal}
+                />
               )}
               {showHistory && (
                 <LogicRevisionHistory

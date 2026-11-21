@@ -1453,6 +1453,95 @@ async def _verify_mini_app_set_tests(ctx: Dict[str, Any]) -> OracleResult:
             action, False, f"mini-app read-back failed: {e}")
 
 
+@register_postcondition("mini_app_start_grade")
+async def _verify_mini_app_start_grade(ctx: Dict[str, Any]) -> OracleResult:
+    """Verify a committed grading admission; never the grader's outcome."""
+    action = "mini_app_start_grade"
+    expected_app = str(ctx.get("_oracle_expected_app_id") or "").strip()
+    expected_submission = str(
+        ctx.get("_oracle_expected_submission_id") or "").strip()
+    expected_source = _digest(ctx.get("_oracle_expected_source_digest"))
+    expected_tests = _digest(ctx.get("_oracle_expected_tests_digest"))
+    expected_actor = str(ctx.get("_oracle_expected_actor_id") or "").strip()
+    expected_tenant = str(ctx.get("_oracle_expected_tenant_id") or "").strip()
+    expected_workspace = str(
+        ctx.get("_oracle_expected_workspace_id") or "").strip()
+
+    if not all((expected_app, expected_submission, expected_source,
+                expected_tests, expected_actor)):
+        return OracleResult(
+            action, False, "no frozen request binding for this invocation")
+
+    from core.canvas_grade_worker import _canonical_submission_id
+
+    try:
+        expected_submission = _canonical_submission_id(expected_submission)
+    except (TypeError, ValueError):
+        return OracleResult(
+            action, False, "no frozen request binding for this invocation")
+
+    run_id = str(ctx.get("run_id") or "").strip()
+    if not run_id:
+        return OracleResult(
+            action, False, "no exact run id in the result")
+
+    result_submission = str(ctx.get("submission_id") or "").strip()
+    result_source = _digest(ctx.get("source_digest"))
+    result_tests = _digest(ctx.get("tests_digest"))
+    if (
+        (result_submission and result_submission != expected_submission)
+        or (result_source and result_source != expected_source)
+        or (result_tests and result_tests != expected_tests)
+    ):
+        return OracleResult(
+            action, False,
+            "mismatch: result does not match the authorized request")
+
+    def _read(session):
+        from core.canvas_grade_runs import CanvasGradeRun
+
+        return session.get(CanvasGradeRun, run_id)
+
+    try:
+        row = _fresh_read_with_db(ctx, _read)
+    except Exception:  # noqa: BLE001 - unavailable is not verified
+        return OracleResult(action, False, "database read-back unavailable")
+
+    if row is None:
+        return OracleResult(
+            action, False, "mismatch: committed CanvasGradeRun not found")
+
+    mismatches = []
+    if str(getattr(row, "id", "") or "") != run_id:
+        mismatches.append("run_id")
+    if str(getattr(row, "submission_id", "") or "") != expected_submission:
+        mismatches.append("submission_id")
+    if str(getattr(row, "app_id", "") or "") != expected_app:
+        mismatches.append("app_id")
+    if str(getattr(row, "user_id", "") or "") != expected_actor:
+        mismatches.append("actor_id")
+    if _digest(getattr(row, "source_digest", None)) != expected_source:
+        mismatches.append("source_digest")
+    if _digest(getattr(row, "test_digest", None)) != expected_tests:
+        mismatches.append("test_digest")
+    if expected_tenant and str(
+            getattr(row, "tenant_id", "") or "") != expected_tenant:
+        mismatches.append("tenant_id")
+    if expected_workspace and str(
+            getattr(row, "workspace_id", "") or "") != expected_workspace:
+        mismatches.append("workspace_id")
+    if mismatches:
+        return OracleResult(
+            action, False,
+            "mismatch: committed CanvasGradeRun does not match the "
+            f"authorized request ({', '.join(mismatches)})")
+
+    return OracleResult(
+        action, True,
+        f"CanvasGradeRun {run_id} is committed and matches the authorized "
+        "request; admission verified, grading not evaluated")
+
+
 @register_postcondition("tasks.create")
 async def _verify_task_created(ctx: Dict[str, Any]) -> OracleResult:
     """A created task must persist to the DB (not just be returned by the tool)."""

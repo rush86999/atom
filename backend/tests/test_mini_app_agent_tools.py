@@ -45,7 +45,15 @@ def _uid(prefix: str = "u") -> str:
     return f"{prefix}-{uuid.uuid4().hex[:8]}"
 
 
-async def _scaffold(user_id: str, name: str = "Counter", deps=None, scopes=None):
+async def _scaffold(
+    user_id: str,
+    name: str = "Counter",
+    deps=None,
+    scopes=None,
+    *,
+    tenant: str = "default",
+    workspace=None,
+):
     # Seed the authoritative actor first: scaffold/run resolve the acting user
     # from the User row (a bare context user_id is not an actor), and the
     # canvas audit row scaffold writes is what the run gate reads back.
@@ -53,7 +61,7 @@ async def _scaffold(user_id: str, name: str = "Counter", deps=None, scopes=None)
     from tests.mini_app_authority_fixtures import ensure_actor
 
     with get_db_session() as db:
-        ensure_actor(db, user_id, "default", None)
+        ensure_actor(db, user_id, tenant, workspace)
         db.commit()
     return await action_registry.execute_action(
         "mini_app_scaffold",
@@ -726,3 +734,176 @@ async def test_owner_case_editor_rejects_invalid_existing_suite(patched_db):
     assert saved["error"] == "mini_app_saved_tests_invalid"
     with patched_db[1]() as db:
         assert db.get(MiniApp, app_id).manifest["tests"] == {"legacy": "invalid"}
+
+
+# ---------------------------------------------------------------------------
+# Durable Canvas grading — RPC admission/status + worker integration.
+# Store fencing/recovery is covered by the separately tested store module.
+# ---------------------------------------------------------------------------
+@pytest.fixture
+def grade_table(patched_db):
+    from core.canvas_grade_runs import CanvasGradeRun
+
+    CanvasGradeRun.__table__.create(bind=patched_db[0], checkfirst=True)
+    return patched_db
+
+
+@pytest.mark.asyncio
+async def test_grade_rpc_auth_same_uuid_digest_worker_and_exact_miss(
+    grade_table, monkeypatch
+):
+    """One controlled RPC/worker integration path; the store is tested elsewhere."""
+    from unittest.mock import AsyncMock
+
+    from core.canvas_grade_runs import CanvasGradeRun
+    from core.canvas_grade_worker import process_pending_grades_once
+    from core.task_lifecycle import _approval_payload_hash
+    from tools.mini_app_tool import mini_app_write_logic
+
+    owner = _uid("grade")
+    scope_tenant = f"tenant-{uuid.uuid4().hex[:8]}"
+    scope_workspace = f"workspace-{uuid.uuid4().hex[:8]}"
+    app_id = (await _scaffold(
+        owner, tenant=scope_tenant, workspace=scope_workspace))["app_id"]
+    context = _ctx(owner)
+    from core.models import MiniApp, User
+
+    with grade_table[1]() as db:
+        user = db.get(User, owner)
+        app = db.get(MiniApp, app_id)
+        assert user.tenant_id == app.tenant_id == scope_tenant
+        assert user.workspace_id == app.workspace_id == scope_workspace
+    cases = [{"name": "one", "expect_state": {"n": 1}}]
+    assert (await action_registry.execute_action(
+        "mini_app_set_tests", {"app_id": app_id, "tests": cases}, context
+    ))["success"]
+    logic = await mini_app_write_logic(
+        {"app_id": app_id, "source": "state = {'n': 1}"}, context)
+    source_digest = logic["source_sha256"]
+    tests_digest = _approval_payload_hash(cases)
+    submission = str(uuid.uuid4())
+
+    # Authentication is required before admission or status reads.
+    denied = await action_registry.execute_action(
+        "mini_app_start_grade",
+        {"app_id": app_id, "submission_id": submission,
+         "expected_source_digest": source_digest,
+         "expected_tests_digest": tests_digest},
+        {},
+    )
+    assert denied["status"] == "forbidden"
+
+    # Source/tests pins use the same stable codes as the Chat harness.
+    stale_source = await action_registry.execute_action(
+        "mini_app_start_grade",
+        {"app_id": app_id, "submission_id": str(uuid.uuid4()),
+         "expected_source_digest": "stale",
+         "expected_tests_digest": tests_digest},
+        context,
+    )
+    assert stale_source["error"] == "mini_app_logic_changed"
+    stale_tests = await action_registry.execute_action(
+        "mini_app_start_grade",
+        {"app_id": app_id, "submission_id": str(uuid.uuid4()),
+         "expected_source_digest": source_digest,
+         "expected_tests_digest": "stale"},
+        context,
+    )
+    assert stale_tests["error"] == "mini_app_acceptance_tests_changed"
+
+    started = await action_registry.execute_action(
+        "mini_app_start_grade",
+        {"app_id": app_id, "submission_id": submission,
+         "expected_source_digest": source_digest,
+         "expected_tests_digest": tests_digest},
+        context,
+    )
+    assert started["status"] == "pending" and started["run_id"]
+    run_id = started["run_id"]
+
+    # Same UUID + same pins is idempotent; divergent pins conflict.
+    retried = await action_registry.execute_action(
+        "mini_app_start_grade",
+        {"app_id": app_id, "submission_id": submission,
+         "expected_source_digest": source_digest,
+         "expected_tests_digest": tests_digest},
+        context,
+    )
+    assert retried["run_id"] == run_id and retried["status"] == "pending"
+    conflict = await action_registry.execute_action(
+        "mini_app_start_grade",
+        {"app_id": app_id, "submission_id": submission,
+         "expected_source_digest": "different",
+         "expected_tests_digest": tests_digest},
+        context,
+    )
+    assert conflict["status"] == "conflict"
+
+    # The worker executes and persists the exact grading report.
+    report = {"passed": 1, "total": 1, "results": [{"passed": True}]}
+    run_tests = AsyncMock(return_value=report)
+    monkeypatch.setattr("core.mini_app_service.run_tests", run_tests)
+    assert await process_pending_grades_once(limit=1) == 1
+    run_tests.assert_awaited_once()
+    with grade_table[1]() as db:
+        row = db.get(CanvasGradeRun, run_id)
+        assert row.status == "completed" and row.report == report
+
+    completed = await action_registry.execute_action(
+        "mini_app_grade_status",
+        {"app_id": app_id, "submission_id": submission}, context,
+    )
+    assert completed["status"] == "completed" and completed["report"] == report
+
+    # Exact authorized miss is Python None (signed RPC data null). A foreign
+    # actor still gets a typed failure, never a silent miss.
+    miss = await action_registry.execute_action(
+        "mini_app_grade_status",
+        {"app_id": app_id, "run_id": str(uuid.uuid4())}, context,
+    )
+    assert miss is None
+
+    other = _uid("other")
+    from core.database import get_db_session
+    from tests.mini_app_authority_fixtures import ensure_actor
+
+    with get_db_session() as db:
+        ensure_actor(db, other, scope_tenant, scope_workspace)
+        db.commit()
+    foreign = await action_registry.execute_action(
+        "mini_app_grade_status",
+        {"app_id": app_id, "run_id": run_id}, _ctx(other),
+    )
+    assert foreign["status"] == "forbidden"
+
+
+@pytest.mark.asyncio
+async def test_grade_rpc_absent_scope_refuses_without_write(grade_table):
+    """The durable store requires a non-null workspace; refusal is pre-write."""
+    from core.canvas_grade_runs import CanvasGradeRun
+
+    owner = _uid("noscope")
+    app_id = (await _scaffold(
+        owner, tenant="tenant-noscope", workspace=None))["app_id"]
+    context = _ctx(owner)
+    submission = str(uuid.uuid4())
+
+    started = await action_registry.execute_action(
+        "mini_app_start_grade",
+        {"app_id": app_id, "submission_id": submission,
+         "expected_source_digest": "source", "expected_tests_digest": "tests"},
+        context,
+    )
+    assert started["status"] == "forbidden"
+    assert started["error"] == "scope_mismatch"
+
+    status = await action_registry.execute_action(
+        "mini_app_grade_status",
+        {"app_id": app_id, "submission_id": submission}, context,
+    )
+    assert status["status"] == "forbidden"
+    assert status["error"] == "scope_mismatch"
+
+    with grade_table[1]() as db:
+        assert db.query(CanvasGradeRun).filter(
+            CanvasGradeRun.app_id == app_id).count() == 0

@@ -28,6 +28,17 @@ jest.mock("next/router", () => ({
   useRouter: () => mockRouterState,
 }));
 
+// The page reads the authenticated grading identity from useSession. Tests
+// render the page directly (no SessionProvider/_app), so mock this boundary
+// explicitly instead of letting NextAuth attempt to discover a provider or
+// make an auth request. Individual tests may replace the state before render.
+let mockSessionState: any;
+jest.mock("next-auth/react", () => ({
+  useSession: () => mockSessionState,
+  signIn: jest.fn(),
+  signOut: jest.fn(),
+}));
+
 let wsState: any = { lastMessage: null, isConnected: true };
 // Registered page handlers + the last frame delivered, so the mock hook
 // behaves like the real one: handlers fire when a NEW lastMessage arrives.
@@ -85,7 +96,14 @@ jest.mock("@/components/canvas/CanvasPanel", () => ({
 
 jest.mock("@/components/canvas/MiniAppHarness", () => ({
   MiniAppHarness: (props: any) => (
-    <div data-testid="mini-app-harness" data-canvas-id={props.canvasId}>
+    <div
+      data-testid="mini-app-harness"
+      data-canvas-id={props.canvasId}
+      data-principal={props.principal ? "present" : "absent"}
+      data-principal-tenant={props.principal?.tenantId}
+      data-principal-workspace={props.principal?.workspaceId}
+      data-principal-user={props.principal?.userId}
+    >
       Harness
     </div>
   ),
@@ -152,10 +170,27 @@ const CANVAS = {
   content: { rows: 10 },
 };
 
+function authenticatedSession() {
+  return {
+    data: {
+      user: {
+        id: "user-auth-1",
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+        tenant_id: "tenant-auth-1",
+        workspace_id: "workspace-auth-1",
+      },
+      expires: "2099-01-01T00:00:00.000Z",
+    },
+    status: "authenticated",
+  };
+}
+
 describe("CanvasDetailPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPanelFlush.mockResolvedValue(undefined);
+    mockSessionState = authenticatedSession();
     wsState = { lastMessage: null, isConnected: true };
     mockRouterState = {
       push: mockRouterPush,
@@ -182,6 +217,48 @@ describe("CanvasDetailPage", () => {
     });
     render(<CanvasDetailPage />);
     await waitFor(()=>expect(screen.getByTestId("canvas-panel")).toHaveAttribute("data-revision","opaque-latest-revision"));
+  });
+
+  test("harness receives the exact authenticated grading principal, and none when session scope is unavailable", async () => {
+    const { rerender } = render(<CanvasDetailPage />);
+    await waitFor(() => expect(screen.getByTestId("mini-app-harness")).toBeInTheDocument());
+
+    expect(screen.getByTestId("mini-app-harness")).toHaveAttribute("data-principal", "present");
+    expect(screen.getByTestId("mini-app-harness")).toHaveAttribute(
+      "data-principal-tenant",
+      "tenant-auth-1"
+    );
+    expect(screen.getByTestId("mini-app-harness")).toHaveAttribute(
+      "data-principal-workspace",
+      "workspace-auth-1"
+    );
+    expect(screen.getByTestId("mini-app-harness")).toHaveAttribute(
+      "data-principal-user",
+      "user-auth-1"
+    );
+
+    // The projected session may legitimately carry no tenant/workspace
+    // scope. Durable grading must withhold the principal rather than
+    // fabricate a page-local default.
+    mockSessionState = {
+      ...mockSessionState,
+      data: {
+        ...mockSessionState.data,
+        user: { ...mockSessionState.data.user, tenant_id: null },
+      },
+    };
+    rerender(<CanvasDetailPage />);
+
+    expect(screen.getByTestId("mini-app-harness")).toHaveAttribute("data-principal", "absent");
+    expect(screen.getByTestId("mini-app-harness")).not.toHaveAttribute(
+      "data-principal-tenant"
+    );
+    expect(screen.getByTestId("mini-app-harness")).not.toHaveAttribute(
+      "data-principal-workspace"
+    );
+    expect(screen.getByTestId("mini-app-harness")).not.toHaveAttribute(
+      "data-principal-user"
+    );
   });
 
   test("shows loading state then renders canvas", async () => {
@@ -1276,6 +1353,7 @@ describe("CanvasDetailPage", () => {
 
 describe("canvas chat reasoning steps (training parity)", () => {
   beforeEach(() => {
+    mockSessionState = authenticatedSession();
     wsState = { lastMessage: null, isConnected: true };
   });
 
