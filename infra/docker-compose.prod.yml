@@ -54,10 +54,23 @@ services:
     build:
       context: ./frontend-nextjs
       dockerfile: Dockerfile.production
+      args:
+        # Public browser origin compiled into the client bundle. Override with
+        # a remote public origin when the browser is not on this host.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8001}
+        # Loopback is opt-in only: set 1 for a same-host browser (for example
+        # http://localhost:8001); leave 0 for a remote public origin.
+        NEXT_PUBLIC_ALLOW_LOOPBACK: ${NEXT_PUBLIC_ALLOW_LOOPBACK:-0}
+        # Server-side rewrites use the Compose service DNS, not localhost.
+        BACKEND_URL: http://atom-backend:8000
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8001
+      # Runtime web auth and same-origin server requests reach the backend by
+      # service DNS; this is separate from the browser-facing public URL.
+      - BACKEND_URL=http://atom-backend:8000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - NODE_ENV=production
     restart: unless-stopped
     networks:

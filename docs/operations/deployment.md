@@ -31,8 +31,24 @@ This guide covers deploying the Atom platform to production using Docker Compose
    # - POSTGRES_PASSWORD (use a strong password)
    # - JWT_SECRET_KEY (openssl rand -hex 32)
    # - BYOK_ENCRYPTION_KEY (openssl rand -hex 32)
+   # - NEXTAUTH_SECRET (openssl rand -hex 32; runtime web auth secret)
    # - AI provider keys (optional — LLM features disabled without; add via Settings > AI or .env)
    ```
+
+   The example Compose setup exposes the backend on public port `8001` and
+   uses `NEXT_PUBLIC_API_URL=http://localhost:8001` for browser requests.
+   Loopback is never accepted by default in production:
+   `NEXT_PUBLIC_ALLOW_LOOPBACK` resolves to `0`, so the production build refuses
+   a loopback origin unless the operator opts in. Set
+   `NEXT_PUBLIC_ALLOW_LOOPBACK=1` only for a same-host deployment
+   where the browser runs on the deployment host, for example with
+   `NEXT_PUBLIC_API_URL=http://localhost:8001`. For a remote browser, leave it at
+   `0` and set `NEXT_PUBLIC_API_URL` to the operator's public backend origin
+   (for example an HTTPS origin). Both values are passed as frontend build args
+   so the production build compiles the browser origin without embedding
+   secrets. Inside the frontend container, server rewrites and web auth use the
+   separate `BACKEND_URL=http://atom-backend:8000` service DNS over the Compose
+   network.
 
 3. **Prepare the database before starting the application**:
 
@@ -116,9 +132,29 @@ This guide covers deploying the Atom platform to production using Docker Compose
 | `POSTGRES_PASSWORD` | ✅ | Database password |
 | `JWT_SECRET_KEY` | ✅ | Authentication token signing |
 | `BYOK_ENCRYPTION_KEY` | ✅ | AI key encryption |
+| `NEXTAUTH_SECRET` | ✅ | Web auth runtime secret; passed to the frontend at container start, never baked into the image |
+| `NEXT_PUBLIC_API_URL` | — | Browser-facing backend origin compiled into the frontend. Defaults to `http://localhost:8001` for the Compose example |
+| `NEXT_PUBLIC_ALLOW_LOOPBACK` | — | Defaults to `0`; set to `1` only for a same-host browser (for example with `NEXT_PUBLIC_API_URL=http://localhost:8001`). Leave `0` for a remote public origin |
+| `NEXTAUTH_URL` | — | Public frontend origin for web auth callbacks. Defaults to `http://localhost:3000`; set to the operator's public frontend origin for remote deployments |
 | `OPENAI_API_KEY` | — | OpenAI API access (optional — LLM features disabled without) |
 | `ANTHROPIC_API_KEY` | — | Anthropic Claude access (optional) |
 | `TAVILY_API_KEY` | Optional | Web search capability |
+
+`BACKEND_URL` is fixed to `http://atom-backend:8000` by the production Compose
+file for container-to-container server requests; it is not the browser-facing
+URL. Remote deployments should configure the public frontend and backend
+origins through a reverse proxy and set the operator's public origins, for
+example:
+
+```bash
+NEXT_PUBLIC_API_URL=https://api.example.invalid
+NEXT_PUBLIC_ALLOW_LOOPBACK=0
+NEXTAUTH_URL=https://app.example.invalid
+NEXTAUTH_SECRET=<the same configured runtime secret>
+```
+
+Rebuild the frontend after changing a `NEXT_PUBLIC_*` value because those values
+are compiled into the browser bundle.
 
 ## Health Checks
 
