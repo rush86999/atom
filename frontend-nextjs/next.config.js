@@ -100,14 +100,15 @@ const nextConfig = {
   // Silence Turbopack + webpack config conflict
   turbopack: {},
   async rewrites() {
-    // Single source of truth for the backend the UI talks to:
-    // NEXT_PUBLIC_API_URL in frontend-nextjs/.env.local (default
-    // http://localhost:8001). The destinations below are written with a
+    // Browser calls use NEXT_PUBLIC_API_URL, but server-side rewrites must be
+    // able to reach the backend over the deployment network (for example the
+    // Compose service DNS http://atom-backend:8000). BACKEND_URL takes
+    // precedence and keeps working when the public browser origin is
+    // localhost:8001. Existing non-Compose callers still fall back to the
+    // public URL resolution above. The destinations below are written with a
     // "127.0.0.1:8000" PLACEHOLDER that gets replaced with backendUrl at the
-    // end of this function — the 8000s here are NOT the real target. Don't
-    // "fix" them; change .env.local (or start the backend with
-    // scripts/start-backend.sh, which reads it) instead.
-    const backendUrl = (process.env.NEXT_PUBLIC_API_URL || nextPublicApiUrl || "http://127.0.0.1:8000").replace(/\/$/, "");
+    // end of this function — the 8000s here are NOT the real target.
+    const backendUrl = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || nextPublicApiUrl || "http://127.0.0.1:8000").replace(/\/$/, "");
     const rawRewrites = [
       {
         source: "/api/sales/:path*",

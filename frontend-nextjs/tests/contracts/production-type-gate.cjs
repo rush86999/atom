@@ -202,6 +202,107 @@ test('production config enforces type errors and omits the removed eslint option
   }
 });
 
+test('production config preserves loopback guard and routes server rewrites through BACKEND_URL', async () => {
+  const saved = { ...process.env };
+  const loadConfig = () => {
+    delete require.cache[projectConfigPath];
+    return require(projectConfigPath);
+  };
+
+  try {
+    process.env.NODE_ENV = 'production';
+    process.env.ANALYZE = 'false';
+    delete process.env.BACKEND_URL;
+    process.env.NEXT_PUBLIC_API_URL = 'https://api.example.invalid';
+    process.env.NEXT_PUBLIC_ALLOW_LOOPBACK = '0';
+
+    const publicRewrites = await loadConfig().rewrites();
+    assert.ok(publicRewrites.afterFiles.length > 0, 'production rewrites must be present');
+    assert.ok(
+      publicRewrites.afterFiles.every(({ destination }) =>
+        destination.startsWith('https://api.example.invalid/')),
+      'without BACKEND_URL, server rewrites keep the existing public URL fallback',
+    );
+    assert.equal(
+      publicRewrites.fallback[0].destination,
+      'https://api.example.invalid/api/:path*',
+      'fallback rewrites keep the existing public URL fallback',
+    );
+
+    process.env.NEXT_PUBLIC_API_URL = 'http://localhost:8001';
+    assert.throws(
+      loadConfig,
+      /Refusing to bake a loopback URL/,
+      'production builds must still refuse loopback without explicit opt-in',
+    );
+
+    process.env.NEXT_PUBLIC_ALLOW_LOOPBACK = '1';
+    process.env.BACKEND_URL = 'http://atom-backend:8000';
+    const internalRewrites = await loadConfig().rewrites();
+    assert.ok(
+      internalRewrites.afterFiles.every(({ destination }) =>
+        destination.startsWith('http://atom-backend:8000/')),
+      'same-origin server rewrites must use the internal BACKEND_URL',
+    );
+    assert.ok(
+      internalRewrites.afterFiles.every(({ destination }) => !destination.includes('localhost:8001')),
+      'server rewrites must not resolve the browser loopback URL inside the container',
+    );
+    assert.equal(
+      internalRewrites.fallback[0].destination,
+      'http://atom-backend:8000/api/:path*',
+      'fallback rewrites must also use the internal BACKEND_URL',
+    );
+  } finally {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in saved)) delete process.env[key];
+    }
+    Object.assign(process.env, saved);
+    delete require.cache[projectConfigPath];
+  }
+});
+
+test('production Compose supplies frontend build args and runtime web auth env', () => {
+  const composePath = path.resolve(root, '..', 'infra', 'docker-compose.prod.yml');
+  const compose = fs.readFileSync(composePath, 'utf8');
+  const dockerfile = fs.readFileSync(path.join(root, 'Dockerfile.production'), 'utf8');
+
+  assert.match(
+    compose,
+    /NEXT_PUBLIC_API_URL:\s+\$\{NEXT_PUBLIC_API_URL:-http:\/\/localhost:8001\}/,
+    'Compose must pass the existing browser public origin as a build arg',
+  );
+  assert.match(
+    compose,
+    /NEXT_PUBLIC_ALLOW_LOOPBACK:\s+\$\{NEXT_PUBLIC_ALLOW_LOOPBACK:-0\}/,
+    'Compose must keep the loopback opt-in explicit with a default of 0',
+  );
+  assert.match(
+    compose,
+    /BACKEND_URL:\s+http:\/\/atom-backend:8000/,
+    'Compose must build server rewrites against the backend service DNS',
+  );
+  assert.match(
+    compose,
+    /BACKEND_URL=http:\/\/atom-backend:8000/,
+    'Compose must provide the backend service DNS to runtime web auth',
+  );
+  assert.match(
+    compose,
+    /NEXTAUTH_SECRET=\$\{NEXTAUTH_SECRET\}/,
+    'Compose must pass the configured web auth secret at runtime',
+  );
+  assert.match(
+    compose,
+    /NEXTAUTH_URL=\$\{NEXTAUTH_URL:-http:\/\/localhost:3000\}/,
+    'Compose must pass the existing web auth runtime URL',
+  );
+  assert.match(dockerfile, /ARG NEXT_PUBLIC_API_URL\b/, 'Dockerfile must accept the public build arg');
+  assert.match(dockerfile, /ARG NEXT_PUBLIC_ALLOW_LOOPBACK\b/, 'Dockerfile must accept the loopback build arg');
+  assert.match(dockerfile, /ARG BACKEND_URL\b/, 'Dockerfile must accept the internal build arg');
+  assert.doesNotMatch(dockerfile, /NEXTAUTH_SECRET/, 'Dockerfile must not bake the web auth secret into the image');
+});
+
 test('installed next build fails only on the injected type error; valid twin builds', () => {
   assertResourceGate('heavy');
   fs.mkdirSync(logDir, { recursive: true });

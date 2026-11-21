@@ -17,6 +17,16 @@ RUN npm install --legacy-peer-deps
 # Copy source code
 COPY . .
 
+# Public browser API origin compiled into the client bundle. No secret belongs
+# here; runtime-only values are supplied by Compose at container start.
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_ALLOW_LOOPBACK
+# Internal backend origin used by same-origin server rewrites at build time.
+ARG BACKEND_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_PUBLIC_ALLOW_LOOPBACK=$NEXT_PUBLIC_ALLOW_LOOPBACK \
+    BACKEND_URL=$BACKEND_URL
+
 # Bypass strict environment validation during build
 ARG SKIP_ENV_VALIDATION=true
 ENV SKIP_ENV_VALIDATION=$SKIP_ENV_VALIDATION
