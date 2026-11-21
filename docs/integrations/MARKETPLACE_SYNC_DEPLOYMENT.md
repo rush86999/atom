@@ -158,7 +158,7 @@ cd backend
 alembic current
 
 # Apply all pending migrations
-alembic upgrade head
+alembic upgrade heads
 
 # Verify migrations
 alembic history | grep -E "sync|skill_cache|rating_sync|conflict"
@@ -181,7 +181,7 @@ alembic downgrade -1
 alembic downgrade <revision_id>
 
 # Re-apply migration
-alembic upgrade head
+alembic upgrade heads
 ```
 
 ### Manual Table Verification
@@ -725,7 +725,7 @@ sqlite3 data/atom.db ".tables" | grep -E "sync|skill_cache|rating|conflict"
 ```
 
 **Solutions:**
-1. Apply pending migrations: `alembic upgrade head`
+1. Apply pending migrations: `alembic upgrade heads`
 2. If migration failed, rollback: `alembic downgrade -1`
 3. Check database user permissions (CREATE TABLE, ALTER TABLE)
 4. For SQLite, ensure write permissions on .db file
@@ -745,7 +745,7 @@ sqlite3 data/atom.db ".tables" | grep -E "sync|skill_cache|rating|conflict"
   - [ ] `ENABLE_SCHEDULER=true` (for single-instance deployments)
 
 - [ ] **Database Migrations**
-  - [ ] All migrations applied (`alembic upgrade head`)
+  - [ ] All migrations applied (`alembic upgrade heads`)
   - [ ] Migration verification: 6 tables created
   - [ ] Database user has CREATE/ALTER permissions
   - [ ] Backup created before deployment
@@ -923,7 +923,7 @@ alembic downgrade -1
 alembic downgrade <revision_id>
 
 # Re-apply migration after fix
-alembic upgrade head
+alembic upgrade heads
 ```
 
 ### Emergency Stop

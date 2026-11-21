@@ -529,7 +529,7 @@ pytest tests/test_canvas*.py tests/test_tool_registry.py -v
 
 ```bash
 cd backend
-alembic upgrade head
+alembic upgrade heads
 ```
 
 ### Verify Migration

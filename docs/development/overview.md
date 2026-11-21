@@ -381,7 +381,7 @@ npm start
 - [ ] Install Redis server
 - [ ] Configure Redis connection (REDIS_HOST, REDIS_PORT)
 - [ ] Backup existing database: `cp atom_data.db atom_data.db.backup.$(date +%Y%m%d)`
-- [ ] Run database migrations: `alembic upgrade head`
+- [ ] Run database migrations: `alembic upgrade heads`
 
 ### Deployment
 

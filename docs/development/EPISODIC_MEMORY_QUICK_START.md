@@ -11,7 +11,7 @@ Get started with Episodic Memory in 5 minutes.
 - PostgreSQL database (for hot storage)
 - LanceDB instance (for cold storage and semantic search)
 - Agent registered in AgentRegistry
-- Database migrations run (`alembic upgrade head`)
+- Database migrations run (`alembic upgrade heads`)
 
 ---
 

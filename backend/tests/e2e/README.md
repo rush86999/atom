@@ -560,7 +560,7 @@ docker-compose -f docker-compose-e2e.yml up -d
 
 # Run migrations manually
 cd backend
-alembic upgrade head
+alembic upgrade heads
 ```
 
 ### API Key Issues

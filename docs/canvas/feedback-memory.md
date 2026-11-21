@@ -592,7 +592,7 @@ for episode in old_episodes:
 
 ```bash
 # Apply migration
-alembic upgrade head
+alembic upgrade heads
 
 # Verify new columns
 sqlite3 atom_dev.db ".schema episodes" | grep -E "canvas_ids|feedback_ids|aggregate_feedback_score"
