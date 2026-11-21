@@ -89,15 +89,21 @@ alembic current
 # Review migration plan
 alembic history | head -20
 
-# Run migrations (dry run first)
-alembic upgrade head --sql
+# Inspect the migration heads and preview SQL
+alembic heads
+alembic upgrade heads --sql
 
 # Execute migrations
-alembic upgrade head
+alembic upgrade heads
 
 # Verify migration success
 alembic current
 ```
+
+Compare the applied revisions with `alembic heads`. Atom has parallel
+migration branches. Rehearse the upgrade against a staging copy before
+applying it to production. An offline SQL preview cannot test database
+state or migrations that read data.
 
 **Migration Verification:**
 ```sql
