@@ -356,7 +356,7 @@ pytest tests/test_canvas_recording.py --cov=core.canvas_recording_service --cov-
 ```bash
 cd backend
 source venv/bin/activate
-alembic upgrade head
+alembic upgrade heads
 ```
 
 **Rollback**:

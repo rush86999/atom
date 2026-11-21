@@ -787,7 +787,7 @@ PREFERRED_PROVIDERS=openai,anthropic,deepseek  # Default provider order
 **Migration:**
 ```bash
 # Create cognitive tier tables
-alembic upgrade head
+alembic upgrade heads
 
 # Verify tables created
 psql -c "\d cognitive_tier_preferences"

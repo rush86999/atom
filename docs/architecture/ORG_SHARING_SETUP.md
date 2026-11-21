@@ -33,7 +33,7 @@ graduation; sharing would corrupt the trust model).
 ## 0. Prerequisites (both hub and members)
 
 - Atom backend with migration `20260816_org_ingestion_sharing` applied
-  (`alembic upgrade head`; the migration is guarded and idempotent).
+  (`alembic upgrade heads`; the migration is guarded and idempotent).
 - `ATOM_ORG_SHARING_ENABLED=true` in the instance `.env`.
 - Run `GET /api/data-ingestion/org-key` once — it generates the instance
   Ed25519 keypair (`./data/org_sharing_key`, 0600) and registers the public

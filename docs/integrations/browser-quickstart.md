@@ -13,7 +13,7 @@ playwright install chromium
 2. **Run Database Migration**:
 
 ```bash
-alembic upgrade head
+alembic upgrade heads
 ```
 
 3. **Start the Backend**:
