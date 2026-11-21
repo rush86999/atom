@@ -28,6 +28,7 @@ jest.mock("@/lib/conversation-learning-api", () => ({
 
 const listEmployees = learningApi.listLearningEmployees as jest.Mock;
 const listCandidates = learningApi.listLearningCandidates as jest.Mock;
+const createCandidate = learningApi.createLearningCandidate as jest.Mock;
 const reviseCandidate = learningApi.reviseLearningCandidate as jest.Mock;
 const historyFor = learningApi.getLearningCandidateHistory as jest.Mock;
 
@@ -734,5 +735,182 @@ describe("ConversationLearningReview correction", () => {
       .not.toBeInTheDocument();
     expect(screen.getByText(/Fresh revision history/)).toBeInTheDocument();
     expect(historyFor).toHaveBeenCalledTimes(2);
+  });
+
+  test("shows saved business terms before approval", async () => {
+    listCandidates.mockResolvedValue([payload({
+      commercial_terms: {
+        currency: { value: "EUR" },
+        freight: { value: "125.00", currency: "EUR" },
+        tax_rate: { value: "0.21" },
+        tax_amount: { value: "26.25", currency: "EUR" },
+        tax_basis: { value: "none" },
+      },
+    })]);
+
+    render(
+      <ConversationLearningReview threadId="thread-1" sourceKind="email" />,
+    );
+
+    const section = await screen.findByTestId("learning-commercial-terms");
+    expect(section).toHaveTextContent("Business terms");
+    expect(screen.getByTestId("learning-term-currency")).toHaveTextContent(
+      "Currency: EUR");
+    expect(screen.getByTestId("learning-term-freight")).toHaveTextContent(
+      "Freight: 125.00 EUR");
+    expect(screen.getByTestId("learning-term-tax-rate")).toHaveTextContent(
+      "Tax rate: 0.21");
+    expect(screen.getByTestId("learning-term-tax-amount")).toHaveTextContent(
+      "Tax amount: 26.25 EUR");
+    expect(screen.getByTestId("learning-term-tax-basis")).toHaveTextContent(
+      "Tax basis: No tax applies");
+    // The saved terms are visible before the reviewer confirms the revision.
+    expect(screen.getByTestId("learning-confirm")).toBeEnabled();
+  });
+
+  test("creates a candidate with the entered terms and omits them when untouched", async () => {
+    listCandidates.mockResolvedValue([]);
+    createCandidate.mockResolvedValue(payload());
+
+    render(
+      <ConversationLearningReview threadId="thread-1" sourceKind="email" />,
+    );
+    await screen.findByTestId("learning-draft-form");
+    // The lesson text is required, so enter it before the button can enable.
+    fireEvent.change(screen.getByTestId("learning-lesson-input"), {
+      target: { value: "Quote with standard freight." },
+    });
+    // Terms also need a typed customer or qualification scope.
+    fireEvent.change(screen.getByTestId("learning-customer-input"), {
+      target: { value: "Acme" },
+    });
+    await waitFor(() => expect(screen.getByTestId("learning-draft-button"))
+      .toBeEnabled());
+    fireEvent.change(screen.getByTestId("learning-terms-freight"), {
+      target: { value: "15.50" },
+    });
+    fireEvent.change(
+      screen.getByTestId("learning-terms-freight-currency"),
+      { target: { value: "EUR" } },
+    );
+    fireEvent.change(screen.getByTestId("learning-terms-tax-rate"), {
+      target: { value: "0.2" },
+    });
+    fireEvent.change(screen.getByTestId("learning-terms-tax-basis"), {
+      target: { value: "none" },
+    });
+    fireEvent.click(screen.getByTestId("learning-draft-button"));
+
+    await waitFor(() => expect(createCandidate).toHaveBeenCalledTimes(1));
+    expect(createCandidate.mock.calls[0][0].commercial_terms).toEqual({
+      freight: { value: "15.50", currency: "EUR" },
+      tax_rate: { value: "0.2" },
+      tax_basis: { value: "none" },
+    });
+
+    createCandidate.mockClear();
+    createCandidate.mockResolvedValue(payload());
+    fireEvent.click(screen.getByTestId("learning-new-draft"));
+    fireEvent.change(screen.getByTestId("learning-lesson-input"), {
+      target: { value: "Legacy lesson without terms." },
+    });
+    // Terms are the only reason typed context is required; clearing them keeps
+    // ordinary legacy lesson creation available without a scope.
+    fireEvent.change(screen.getByTestId("learning-customer-input"), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByTestId("learning-qualification-input"), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByTestId("learning-terms-freight"), {
+      target: { value: "" },
+    });
+    fireEvent.change(
+      screen.getByTestId("learning-terms-freight-currency"),
+      { target: { value: "" } },
+    );
+    fireEvent.change(screen.getByTestId("learning-terms-tax-rate"), {
+      target: { value: "" },
+    });
+    fireEvent.change(screen.getByTestId("learning-terms-tax-basis"), {
+      target: { value: "" },
+    });
+    fireEvent.click(screen.getByTestId("learning-draft-button"));
+
+    await waitFor(() => expect(createCandidate).toHaveBeenCalledTimes(1));
+    expect(createCandidate.mock.calls[0][0])
+      .not.toHaveProperty("commercial_terms");
+  });
+
+  test("corrects saved terms against the visible revision", async () => {
+    listCandidates.mockResolvedValue([payload({
+      status: "confirmed",
+      confirmed_by: "owner",
+      confirmed_revision: 1,
+      commercial_terms: {
+        currency: { value: "USD" },
+        freight: { value: "10.00", currency: "USD" },
+        tax_rate: { value: "0.08" },
+      },
+    })]);
+    reviseCandidate.mockResolvedValue(payload({
+      status: "review_ready",
+      revision: 2,
+      commercial_terms: {
+        currency: { value: "USD" },
+        freight: { value: "12.00", currency: "USD" },
+        tax_rate: { value: "0.08" },
+      },
+    }));
+
+    await openEditor();
+    fireEvent.change(screen.getByTestId("learning-edit-terms-freight"), {
+      target: { value: "12.00" },
+    });
+    fireEvent.click(screen.getByTestId("learning-revise-save"));
+
+    await waitFor(() => expect(reviseCandidate).toHaveBeenCalledTimes(1));
+    const body = reviseCandidate.mock.calls[0][2];
+    expect(body.expected_revision).toBe(1);
+    expect(body.expected_status).toBe("confirmed");
+    expect(body.commercial_terms).toEqual({
+      currency: { value: "USD" },
+      freight: { value: "12.00", currency: "USD" },
+      tax_rate: { value: "0.08" },
+    });
+    expect(screen.getByTestId("learning-term-freight"))
+      .toHaveTextContent("Freight: 12.00 USD");
+    expect(screen.getByTestId("learning-notice"))
+      .toHaveTextContent("confirmation was cleared");
+  });
+
+  test("clearing saved terms sends an explicit empty object", async () => {
+    listCandidates.mockResolvedValue([payload({
+      status: "confirmed",
+      confirmed_by: "owner",
+      confirmed_revision: 1,
+      commercial_terms: {
+        currency: { value: "USD" },
+        freight: { value: "10.00", currency: "USD" },
+        tax_basis: { value: "none" },
+      },
+    })]);
+    reviseCandidate.mockResolvedValue(payload({
+      status: "review_ready",
+      revision: 2,
+      commercial_terms: {},
+    }));
+
+    await openEditor();
+    fireEvent.click(screen.getByTestId("learning-edit-terms-clear"));
+    fireEvent.click(screen.getByTestId("learning-revise-save"));
+
+    await waitFor(() => expect(reviseCandidate).toHaveBeenCalledTimes(1));
+    const body = reviseCandidate.mock.calls[0][2];
+    expect(body.expected_revision).toBe(1);
+    expect(body.expected_status).toBe("confirmed");
+    expect(body.commercial_terms).toEqual({});
+    expect(screen.getByTestId("learning-commercial-terms"))
+      .toHaveTextContent("No business terms stated.");
   });
 });

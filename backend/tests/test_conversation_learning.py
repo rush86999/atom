@@ -34,6 +34,7 @@ from core.conversation_learning import (
     invalidate_candidate,
     load_candidate,
     method_from_lesson,
+    normalize_commercial_terms,
     promote_candidate,
     reject_candidate,
     resolve_dependency,
@@ -181,7 +182,7 @@ def _method(*, unit="USD", operation="multiply_sum", status="explicit"):
 
 def _candidate(*, lesson="Use the confirmed method.", method=None,
                method_status="explicit", references=None, applies_to=None,
-               context=None):
+               context=None, commercial_terms=None):
     authority = _evidence([
         _message("m-auth", "Use the confirmed method for this work."),
     ], [])
@@ -191,10 +192,11 @@ def _candidate(*, lesson="Use the confirmed method.", method=None,
         agent_id="agent-1",
         thread_id="thread-1",
         proposed_lesson=lesson,
-        method=method or _method(),
+        method=method if method is not None else _method(),
         method_status=method_status,
         applies_to=applies_to if applies_to is not None else ["pricing"],
         context=context or {},
+        commercial_terms=commercial_terms,
         references=references,
         evidence=authority,
         authority_message_id="m-auth",
@@ -2289,6 +2291,315 @@ def test_guidance_only_lesson_rejects_invalid_artifact_format(db):
     readiness = candidate_readiness(candidate)
     assert readiness["review_ready"] is False
     assert any(dep.kind == "format" for dep in readiness["blocking"])
+
+
+# ---------------------------------------------------------------------------
+# Reviewed commercial terms
+# ---------------------------------------------------------------------------
+
+def _commercial_terms(**overrides):
+    terms = {
+        "currency": {"value": "usd"},
+        "freight": {"value": "12.50", "currency": "usd"},
+        "tax_rate": {"value": "0.20"},
+        "tax_amount": {"value": "2.50", "currency": "usd"},
+        "tax_basis": {"value": "exempt"},
+    }
+    terms.update(overrides)
+    return terms
+
+
+def _expected_terms():
+    return {
+        "currency": {"value": "USD"},
+        "freight": {"value": "12.50", "currency": "USD"},
+        "tax_rate": {"value": "0.20"},
+        "tax_amount": {"value": "2.50", "currency": "USD"},
+        "tax_basis": {"value": "exempt"},
+    }
+
+
+def test_commercial_terms_review_confirm_and_promote_exact_values(db):
+    _agent(db)
+    candidate = _candidate(
+        lesson="Apply the reviewed freight and tax terms.",
+        method={},
+        method_status="unresolved",
+        context={"customer": "Customer-A"},
+        commercial_terms=_commercial_terms(),
+    )
+    # A pure terms lesson is structured guidance, not an unresolved method.
+    assert candidate.method_status == "not_applicable"
+    expected = _expected_terms()
+    assert candidate.commercial_terms == expected
+    readiness = candidate_readiness(candidate)
+    assert readiness["review_ready"] is True
+    assert readiness["blocking"] == []
+    review = candidate.review_payload()
+    assert review["commercial_terms"] == expected
+
+    save_candidate(db, candidate)
+    confirmed = confirm_candidate(
+        db, candidate, reviewer="owner", expected_revision=1)
+    assert confirmed.confirmed_digest == candidate.digest
+    promoted = promote_candidate(
+        db, candidate, reviewer="owner", expected_revision=1)
+    details = promoted["entry"]["details"]["conversation_learning"]
+    assert details["commercial_terms"] == expected
+    assert details["reviewed_by"] == "owner"
+    assert details["candidate_id"] == candidate.candidate_id
+
+
+def test_commercial_terms_digest_distinguishes_values_but_not_empty():
+    base = _candidate(
+        lesson="Apply the reviewed freight terms.",
+        method={},
+        method_status="not_applicable",
+        context={"customer": "Customer-A"},
+        commercial_terms=_commercial_terms(),
+    )
+    changed = _candidate(
+        lesson="Apply the reviewed freight terms.",
+        method={},
+        method_status="not_applicable",
+        context={"customer": "Customer-A"},
+        commercial_terms=_commercial_terms(
+            freight={"value": "13.00", "currency": "usd"}),
+    )
+    assert base.digest != changed.digest
+
+    plain = _candidate(
+        lesson="An ordinary lesson.",
+        context={"customer": "Customer-A"},
+    )
+    from core.conversation_learning import _candidate_digest
+
+    empty = plain.model_copy(deep=True)
+    empty.commercial_terms = {}
+    assert _candidate_digest(empty) == plain.digest
+    assert normalize_commercial_terms(None) == {}
+    assert normalize_commercial_terms({}) == {}
+
+
+def test_pure_commercial_terms_lesson_needs_reviewed_context(db):
+    unscoped = _candidate(
+        lesson="Apply the reviewed terms.",
+        method={},
+        method_status="unresolved",
+        context={},
+        commercial_terms=_commercial_terms(),
+    )
+    assert unscoped.method_status == "not_applicable"
+    readiness = candidate_readiness(unscoped)
+    assert readiness["review_ready"] is False
+    assert any(
+        dep.kind == "commercial_terms" and dep.status == "missing"
+        for dep in readiness["blocking"]
+    )
+
+    scoped = _candidate(
+        lesson="Apply the reviewed terms.",
+        method={},
+        method_status="unresolved",
+        context={"customer": "Customer-A"},
+        commercial_terms=_commercial_terms(),
+    )
+    assert candidate_readiness(scoped)["review_ready"] is True
+
+
+@pytest.mark.parametrize("context", [
+    {"workspace_id": "ws-1"},
+    {"tenant_id": "t-1"},
+    {"effective_from": "2026-01-01"},
+    {"effective_to": "2026-12-31"},
+    {"exceptions": {"customer": "Customer-B"}},
+    {"replaces": ["lesson-old"]},
+    {"field_mappings": [{"concept": "freight", "column": "Freight"}]},
+    {
+        "workspace_id": "ws-1",
+        "tenant_id": "t-1",
+        "effective_from": "2026-01-01",
+        "effective_to": "2026-12-31",
+        "exceptions": {"customer": "Customer-B"},
+        "replaces": ["lesson-old"],
+        "field_mappings": [{"concept": "freight", "column": "Freight"}],
+    },
+])
+def test_pure_commercial_terms_need_a_positive_task_qualification(db, context):
+    _agent(db)
+    candidate = _candidate(
+        lesson="Apply the reviewed terms.",
+        method={},
+        method_status="not_applicable",
+        context=context,
+        commercial_terms=_commercial_terms(),
+    )
+    readiness = candidate_readiness(candidate)
+    assert readiness["review_ready"] is False
+    assert any(
+        dep.kind == "commercial_terms" and dep.status == "missing"
+        for dep in readiness["blocking"]
+    )
+
+
+@pytest.mark.parametrize("qualification", [
+    {"customer": "Customer-A"},
+    {"task_type": "freight_quote"},
+])
+def test_pure_commercial_terms_accept_positive_task_qualification(
+        db, qualification):
+    _agent(db)
+    candidate = _candidate(
+        lesson="Apply the reviewed terms.",
+        method={},
+        method_status="not_applicable",
+        context={"workspace_id": "ws-1", **qualification},
+        commercial_terms=_commercial_terms(),
+    )
+    assert all(candidate.context[key] == value
+               for key, value in qualification.items())
+    readiness = candidate_readiness(candidate)
+    assert readiness["review_ready"] is True
+    assert readiness["blocking"] == []
+
+
+def test_revising_commercial_terms_omitted_preserves_and_empty_clears(db):
+    _agent(db)
+    candidate = _candidate(
+        lesson="Apply the reviewed terms.",
+        method={},
+        method_status="not_applicable",
+        context={"customer": "Customer-A"},
+        commercial_terms=_commercial_terms(),
+    )
+    save_candidate(db, candidate)
+    expected = _expected_terms()
+
+    preserved = revise_candidate(
+        db, candidate, proposed_lesson="Apply the reviewed terms exactly.",
+        expected_revision=1, changed_by="owner")
+    assert preserved.commercial_terms == expected
+    assert preserved.review_payload()["commercial_terms"] == expected
+
+    cleared = revise_candidate(
+        db, preserved, commercial_terms={},
+        expected_revision=2, changed_by="owner")
+    assert cleared.commercial_terms == {}
+    assert cleared.review_payload()["commercial_terms"] == {}
+    history = _history(db, candidate.candidate_id)
+    assert "commercial_terms" in history["events"][0]["changed_fields"]
+
+
+def test_correcting_promoted_commercial_terms_retires_old_lesson(db):
+    from core.student_learning_service import get_agent_lessons
+
+    _agent(db)
+    candidate = _candidate(
+        lesson="Apply the original terms.",
+        method={},
+        method_status="not_applicable",
+        context={"customer": "Customer-A"},
+        commercial_terms=_commercial_terms(),
+    )
+    save_candidate(db, candidate)
+    confirm_candidate(db, candidate, reviewer="owner", expected_revision=1)
+    promoted = promote_candidate(
+        db, candidate, reviewer="owner", expected_revision=1)
+    old_entry_id = promoted["lesson_id"]
+    visible = get_agent_lessons(
+        db, "agent-1", include_context_bound=True)
+    assert [entry["id"] for entry in visible] == [old_entry_id]
+
+    revised_terms = {
+        "freight": {"value": "15.00", "currency": "usd"},
+        "tax_rate": {"value": "0.05"},
+    }
+    revised = revise_candidate(
+        db, candidate, commercial_terms=revised_terms,
+        expected_revision=1, changed_by="owner")
+    assert revised.commercial_terms == {
+        "freight": {"value": "15.00", "currency": "USD"},
+        "tax_rate": {"value": "0.05"},
+    }
+    # The correction clears approval and retires the old guidance atomically.
+    assert revised.confirmed_by is None
+    assert revised.confirmed_revision is None
+    assert revised.confirmed_digest is None
+    assert get_agent_lessons(
+        db, "agent-1", include_context_bound=True) == []
+    history = _history(db, candidate.candidate_id)
+    assert "commercial_terms" in history["events"][0]["changed_fields"]
+
+    confirm_candidate(db, revised, reviewer="owner", expected_revision=2)
+    repromoted = promote_candidate(
+        db, revised, reviewer="owner", expected_revision=2)
+    assert repromoted["lesson_id"] != old_entry_id
+    assert repromoted["entry"]["details"]["conversation_learning"][
+        "commercial_terms"] == revised.commercial_terms
+    visible = get_agent_lessons(
+        db, "agent-1", include_context_bound=True)
+    assert [entry["id"] for entry in visible] == [repromoted["lesson_id"]]
+    assert [entry["lesson"] for entry in visible] == ["Apply the original terms."]
+
+
+@pytest.mark.parametrize("terms", [
+    {"duty": {"value": "1"}},
+    {"freight": {"value": "10", "formula": "a+b"}},
+    {"freight": {"value": "10", "role": "tax_rate"}},
+    {"freight": {"value": "10", "validity": {"effective_from": "2020-01-01"}}},
+    {"freight": {"value": "NaN"}},
+    {"freight": {"value": "Infinity"}},
+    {"freight": {"value": "-1"}},
+    {"tax_rate": {"value": "1.5"}},
+    {"tax_rate": {"value": "0.20", "currency": "USD"}},
+    {"tax_basis": {"value": "sometimes"}},
+    {"currency": {"value": ""}},
+    {"freight": "10"},
+    {"freight": {"currency": "USD"}},
+])
+def test_invalid_commercial_terms_are_rejected(terms):
+    with pytest.raises(ValueError):
+        _candidate(
+            lesson="Apply invalid terms.",
+            context={"customer": "Customer-A"},
+            commercial_terms=terms,
+        )
+
+
+def test_legacy_candidate_without_terms_keeps_recorded_digest(db):
+    import json
+
+    from core import conversation_learning as learning
+    from core.models import ConversationEvent
+
+    _agent(db)
+    candidate = _candidate(
+        lesson="A legacy ordinary lesson.",
+        context={"customer": "Customer-A"},
+    )
+    save_candidate(db, candidate)
+    raw = candidate.model_dump(mode="json")
+    raw.pop("commercial_terms", None)
+    # The historical payload had no terms key; the current digest must be the
+    # same bytes for an empty mapping.
+    legacy = learning.LearningCandidate.model_validate(raw)
+    assert legacy.commercial_terms == {}
+    assert learning._candidate_digest(legacy) == candidate.digest
+
+    db.add(ConversationEvent(
+        conversation_id="thread-1",
+        kind="learning_candidate_created",
+        payload_json=json.dumps({"candidate": {
+            **raw,
+            "candidate_id": "lc-legacy",
+            "digest": candidate.digest,
+        }}),
+        workspace_id="ws-1", tenant_id="t-1"))
+    db.commit()
+    loaded = load_candidate(db, "thread-1", "lc-legacy")
+    assert loaded is not None
+    assert loaded.commercial_terms == {}
+    assert loaded.digest == candidate.digest
 
 
 # ---------------------------------------------------------------------------

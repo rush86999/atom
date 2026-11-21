@@ -23,6 +23,9 @@ _CONTEXT_RESERVED = {
     "exceptions", "effective_from", "effective_to", "replaces",
     "field_mappings",
 }
+# The authenticated workspace/tenant is established scope, not a task
+# qualification. It narrows where a lesson applies, never what task it is for.
+_CONTEXT_SCOPE_KEYS = {"workspace_id", "tenant_id"}
 
 _FORMAT_SCHEMA: Dict[str, Dict[str, Any]] = {
     "document": {
@@ -241,6 +244,22 @@ def normalize_lesson_context(raw: Any) -> Dict[str, Any]:
             if scalar:
                 out[name] = scalar
     return out
+
+
+def positive_context_keys(context: Any) -> List[str]:
+    """Context keys that state a real task qualification.
+
+    Scope (workspace/tenant), validity windows, exceptions, replacement
+    references and field mappings narrow *where* a lesson applies; they do
+    not say which customer or task it was taught for. This reuses the
+    evaluator's reserved-context definition and treats the authenticated
+    workspace/tenant as established scope rather than a qualification.
+    """
+    normalized = normalize_lesson_context(context)
+    return [
+        key for key in normalized
+        if key not in _CONTEXT_RESERVED and key not in _CONTEXT_SCOPE_KEYS
+    ]
 
 
 def _context_scalar(value: Any) -> str:

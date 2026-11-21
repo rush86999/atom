@@ -3691,6 +3691,318 @@ def test_objective_only_runs_typed_adaptive_follow_up(
     assert calc["result"]["value"] == "370.00"
 
 
+def _commercial_terms_agent(route_env, name="Reviewed terms employee"):
+    from core.models import AgentRegistry
+
+    agent = AgentRegistry(
+        id=f"agent-terms-{uuid.uuid4().hex[:8]}", name=name,
+        category="operations", module_path="core.generic_agent",
+        class_name="GenericAgent", status="intern",
+        confidence_score=0.5, configuration={}, capabilities=[],
+        workspace_id="ws-1", tenant_id="tenant-1",
+    )
+    route_env["db"].add(agent)
+    route_env["db"].commit()
+    return agent.id
+
+
+def _journal_commercial_terms(
+        route_env, agent_id, terms, *, context=None, references=None,
+        candidate_id=None, revision=1, digest=None, reviewed_by="owner-1"):
+    from core.student_learning_service import journal_standing_lesson_entry
+
+    lesson = journal_standing_lesson_entry(
+        route_env["db"], agent_id,
+        f"Use the reviewed commercial terms {uuid.uuid4().hex[:8]}",
+        source="teacher", topic="commercial terms",
+        context=dict(context or {}),
+        details={"conversation_learning": {
+            "candidate_id": (
+                candidate_id
+                or f"lc-commercial-{uuid.uuid4().hex[:8]}"),
+            "reviewed_by": reviewed_by,
+            "workspace_id": "ws-1",
+            "tenant_id": "tenant-1",
+            "agent_id": agent_id,
+            "revision": revision,
+            "digest": digest or f"digest-{uuid.uuid4().hex}",
+            "commercial_terms": terms,
+            **({"references": references} if references else {}),
+        }},
+        workspace_id="ws-1",
+    )
+    assert lesson is not None
+    return lesson
+
+
+def test_employee_objective_consumes_reviewed_commercial_terms(
+        route_env, tmp_path, monkeypatch):
+    """A matched reviewed term reaches the proposal and the quote receipt."""
+    from core.employee_adaptation import WorkAdaptationProposal
+    from core.employee_work_requests import (
+        MoneyTerm, QuoteCalculationRequest, QuoteColumns, TaxTerm,
+    )
+
+    _scotch_catalog(route_env, tmp_path, monkeypatch)
+    agent_id = _commercial_terms_agent(route_env)
+    lesson = _journal_commercial_terms(route_env, agent_id, {
+        "currency": {"value": "USD"},
+        "freight": {"value": "20.00", "currency": "USD"},
+        "tax_basis": {"value": "none"},
+    }, context={"customer": "Acme"})
+
+    async def initial(context, **_kwargs):
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "Read the authorized price rows.",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read the price list",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    async def adaptation(context, observations, **_kwargs):
+        terms = context["teaching"]["terms"]
+        assert terms["freight"]["lesson_id"] == lesson["id"], terms
+        # The typed request schema requires non-empty values. Read them from
+        # the captured context teaching rather than the public request, which
+        # stays free of term values so reviewed teaching remains authority.
+        currency = terms["currency"]["value"]
+        freight_value = terms["freight"]["value"]
+        request = QuoteCalculationRequest(
+            operation="quote_calculation",
+            source_step_id="source-1",
+            columns=QuoteColumns(
+                item_id="Item Number", description="Description",
+                quantity="Quantity", unit_price="Unit Price",
+                currency="Currency"),
+            currency=currency,
+            freight=MoneyTerm(
+                value=freight_value, currency=currency,
+                authority_ref="freight"),
+            tax=TaxTerm(basis="none", authority_ref="tax_basis"),
+            reason="calculate the reviewed quote",
+        )
+        return {
+            "proposal": WorkAdaptationProposal(
+                decision="replan",
+                reason="accepted rows support the reviewed quote",
+                observation_ids=[
+                    item["observation_id"] for item in observations],
+                work_request=request).model_dump(),
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+            "attempt_id": "reviewed-terms-1",
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", initial)
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_adaptation", adaptation)
+    monkeypatch.setattr(
+        "api.assignment_routes._employee_llm",
+        lambda *_args, **_kwargs: object())
+
+    response = route_env["client"].post(
+        "/api/assignments/from-objective", json={
+            "objective": "Quote the reviewed customer request",
+            "agent_id": agent_id,
+            "sources": [{
+                "kind": "workbook",
+                "dataset_name": "scotch_parts_price_list",
+                "sheet": "US$ SCOTCH PARTS",
+            }],
+            "task_context": {"customer": "Acme"},
+            "authorized_actions": ["retrieve", "calculate"],
+            "use_model": True,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    internal = route_env["lifecycle"].get_assignment(body["run_id"])
+    assert internal["status"] == "completed", internal
+    snapshot = internal["teaching_snapshot"]
+    assert snapshot["terms"]["freight"]["value"] == "20.00"
+    assert snapshot["terms"]["freight"]["lesson_id"] == lesson["id"]
+    assert snapshot["terms"]["freight"]["lesson_revision"] == (
+        lesson.get("revision") or 1)
+    assert snapshot["terms"]["freight"]["lesson_digest"]
+    assert snapshot["terms_digest"]
+    assert snapshot["fingerprint"]
+    assert any(
+        item.get("id") == lesson["id"]
+        for item in snapshot["effective_lesson_ids"])
+
+    calc = next(step for step in internal["steps"]
+                if step.get("adapter") == "quote.calculate")
+    assert calc["result"]["value"] == "105.00"
+    receipt = calc["inputs"]["term_receipt"]
+    assert receipt["freight"]["lesson_id"] == lesson["id"]
+    assert receipt["freight"]["lesson_digest"]
+    assert receipt["freight"]["provenance"]["kind"] == (
+        "reviewed_commercial_terms")
+    assert receipt["freight"]["provenance"]["reviewed_by"] == "owner-1"
+    assert receipt["freight"]["provenance"]["candidate_id"]
+
+
+def test_employee_objective_term_context_mismatch_keeps_run_local_terms(
+        route_env, tmp_path, monkeypatch):
+    """A reviewed term for another context neither applies nor overrides."""
+    note = tmp_path / "term-source.txt"
+    note.write_text("Customer source for the local terms.\n")
+    agent_id = _commercial_terms_agent(route_env, "Other context terms")
+    lesson = _journal_commercial_terms(
+        route_env, agent_id, {
+            "currency": {"value": "USD"},
+            "freight": {"value": "20.00", "currency": "USD"},
+            "tax_basis": {"value": "none"},
+        }, context={"audience": "buyer"})
+
+    async def proposal(context, **_kwargs):
+        return {
+            "proposal": {
+                "proposal_kind": "evidence_read",
+                "reason": "Read the local source.",
+                "evidence_reads": [{
+                    "step_id": "evidence-1",
+                    "title": "Read the local source",
+                    "source_id": context["sources"][0]["source_id"],
+                }],
+            },
+            "source": "model",
+            "technical_fallback": False,
+            "errors": [],
+        }
+
+    monkeypatch.setattr(
+        "api.assignment_routes.propose_employee_work", proposal)
+    response = route_env["client"].post(
+        "/api/assignments/from-objective", json={
+            "objective": "Read the local source",
+            "agent_id": agent_id,
+            "sources": [{"path": str(note), "kind": "document"}],
+            "task_context": {"audience": "seller"},
+            "teaching_terms": {
+                "currency": "CAD", "freight": "5.00",
+                "tax_basis": "none",
+            },
+            "use_model": False,
+        })
+    assert response.status_code == 200, response.text
+    snapshot = route_env["lifecycle"].get_assignment(
+        response.json()["run_id"])["teaching_snapshot"]
+    assert snapshot["terms"] == {
+        "currency": "CAD", "freight": "5.00", "tax_basis": "none",
+    }, snapshot["terms"]
+    assert not any(
+        item.get("id") == lesson["id"]
+        for item in snapshot["effective_lesson_ids"])
+
+
+def test_employee_objective_conflicting_reviewed_terms_clarify(
+        route_env, tmp_path, monkeypatch):
+    """Equally specific reviewed values are a clarification, not recency."""
+    note = tmp_path / "conflict-source.txt"
+    note.write_text("Customer source for conflicting terms.\n")
+    agent_id = _commercial_terms_agent(route_env, "Conflicting terms")
+    first = _journal_commercial_terms(route_env, agent_id, {
+        "freight": {"value": "20.00", "currency": "USD"},
+    })
+    second = _journal_commercial_terms(route_env, agent_id, {
+        "freight": {"value": "25.00", "currency": "USD"},
+    })
+
+    response = route_env["client"].post(
+        "/api/assignments/from-objective", json={
+            "objective": "Read the conflicting source",
+            "agent_id": agent_id,
+            "sources": [{"path": str(note), "kind": "document"}],
+            "use_model": False,
+        })
+    assert response.status_code == 409, response.text
+    detail = response.json()["detail"]
+    assert detail["error"] == "commercial_terms_conflict"
+    conflict = next(
+        item for item in detail["conflicts"]
+        if item.get("role") == "freight_amount")
+    assert sorted(
+        candidate["value"] for candidate in conflict["candidates"]
+    ) == ["20.00", "25.00"]
+    assert {
+        candidate["lesson_id"] for candidate in conflict["candidates"]
+    } == {first["id"], second["id"]}
+    assert detail["clarifications"][0]["concept"] == "freight"
+
+
+def test_employee_objective_conflicting_run_local_term_is_refused(
+        route_env, tmp_path, monkeypatch):
+    """An explicit local value cannot silently replace an approved term."""
+    note = tmp_path / "override-source.txt"
+    note.write_text("Customer source for the approved term.\n")
+    agent_id = _commercial_terms_agent(route_env, "Approved term employee")
+    lesson = _journal_commercial_terms(route_env, agent_id, {
+        "freight": {"value": "20.00", "currency": "USD"},
+    }, context={"customer": "Acme"})
+
+    response = route_env["client"].post(
+        "/api/assignments/from-objective", json={
+            "objective": "Read the approved source",
+            "agent_id": agent_id,
+            "sources": [{"path": str(note), "kind": "document"}],
+            "task_context": {"customer": "Acme"},
+            "teaching_terms": {"freight": "25.00"},
+            "use_model": False,
+        })
+    assert response.status_code == 409, response.text
+    detail = response.json()["detail"]
+    assert detail["error"] == "commercial_terms_conflict"
+    conflict = detail["conflicts"][0]
+    assert conflict["reason"] == "run_local_override_conflict"
+    assert conflict["approved"]["lesson_id"] == lesson["id"]
+    assert conflict["approved"]["revision"] == (lesson.get("revision") or 1)
+    assert conflict["approved"]["digest"]
+    assert conflict["approved"]["role"] == "freight_amount"
+    assert conflict["approved"]["key"] == "freight"
+    assert conflict["requested"]["value"] == "25.00"
+
+
+def test_employee_objective_newer_reviewed_term_revision_corrects(
+        route_env, tmp_path, monkeypatch):
+    """A corrected promotion revision supersedes its older journal row."""
+    note = tmp_path / "corrected-source.txt"
+    note.write_text("Customer source for the corrected term.\n")
+    agent_id = _commercial_terms_agent(route_env, "Corrected term employee")
+    candidate_id = f"lc-corrected-{uuid.uuid4().hex[:8]}"
+    first = _journal_commercial_terms(route_env, agent_id, {
+        "freight": {"value": "20.00", "currency": "USD"},
+    }, candidate_id=candidate_id, revision=1)
+    second = _journal_commercial_terms(route_env, agent_id, {
+        "freight": {"value": "25.00", "currency": "USD"},
+    }, candidate_id=candidate_id, revision=2)
+
+    response = route_env["client"].post(
+        "/api/assignments/from-objective", json={
+            "objective": "Read the corrected source",
+            "agent_id": agent_id,
+            "sources": [{"path": str(note), "kind": "document"}],
+            "use_model": False,
+        })
+    assert response.status_code == 200, response.text
+    snapshot = route_env["lifecycle"].get_assignment(
+        response.json()["run_id"])["teaching_snapshot"]
+    freight = snapshot["terms"]["freight"]
+    assert freight["value"] == "25.00"
+    assert freight["lesson_id"] == second["id"]
+    assert freight["lesson_revision"] == 2
+    assert freight["lesson_id"] != first["id"]
+
+
 def _start_public_multi_quote(
         route_env, tmp_path, monkeypatch, rates):
     """Drive the public objective route with raw CSV + DOCX sources.

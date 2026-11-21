@@ -12,9 +12,15 @@ import asyncio
 import hashlib
 import json
 import time
-from typing import Any, Dict, List, Literal, Mapping, Optional
+from typing import Annotated, Any, Dict, List, Literal, Mapping, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, create_model
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    create_model,
+)
 
 from core.assignment_plan import downstream_step_ids, step_by_id
 from core.employee_patch import (
@@ -547,6 +553,20 @@ def _response_model_for(context: Mapping[str, Any]) -> Any:
         if context.get("work_request_schemas") else AdaptationProposal)
 
 
+def _empty_compact_explanation(value: Any) -> Any:
+    """Map an explicit JSON null explanation to its declared empty default.
+
+    Only compact ``reason`` fields are relaxed. Decision choices, operations,
+    authority refs and amounts remain strictly typed; a null elsewhere is
+    still a validation error.
+    """
+    return "" if value is None else value
+
+
+_CompactExplanation = Annotated[
+    Optional[str], BeforeValidator(_empty_compact_explanation)]
+
+
 # The compact invoice request keeps only the model-owned choice: the
 # operation, the accepted role step IDs and the currency. Field maps and the
 # evidence array stay compiler-owned (defaults are resolved from the accepted
@@ -561,7 +581,7 @@ _COMPACT_INVOICE_REQUEST = create_model(
     purchase_order_step_id=(Optional[str], None),
     receiving_step_id=(Optional[str], None),
     currency=(Optional[str], None),
-    reason=(str, ""),
+    reason=(_CompactExplanation, ""),
 )
 
 _COMPACT_QUOTE_REQUEST = create_model(
@@ -577,13 +597,67 @@ _COMPACT_QUOTE_REQUEST = create_model(
     freight_ref=(str, "freight"),
     tax_basis=(Literal["none", "rate", "amount"], "none"),
     tax_ref=(str, "tax_basis"),
-    reason=(str, ""),
+    reason=(_CompactExplanation, ""),
 )
 
 _COMPACT_REQUEST_MODELS = {
     "invoice_reconciliation": _COMPACT_INVOICE_REQUEST,
     "quote_calculation": _COMPACT_QUOTE_REQUEST,
 }
+
+
+def _scalar_term_value(term: Any) -> Any:
+    """Return a taught term's value without its authority envelope.
+
+    The durable teaching snapshot may hold a legacy scalar or a reviewed
+    record ``{value, currency, role, validity, source_refs, provenance}``.
+    Typed request fields and model-facing views need only the scalar; the
+    record itself stays untouched on the snapshot.
+    """
+    if isinstance(term, Mapping):
+        return term.get("value")
+    return term
+
+
+def _teaching_terms(context: Mapping[str, Any]) -> Mapping[str, Any]:
+    terms = (context.get("teaching") or {}).get("terms")
+    return terms if isinstance(terms, Mapping) else {}
+
+
+def _scalar_terms(terms: Mapping[Any, Any]) -> Dict[str, Any]:
+    return {
+        str(key): _scalar_term_value(value)
+        for key, value in terms.items()
+    }
+
+
+def _scalar_teaching_terms(context: Mapping[str, Any]) -> Dict[str, Any]:
+    return _scalar_terms(_teaching_terms(context))
+
+
+def _prompt_context(context: Mapping[str, Any]) -> Dict[str, Any]:
+    """A prompt-only copy with taught records reduced to scalar values."""
+    view = dict(context)
+    teaching = context.get("teaching")
+    if isinstance(teaching, Mapping) and isinstance(
+            teaching.get("terms"), Mapping):
+        teaching_view = dict(teaching)
+        teaching_view["terms"] = _scalar_terms(teaching["terms"])
+        view["teaching"] = teaching_view
+    return view
+
+
+def _taught_term(
+    terms: Mapping[str, Any],
+    keys: List[str],
+    *,
+    default_key: str,
+) -> Any:
+    """Resolve a taught term by key; return (authority key, scalar value)."""
+    for key in keys:
+        if key and key in terms:
+            return key, _scalar_term_value(terms.get(key))
+    return default_key, None
 
 
 def _compact_evidence(item: Mapping[str, Any]) -> Dict[str, Any]:
@@ -685,7 +759,7 @@ def _compact_single_request_context(
         "CompactEmployeeWorkProposal",
         __config__=ConfigDict(extra="forbid"),
         decision=(Literal["replan", "retain", "clarify"], ...),
-        reason=(str, ""),
+        reason=(_CompactExplanation, ""),
         observation_ids=(List[str], Field(default_factory=list)),
         work_request=(Optional[request_model], None),
         clarification=(Optional[ClarificationProposal], None),
@@ -698,8 +772,7 @@ def _compact_single_request_context(
         "roles": entry.get("roles") or {},
         "allowed_step_ids": sorted(relevant_ids),
         "known_identities": entry.get("known_identities") or {},
-        "teaching_terms": (
-            (context.get("teaching") or {}).get("terms") or {}),
+        "teaching_terms": _scalar_teaching_terms(context),
         "resolved_obligations": list(
             context.get("resolved_obligations") or [])[-20:],
         "decisions": ["replan", "retain", "clarify"],
@@ -806,7 +879,7 @@ def _compact_wait_choice_context(
         "CompactWaitChoiceProposal",
         __config__=ConfigDict(extra="forbid"),
         decision=(Literal["replan", "retain", "clarify"], ...),
-        reason=(str, ""),
+        reason=(_CompactExplanation, ""),
         observation_ids=(List[str], Field(default_factory=list)),
         fact=(Optional[str], None),
         subject=(Optional[str], None),
@@ -880,8 +953,7 @@ def _compact_wait_choice_context(
         "unread_sources": unread_sources[:10],
         "unread_source_count": len(unread_sources),
         "all_authorized_sources_read": not unread_sources,
-        "teaching_terms": (
-            (context.get("teaching") or {}).get("terms") or {}),
+        "teaching_terms": _scalar_teaching_terms(context),
         "resolved_obligations": list(
             context.get("resolved_obligations") or [])[-20:],
         "decisions": ["replan", "retain", "clarify"],
@@ -1156,7 +1228,8 @@ def _adaptation_prompt(
         + f"- Return JSON only with this shape: {shape}.\n"
         f"- The response schema is {getattr(model, '__name__', 'the response')}"
         "; fields outside that schema are rejected.\n\n"
-        "CONTEXT:\n" + json.dumps(context, sort_keys=True, default=str)
+        "CONTEXT:\n" + json.dumps(
+            _prompt_context(context), sort_keys=True, default=str)
         + "\n\nOBSERVATIONS:\n"
         + json.dumps(observations, sort_keys=True, default=str)
     )
@@ -1505,18 +1578,43 @@ async def propose_adaptation(
 
         The model returns flat column/term choices so a small model does not
         have to author nested MoneyTerm/TaxTerm objects. The compiler resolves
-        the taught term values and builds the existing typed request.
+        the taught term values and builds the existing typed request. A taught
+        term may be a legacy scalar or a reviewed record; only its scalar
+        ``value`` is copied into the typed field, while the record's authority
+        metadata stays on the durable teaching snapshot.
         """
         work_request = payload.get("work_request")
         if not isinstance(work_request, Mapping):
             return payload
         if str(work_request.get("operation") or "") != "quote_calculation":
             return payload
-        terms = (context.get("teaching") or {}).get("terms") or {}
+        terms = _teaching_terms(context)
         tax_basis = str(work_request.get("tax_basis") or "none")
+        tax_ref = str(work_request.get("tax_ref") or "tax_basis")
+        freight_ref = str(work_request.get("freight_ref") or "freight")
+        freight_key, freight_value = _taught_term(
+            terms, [freight_ref, "freight", "freight_amount", "shipping",
+                    "shipping_amount", "delivery_amount"],
+            default_key=freight_ref)
+        if tax_basis == "rate":
+            tax_keys = (
+                [tax_ref] if tax_ref != "tax_basis" else []
+            ) + ["tax_rate", "vat_rate", "gst_rate", "sales_tax_rate",
+                 "tax_basis"]
+        elif tax_basis == "amount":
+            tax_keys = (
+                [tax_ref] if tax_ref != "tax_basis" else []
+            ) + ["tax_amount", "vat_amount", "gst_amount", "sales_tax_amount",
+                 "tax_basis"]
+        else:
+            tax_keys = [tax_ref, "tax_basis"]
+        tax_key, tax_term = _taught_term(
+            terms, tax_keys, default_key=tax_ref)
         tax_value = (
-            str(terms.get("tax_basis") or "")
-            if tax_basis in ("rate", "amount") else "")
+            str(tax_term or "") if tax_basis in ("rate", "amount") else "")
+        _, currency_value = _taught_term(
+            terms, ["currency", "quote_currency", "currency_code",
+                    "currency_unit"], default_key="currency")
         payload["work_request"] = {
             "operation": "quote_calculation",
             "source_step_id": work_request.get("source_step_id"),
@@ -1529,17 +1627,15 @@ async def propose_adaptation(
             },
             "currency": (
                 work_request.get("currency")
-                or terms.get("currency") or "USD"),
+                or currency_value or "USD"),
             "freight": {
-                "value": str(terms.get("freight") or ""),
-                "authority_ref": (
-                    work_request.get("freight_ref") or "freight"),
+                "value": str(freight_value or ""),
+                "authority_ref": freight_key,
             },
             "tax": {
                 "basis": tax_basis,
                 "value": tax_value,
-                "authority_ref": (
-                    work_request.get("tax_ref") or "tax_basis"),
+                "authority_ref": tax_key,
             },
             "reason": work_request.get("reason") or "",
         }
