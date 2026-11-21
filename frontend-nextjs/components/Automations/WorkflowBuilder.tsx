@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import ReactFlow, {
     addEdge,
     Background,
@@ -46,17 +46,24 @@ const edgeTypes = {
 };
 
 interface WorkflowBuilderProps {
-    onSave?: (data: { nodes: Node[]; edges: Edge[] }) => void;
+    onSave?: (
+        data: { nodes: Node[]; edges: Edge[] },
+        options?: { reason?: string }
+    ) => void | Promise<void>;
     initialData?: { nodes: Node[]; edges: Edge[] };
     workflowId?: string;
+    saving?: boolean;
     onRun?: () => void;
 }
 
-const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, initialData, workflowId, onRun }) => {
+const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, initialData, workflowId, saving, onRun }) => {
     // Use prop data if available, otherwise fallback to default initialNodes
     const [nodes, setNodes, onNodesChange] = useNodesState(initialData?.nodes || initialNodes);
     const [edges, setEdges, onEdgesChange] = useEdgesState(initialData?.edges || initialEdges);
     const { toast } = useToast();
+    const [saveReason, setSaveReason] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
+    const saveInFlightRef = useRef(false);
 
     // Undo/Redo Hook
     const { undo, redo, takeSnapshot, canUndo, canRedo, history } = useUndoRedo({ nodes, edges });
@@ -464,15 +471,28 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
         });
     };
 
-    const onSave = () => {
-        console.log('Saved Workflow:', { nodes, edges });
-        if (onSaveProp) {
-            onSaveProp({ nodes, edges });
-        } else {
-            toast({
-                title: "Workflow Saved (Local)",
-                description: `Saved ${nodes.length} nodes and ${edges.length} connections.`,
-            });
+    const onSave = async () => {
+        // This local guard, plus the parent's in-flight guard, prevents a
+        // double-click from issuing two writes for the same save.
+        if (saveInFlightRef.current || saving) return;
+        saveInFlightRef.current = true;
+        setIsSaving(true);
+        try {
+            console.log('Saved Workflow:', { nodes, edges });
+            if (onSaveProp) {
+                await onSaveProp(
+                    { nodes, edges },
+                    { reason: saveReason.trim() }
+                );
+            } else {
+                toast({
+                    title: "Workflow Saved (Local)",
+                    description: `Saved ${nodes.length} nodes and ${edges.length} connections.`,
+                });
+            }
+        } finally {
+            saveInFlightRef.current = false;
+            setIsSaving(false);
         }
     };
 
@@ -812,8 +832,31 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                             <Play className="w-3 h-3 mr-1" /> Run
                         </Button>
                     )}
-                    <Button size="sm" onClick={onSave} className="ml-2">
-                        <Save className="w-3 h-3 mr-1" /> Save
+                    <label htmlFor="workflow-save-reason" className="sr-only">
+                        Save reason
+                    </label>
+                    <input
+                        id="workflow-save-reason"
+                        data-testid="workflow-save-reason"
+                        aria-label="Save reason"
+                        className="h-8 w-44 rounded-md border bg-white dark:bg-gray-900 px-2 text-xs outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-100 disabled:bg-gray-100 dark:disabled:bg-gray-800"
+                        placeholder="Reason for change"
+                        value={saveReason}
+                        onChange={(e) => setSaveReason(e.target.value)}
+                        disabled={isSaving || saving}
+                    />
+                    <Button
+                        size="sm"
+                        onClick={onSave}
+                        disabled={isSaving || saving}
+                        className="ml-2"
+                    >
+                        {isSaving || saving ? (
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                        ) : (
+                            <Save className="w-3 h-3 mr-1" />
+                        )}
+                        Save
                     </Button>
                 </div>
             </div>
@@ -829,9 +872,15 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onSave: onSaveProp, i
                     <ReactFlowProvider>
                         <ReactFlow
                             nodes={nodes}
+                            // Preserve all existing edge data (for example a
+                            // saved connection `condition`) and only attach the
+                            // transient renderer callback.
                             edges={edges.map(edge => ({
                                 ...edge,
-                                data: { ...edge.data, onAddStep: handleAddStepClick }
+                                data: {
+                                    ...(edge.data || {}),
+                                    onAddStep: handleAddStepClick,
+                                }
                             }))}
                             onNodesChange={onNodesChange}
                             onEdgesChange={onEdgesChange}

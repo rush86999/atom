@@ -285,6 +285,16 @@ class WorkflowDefinition(BaseModel):
     # create/update callers cannot set or clear it; only the deploy adapter
     # writes it. Absence means a legacy/unscoped row (preserved as-is).
     deployment: Optional[Dict[str, Any]] = None
+    # Deterministic opaque revision exposed by GET and required by structured
+    # visual-editor saves. It is derived from the row material, so it is stable
+    # across processes and changes whenever any persisted field changes.
+    revision: Optional[str] = None
+    # Ordered correction records written under the catalog update lock. Each
+    # record carries the actor, timestamp, reason and before/after revisions.
+    corrections: Optional[List[Dict[str, Any]]] = None
+    # Editor-neutral workflow metadata remains part of the row and is never
+    # rewritten by a structured save.
+    metadata: Optional[Any] = None
 
 class WorkflowEditRequest(BaseModel):
     command: str
@@ -296,6 +306,26 @@ class WorkflowEditResponse(BaseModel):
     message: str
     modified_workflow: Optional[Dict[str, Any]] = None
     changes: List[Dict[str, Any]] = []
+
+
+class WorkflowSaveRequest(BaseModel):
+    """Flat body for the visual-editor PUT save.
+
+    Every editor field is optional so an omitted field keeps the stored value.
+    Identity, audit fields and deployment metadata are not part of this
+    request.
+    """
+
+    revision: Optional[str] = None
+    reason: Optional[str] = None
+    name: Optional[str] = None
+    description: Optional[str] = None
+    version: Optional[str] = None
+    nodes: Optional[List[WorkflowNode]] = None
+    connections: Optional[List[WorkflowConnection]] = None
+    triggers: Optional[List[str]] = None
+    enabled: Optional[bool] = None
+    steps: Optional[List[Dict[str, Any]]] = None
 
 
 def _linearize_nodes(workflow: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -370,7 +400,35 @@ def _resolve_workflow_steps(workflow: Dict[str, Any]) -> List[Dict[str, Any]]:
     return []
 
 
-def _enrich_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
+# Revision/correction fields are runtime bookkeeping, not editor material.
+# Excluding them from the digest keeps the opaque revision deterministic while
+# allowing the corrections list to grow on every save.
+_REVISION_EXCLUDED_KEYS = (
+    "revision",
+    "corrections",
+)
+
+
+def _workflow_revision(workflow: Dict[str, Any]) -> str:
+    """Return the deterministic opaque revision for one workflow row.
+
+    The digest is computed over the same normalized material every read path
+    exposes (including derived ``steps`` for graph definitions), excluding the
+    server-owned revision and corrections list. It therefore survives process
+    restarts and a GET round-trip without changing.
+    """
+    material = copy.deepcopy(workflow)
+    for key in _REVISION_EXCLUDED_KEYS:
+        material.pop(key, None)
+    _enrich_workflow(material, include_revision=False)
+    return hashlib.sha256(json.dumps(
+        material, sort_keys=True, default=str,
+        separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def _enrich_workflow(
+    workflow: Dict[str, Any], *, include_revision: bool = True,
+) -> Dict[str, Any]:
     """Add the step-based dialect (``steps`` + ``steps_count``) to a workflow
     dict so step-based UI consumers can render/execute node-based definitions.
 
@@ -395,6 +453,8 @@ def _enrich_workflow(workflow: Dict[str, Any]) -> Dict[str, Any]:
     steps = _resolve_workflow_steps(workflow)
     workflow["steps"] = steps
     workflow["steps_count"] = len(steps)
+    if include_revision:
+        workflow["revision"] = _workflow_revision(workflow)
     return workflow
 
 
@@ -1318,11 +1378,19 @@ async def get_workflows(user: User = Depends(require_permission(Permission.WORKF
     return workflows
 
 @router.get("/workflows/{workflow_id}", response_model=WorkflowDefinition)
-async def get_workflow(workflow_id: str, user: User = Depends(require_permission(Permission.WORKFLOW_VIEW))):
+async def get_workflow(
+    workflow_id: str,
+    response: Response,
+    user: User = Depends(require_permission(Permission.WORKFLOW_VIEW)),
+):
     workflow = _find_visible_workflow(workflow_id, user)
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
-    return _enrich_workflow(workflow)
+    enriched = _enrich_workflow(workflow)
+    # The body carries the opaque revision used by the visual-editor save; the
+    # ETag mirrors it for cache/read consumers.
+    response.headers["ETag"] = f'"{enriched["revision"]}"'
+    return enriched
 
 @router.post("/workflows", response_model=WorkflowDefinition)
 async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(require_permission(Permission.WORKFLOW_MANAGE))):
@@ -1341,6 +1409,13 @@ async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(req
     # Deployment metadata is server-owned. A public create/update must never
     # grant scope, digest, agent or approval binding.
     workflow_dict.pop("deployment", None)
+    # Revision/correction bookkeeping is server-owned too. Metadata is retained
+    # when supplied but a missing value must not replace a real row value with
+    # an explicit null in the legacy create/update path.
+    workflow_dict.pop("revision", None)
+    workflow_dict.pop("corrections", None)
+    if workflow_dict.get("metadata") is None:
+        workflow_dict.pop("metadata", None)
 
     def mutator(workflows: List[Dict]):
         existing_index = next(
@@ -1351,9 +1426,18 @@ async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(req
             prior = workflows[existing_index]
             if isinstance(prior.get("deployment"), dict):
                 workflow_dict["deployment"] = prior["deployment"]
+            # A retained same-ID legacy write replaces the editor material but
+            # must carry forward the server-owned audit history and any omitted
+            # metadata. Caller-supplied correction data was dropped above.
+            if "metadata" not in workflow_dict and "metadata" in prior:
+                workflow_dict["metadata"] = copy.deepcopy(prior["metadata"])
+            if "corrections" in prior:
+                workflow_dict["corrections"] = copy.deepcopy(
+                    prior["corrections"])
             workflows[existing_index] = workflow_dict
         else:
             workflows.append(workflow_dict)
+        workflow_dict["revision"] = _workflow_revision(workflow_dict)
         return True, workflow_dict
 
     try:
@@ -1406,6 +1490,249 @@ async def delete_workflow(workflow_id: str, user: User = Depends(require_permiss
             "possible_effect": False,
         }) from exc
 
+
+# ---------------------------------------------------------------------------
+# Structured visual-editor saves
+# ---------------------------------------------------------------------------
+
+# Fields the visual editor owns. Every other persisted field (identity,
+# creation time, metadata, deployment bindings, unknown legacy fields) is
+# copied from the current row and cannot be changed by a structured save.
+_EDITOR_OWNED_FIELDS = (
+    "name", "description", "version", "nodes", "connections", "triggers",
+    "enabled", "steps",
+)
+
+
+def _revision_conflict(
+    expected_revision: Optional[str], current_revision: str,
+) -> HTTPException:
+    return HTTPException(status_code=409, detail={
+        "error": "workflow_revision_conflict",
+        "code": "stale_revision",
+        "status": "stale",
+        "reason": "stale_revision",
+        "message": "Workflow changed while it was being edited; nothing was "
+                   "overwritten. Reload the workflow and retry with its "
+                   "current revision.",
+        "provided_revision": expected_revision,
+        "current_revision": current_revision,
+        "possible_effect": False,
+    })
+
+
+def _commit_structured_workflow_save(
+    workflow_id: str,
+    baseline: Dict[str, Any],
+    modified: Dict[str, Any],
+    *,
+    expected_revision: str,
+    actor_id: str,
+    reason: str,
+) -> Dict[str, Any]:
+    """Commit one same-ID save under the shared RMW and exact snapshot check.
+
+    The current row is re-read under the lock and must equal the snapshot the
+    save was based on, and its deterministic revision must equal the revision
+    the client read from GET. The correction record is appended in the same
+    row while that lock is held.
+    """
+    def mutator(rows: List[Dict]):
+        index = next(
+            (i for i, row in enumerate(rows)
+             if row.get('id') == workflow_id
+             or row.get('workflow_id') == workflow_id), -1)
+        if index < 0:
+            return False, {"status": "missing"}
+        current = rows[index]
+        if isinstance(current.get("deployment"), dict) and current[
+                "deployment"].get("canonical_workflow_id"):
+            return False, {"status": "canonical"}
+        if current != baseline:
+            return False, {
+                "status": "stale",
+                "current_revision": _workflow_revision(current),
+            }
+        current_revision = _workflow_revision(current)
+        if current_revision != expected_revision:
+            return False, {
+                "status": "stale",
+                "current_revision": current_revision,
+            }
+
+        final = copy.deepcopy(modified)
+        final.pop("correction_history", None)
+        now = datetime.now().isoformat()
+        final["updatedAt"] = now
+        if "updated_at" in current:
+            final["updated_at"] = now
+        after_revision = _workflow_revision(final)
+        record = {
+            "who": str(actor_id or ""),
+            "when": now,
+            "reason": str(reason or ""),
+            "before_revision": current_revision,
+            "after_revision": after_revision,
+        }
+        history = final.get("corrections")
+        history = list(history) if isinstance(history, list) else []
+        history.append(record)
+        final["corrections"] = history
+        final["revision"] = after_revision
+        rows[index] = final
+        return True, {
+            "status": "committed",
+            "workflow": final,
+            "revision": after_revision,
+            "correction": record,
+        }
+
+    try:
+        return mutate_workflows(mutator)
+    except WorkflowStoreUnreadable as exc:
+        logger.error("Structured workflow save refused unreadable catalog: %s", exc)
+        return {"status": "unreadable"}
+    except WorkflowStoreLockError as exc:
+        logger.error("Structured workflow save refused unavailable lock: %s", exc)
+        return {"status": "locked"}
+
+
+@router.put("/workflows/{workflow_id}", response_model=WorkflowDefinition)
+async def save_structured_workflow(
+    workflow_id: str,
+    response: Response,
+    body: WorkflowSaveRequest = Body(...),
+    user: User = Depends(require_permission(Permission.WORKFLOW_MANAGE)),
+):
+    """Save a visual-editor definition onto its existing same-ID ordinary row.
+
+    GET exposes ``revision``; the save must send that exact value. Every
+    omitted editor field keeps its stored value. Generated rows keep their
+    canonical SQL owner and are refused here.
+    """
+    provided = {
+        key: value for key, value in body.dict(exclude_unset=True).items()
+        if value is not None
+    }
+    expected_revision = str(provided.get("revision") or "").strip()
+    reason = str(provided.get("reason") or "")
+
+    try:
+        baseline = next(
+            (row for row in load_workflows_strict()
+             if row.get('id') == workflow_id
+             or row.get('workflow_id') == workflow_id),
+            None)
+    except WorkflowStoreUnreadable as exc:
+        raise HTTPException(status_code=503, detail={
+            "error": "workflow_store_unreadable",
+            "message": "the workflow catalog is unreadable; no write was "
+                       "attempted and existing bytes were preserved",
+            "possible_effect": False,
+        }) from exc
+    if baseline is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    if not _is_visible_to_user(baseline, user):
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    deployment = baseline.get("deployment")
+    if isinstance(deployment, dict) and deployment.get("canonical_workflow_id"):
+        raise HTTPException(status_code=409, detail={
+            "error": "canonical_workflow",
+            "code": "canonical_workflow",
+            "status": "canonical",
+            "reason": "generated_canonical_owner",
+            "message": "Generated workflows keep their canonical design; "
+                       "change them through their deploy owner. Nothing was "
+                       "overwritten.",
+            "possible_effect": False,
+        })
+
+    if not expected_revision:
+        raise HTTPException(status_code=400, detail={
+            "error": "workflow_revision_required",
+            "message": "a structured save must include the revision read from "
+                       "GET",
+            "possible_effect": False,
+        })
+
+    current_revision = _workflow_revision(baseline)
+    if expected_revision != current_revision:
+        raise _revision_conflict(expected_revision, current_revision)
+
+    modified = copy.deepcopy(baseline)
+    for field in _EDITOR_OWNED_FIELDS:
+        if field in provided:
+            modified[field] = copy.deepcopy(provided[field])
+    # A graph save clears the cached/derived step projection unless the caller
+    # changed steps too, so GET re-linearizes the new nodes instead of
+    # returning a stale step list. Step-based rows also carry ``nodes: []`` in
+    # GET bodies, so an empty graph must not erase an explicit step list.
+    baseline_steps = _resolve_workflow_steps(copy.deepcopy(baseline))
+    baseline_has_steps = bool(baseline.get("steps"))
+    graph_supplied = "nodes" in provided or "connections" in provided
+    graph_changed = (
+        ("nodes" in provided
+         and provided.get("nodes") != baseline.get("nodes"))
+        or ("connections" in provided
+            and provided.get("connections") != baseline.get("connections"))
+    )
+    graph_has_content = bool(provided.get("nodes")) or bool(
+        provided.get("connections"))
+    if graph_supplied and (
+            not baseline_has_steps
+            or (graph_has_content and graph_changed)):
+        if "steps" not in provided or provided.get("steps") == baseline_steps:
+            modified.pop("steps", None)
+            modified.pop("steps_count", None)
+    if "steps" in provided:
+        modified.pop("steps_count", None)
+
+    result = _commit_structured_workflow_save(
+        workflow_id, baseline, modified,
+        expected_revision=expected_revision,
+        actor_id=str(getattr(user, "id", "") or ""),
+        reason=reason,
+    )
+    status = result.get("status")
+    if status == "committed":
+        enriched = _enrich_workflow(result["workflow"])
+        response.headers["ETag"] = f'"{enriched["revision"]}"'
+        return enriched
+    if status == "missing":
+        raise HTTPException(status_code=404, detail="Workflow not found")
+    if status == "canonical":
+        raise HTTPException(status_code=409, detail={
+            "error": "canonical_workflow",
+            "code": "canonical_workflow",
+            "status": "canonical",
+            "reason": "generated_canonical_owner",
+            "message": "Generated workflows keep their canonical design; "
+                       "nothing was overwritten.",
+            "possible_effect": False,
+        })
+    if status == "stale":
+        raise _revision_conflict(
+            expected_revision, str(result.get("current_revision") or ""))
+    if status == "unreadable":
+        raise HTTPException(status_code=503, detail={
+            "error": "workflow_store_unreadable",
+            "message": "the workflow catalog is unreadable; no write was "
+                       "attempted and existing bytes were preserved",
+            "possible_effect": False,
+        })
+    if status == "locked":
+        raise HTTPException(status_code=503, detail={
+            "error": "workflow_store_lock_unavailable",
+            "message": "the workflow catalog lock is unavailable; no write "
+                       "was attempted",
+            "possible_effect": False,
+        })
+    raise HTTPException(status_code=409, detail={
+        "error": "workflow_save_conflict",
+        "message": "the workflow save did not commit; reload and retry",
+        "possible_effect": False,
+    })
 
 
 class DeployWorkflowRequest(BaseModel):

@@ -75,13 +75,30 @@ jest.mock('@/components/Automations/WorkflowBuilder', () => {
       ],
       edges: [] as any[],
     };
+    // A fresh builder uses the sample graph; a builder opened from saved data
+    // saves the graph it was given so round-trips can be exercised.
+    const dataToSave = props.initialData || sampleData;
+    const [reason, setReason] = React.useState('');
     return (
       <div data-testid="workflow-builder">
         <div>Workflow Builder</div>
         <div data-testid="builder-initial-data">
           {JSON.stringify(props.initialData)}
         </div>
-        <button onClick={() => props.onSave(sampleData)}>Save</button>
+        <label htmlFor="mock-workflow-save-reason">Save reason</label>
+        <input
+          id="mock-workflow-save-reason"
+          data-testid="mock-workflow-save-reason"
+          placeholder="Reason for change"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+        <button
+          disabled={props.saving}
+          onClick={() => props.onSave(dataToSave, { reason })}
+        >
+          Save
+        </button>
         <button onClick={props.onCancel}>Cancel</button>
       </div>
     );
@@ -601,6 +618,9 @@ describe('WorkflowAutomation', () => {
       expect(savedPayload).not.toBeNull();
       expect(savedPayload.nodes[0].title).toBe('Send Email');
       expect(savedPayload.nodes[0].config.service).toBe('email');
+      // A fresh canvas uses the backend defaults rather than inventing triggers.
+      expect(savedPayload.triggers).toEqual([]);
+      expect(savedPayload.enabled).toBe(true);
     });
 
     // Switch back to Classic View and confirm the saved workflow shows up.
@@ -656,6 +676,829 @@ describe('WorkflowAutomation', () => {
     expect(
       await screen.findByTestId('workflow-builder')
     ).toBeInTheDocument();
+  });
+
+  // Test 18b: reopening a saved graph preserves flat and nested node config,
+  // the node description/action, and the connection condition string.
+  test('round-trips saved node config and connection conditions into the builder', async () => {
+    server.use(
+      rest.get('/api/v1/workflows/workflows', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([
+            {
+              id: 'roundtrip-wf',
+              name: 'Round Trip Workflow',
+              description: 'Saved graph',
+              version: '1.0',
+              nodes: [
+                {
+                  id: 'n1',
+                  type: 'action',
+                  title: 'Send Email',
+                  description: 'Notify the customer',
+                  position: { x: 10, y: 20 },
+                  config: {
+                    service: 'email',
+                    action: 'send',
+                    subject: 'Hello',
+                    priority: 3,
+                    parameters: { cc: 'team@example.com' },
+                  },
+                  connections: [],
+                },
+                {
+                  id: 'n2',
+                  type: 'action',
+                  title: 'Post Slack',
+                  description: '',
+                  position: { x: 10, y: 220 },
+                  config: {
+                    service: 'slack',
+                    action: 'post',
+                    parameters: { channel: '#general', retries: 2 },
+                  },
+                  connections: [],
+                },
+              ],
+              connections: [
+                { id: 'c1', source: 'n1', target: 'n2', condition: 'priority > 1' },
+              ],
+              triggers: ['schedule.daily'],
+              enabled: false,
+            },
+          ])
+        );
+      })
+    );
+
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Run' }));
+    await screen.findByRole('heading', {
+      name: /execute workflow: round trip workflow/i,
+    });
+    fireEvent.click(screen.getByRole('button', { name: /visual builder/i }));
+
+    await waitFor(() => {
+      const initialData = JSON.parse(
+        screen.getByTestId('builder-initial-data').textContent || 'null'
+      );
+      const first = initialData.nodes.find((n: any) => n.id === 'n1');
+      const second = initialData.nodes.find((n: any) => n.id === 'n2');
+
+      expect(first.data).toEqual(
+        expect.objectContaining({
+          label: 'Send Email',
+          description: 'Notify the customer',
+          service: 'email',
+          action: 'send',
+          subject: 'Hello',
+          priority: 3,
+          cc: 'team@example.com',
+        })
+      );
+      expect(second.data).toEqual(
+        expect.objectContaining({
+          label: 'Post Slack',
+          service: 'slack',
+          action: 'post',
+          channel: '#general',
+          retries: 2,
+        })
+      );
+      expect(initialData.edges).toEqual([
+        {
+          id: 'c1',
+          source: 'n1',
+          target: 'n2',
+          type: 'addStepEdge',
+          data: { condition: 'priority > 1' },
+        },
+      ]);
+    });
+  });
+
+  // Test 18c: saving a reused graph POSTs a create (there is no update
+  // contract), but preserves the saved triggers/enabled verbatim, plus node
+  // descriptions/config and connection conditions.
+  test('preserves persisted triggers, enabled and edge conditions when re-saving', async () => {
+    let savedPayload: any = null;
+    let savedMethod = '';
+    server.use(
+      rest.get('/api/v1/workflows/workflows', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([
+            {
+              id: 'reused-wf',
+              name: 'Reused Workflow',
+              description: 'Existing graph',
+              version: '1.0',
+              nodes: [
+                {
+                  id: 'n1',
+                  type: 'action',
+                  title: 'Send Email',
+                  description: 'Notify the customer',
+                  position: { x: 10, y: 20 },
+                  config: {
+                    service: 'email',
+                    action: 'send',
+                    parameters: { subject: 'Hello', priority: 3, cc: 'team@example.com' },
+                    continue_on_error: true,
+                    timeout: 30,
+                    input_schema: { type: 'object' },
+                    output_schema: { type: 'object' },
+                  },
+                  connections: [],
+                },
+                {
+                  id: 'n2',
+                  type: 'action',
+                  title: 'Post Slack',
+                  description: 'Tell the team',
+                  position: { x: 10, y: 220 },
+                  config: { service: 'slack', action: 'post', channel: '#general' },
+                  connections: [],
+                },
+              ],
+              connections: [
+                { id: 'c1', source: 'n1', target: 'n2', condition: 'priority > 1' },
+              ],
+              triggers: ['schedule.daily', 'webhook.received'],
+              enabled: false,
+            },
+          ])
+        );
+      }),
+      rest.post('/api/v1/workflows/workflows', (req, res, ctx) => {
+        savedMethod = req.method;
+        savedPayload = req.body;
+        return res(
+          ctx.status(200),
+          ctx.json({
+            id: 'created-from-reused-wf',
+            name: savedPayload.name,
+            description: savedPayload.description,
+            nodes: savedPayload.nodes,
+            connections: savedPayload.connections,
+            triggers: savedPayload.triggers,
+            enabled: savedPayload.enabled,
+          })
+        );
+      })
+    );
+
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Run' }));
+    await screen.findByRole('heading', {
+      name: /execute workflow: reused workflow/i,
+    });
+    fireEvent.click(screen.getByRole('button', { name: /visual builder/i }));
+    await screen.findByTestId('workflow-builder');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(savedPayload).not.toBeNull();
+    });
+
+    expect(savedMethod).toBe('POST');
+    expect(savedPayload.id).toBeUndefined();
+    expect(savedPayload.triggers).toEqual(['schedule.daily', 'webhook.received']);
+    expect(savedPayload.enabled).toBe(false);
+
+    const first = savedPayload.nodes.find((n: any) => n.id === 'n1');
+    const second = savedPayload.nodes.find((n: any) => n.id === 'n2');
+    expect(first.description).toBe('Notify the customer');
+    expect(first.config).toEqual(
+      expect.objectContaining({
+        service: 'email',
+        action: 'send',
+        continue_on_error: true,
+        timeout: 30,
+        input_schema: { type: 'object' },
+        output_schema: { type: 'object' },
+        parameters: {
+          subject: 'Hello',
+          priority: 3,
+          cc: 'team@example.com',
+        },
+      })
+    );
+    expect(second.description).toBe('Tell the team');
+    expect(second.config).toEqual(
+      expect.objectContaining({
+        service: 'slack',
+        action: 'post',
+        parameters: { channel: '#general' },
+      })
+    );
+    expect(savedPayload.connections).toEqual([
+      { id: 'c1', source: 'n1', target: 'n2', condition: 'priority > 1' },
+    ]);
+  });
+
+  // Test 18d: the card Edit action loads the canonical workflow by ID and saves
+  // in place with PUT, using the loaded revision, audit reason, and preserved
+  // graph/config/settings.
+  test('edits a saved visual workflow in place with revision and reason', async () => {
+    const detailWorkflow = {
+      id: 'edit-wf',
+      name: 'Saved Display Name',
+      description: 'Persisted description',
+      version: '2.1',
+      revision: 7,
+      nodes: [
+        {
+          id: 'n1',
+          type: 'action',
+          title: 'Send Email',
+          description: 'Notify the customer',
+          position: { x: 10, y: 20 },
+          config: {
+            service: 'email',
+            action: 'send',
+            parameters: { subject: 'Hello', priority: 3, cc: 'team@example.com' },
+            continue_on_error: true,
+            timeout: 30,
+            input_schema: { type: 'object' },
+            output_schema: { type: 'object' },
+          },
+          connections: [],
+        },
+        {
+          id: 'n2',
+          type: 'action',
+          title: 'Post Slack',
+          description: 'Tell the team',
+          position: { x: 10, y: 220 },
+          config: { service: 'slack', action: 'post', parameters: { channel: '#general' } },
+          connections: [],
+        },
+      ],
+      connections: [
+        { id: 'c1', source: 'n1', target: 'n2', condition: 'priority > 1' },
+      ],
+      triggers: ['schedule.daily'],
+      enabled: false,
+    };
+    let detailGets = 0;
+    let postCalls = 0;
+    const puts: any[] = [];
+    server.use(
+      rest.get('/api/v1/workflows/workflows', (req, res, ctx) => {
+        return res(
+          ctx.status(200),
+          ctx.json([
+            {
+              ...detailWorkflow,
+              name: 'Stale List Name',
+              revision: 1,
+              nodes: [
+                {
+                  ...detailWorkflow.nodes[0],
+                  title: 'Stale List Node',
+                  config: { service: 'email', action: 'send', parameters: {} },
+                },
+              ],
+              connections: [],
+            },
+          ])
+        );
+      }),
+      rest.get('/api/v1/workflows/workflows/:workflow_id', (req, res, ctx) => {
+        detailGets += 1;
+        expect(req.params.workflow_id).toBe('edit-wf');
+        return res(ctx.status(200), ctx.json(detailWorkflow));
+      }),
+      rest.post('/api/v1/workflows/workflows', (req, res, ctx) => {
+        postCalls += 1;
+        return res(ctx.status(500), ctx.json({ detail: 'unexpected create' }));
+      }),
+      rest.put('/api/v1/workflows/workflows/:workflow_id', (req, res, ctx) => {
+        puts.push({
+          id: req.params.workflow_id,
+          url: req.url?.toString(),
+          method: req.method,
+          body: req.body,
+        });
+        return res(
+          ctx.status(200),
+          ctx.json({
+            ...detailWorkflow,
+            ...req.body,
+            id: 'edit-wf',
+            revision: 8,
+          })
+        );
+      })
+    );
+
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+    await screen.findByText('Stale List Name');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit workflow' }));
+
+    await waitFor(() => {
+      expect(detailGets).toBe(1);
+      const initialData = JSON.parse(
+        screen.getByTestId('builder-initial-data').textContent || 'null'
+      );
+      expect(initialData.nodes[0].data).toEqual(
+        expect.objectContaining({
+          label: 'Send Email',
+          description: 'Notify the customer',
+          service: 'email',
+          action: 'send',
+          subject: 'Hello',
+          priority: 3,
+          cc: 'team@example.com',
+          continue_on_error: true,
+          timeout: 30,
+          input_schema: { type: 'object' },
+          output_schema: { type: 'object' },
+        })
+      );
+      expect(initialData.edges).toEqual([
+        {
+          id: 'c1',
+          source: 'n1',
+          target: 'n2',
+          type: 'addStepEdge',
+          data: { condition: 'priority > 1' },
+        },
+      ]);
+    });
+
+    fireEvent.change(screen.getByLabelText('Save reason'), {
+      target: { value: 'Fix recipient' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(puts).toHaveLength(1);
+    });
+
+    expect(puts[0].id).toBe('edit-wf');
+    expect(puts[0].method).toBe('PUT');
+    expect(puts[0].url).toContain('/api/v1/workflows/workflows/edit-wf');
+    expect(puts[0].body).toEqual(
+      expect.objectContaining({
+        revision: 7,
+        reason: 'Fix recipient',
+        name: 'Saved Display Name',
+        description: 'Persisted description',
+        version: '2.1',
+        triggers: ['schedule.daily'],
+        enabled: false,
+      })
+    );
+    expect(puts[0].body.id).toBeUndefined();
+    expect(puts[0].body.nodes[0].config).toEqual(
+      expect.objectContaining({
+        service: 'email',
+        action: 'send',
+        continue_on_error: true,
+        timeout: 30,
+        input_schema: { type: 'object' },
+        output_schema: { type: 'object' },
+        parameters: {
+          subject: 'Hello',
+          priority: 3,
+          cc: 'team@example.com',
+        },
+      })
+    );
+    expect(puts[0].body.connections).toEqual([
+      { id: 'c1', source: 'n1', target: 'n2', condition: 'priority > 1' },
+    ]);
+    expect(postCalls).toBe(0);
+
+    // The successful response's same ID and new revision are used by the next
+    // save on the same URL.
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Workflow Updated' })
+      );
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Save' })).not.toBeDisabled();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(puts).toHaveLength(2);
+    });
+    expect(puts[1].id).toBe('edit-wf');
+    expect(puts[1].body.revision).toBe(8);
+    expect(postCalls).toBe(0);
+  });
+
+  // Test 18e: a stale revision (409) must keep the local graph visible and
+  // point the user at an explicit reload instead of silently overwriting.
+  test('keeps local changes and shows reload guidance on a stale 409', async () => {
+    const detailWorkflow = {
+      id: 'stale-wf',
+      name: 'Stale Workflow',
+      description: 'Existing graph',
+      version: '1.0',
+      revision: 3,
+      nodes: [
+        {
+          id: 'n1',
+          type: 'action',
+          title: 'Send Email',
+          description: '',
+          position: { x: 0, y: 0 },
+          config: { service: 'email', action: 'send', parameters: { subject: 'Hello' } },
+          connections: [],
+        },
+      ],
+      connections: [],
+      triggers: ['schedule.daily'],
+      enabled: true,
+    };
+    let detailGets = 0;
+    let putCalls = 0;
+    server.use(
+      rest.get('/api/v1/workflows/workflows', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json([detailWorkflow]))
+      ),
+      rest.get('/api/v1/workflows/workflows/:workflow_id', (req, res, ctx) => {
+        detailGets += 1;
+        return res(
+          ctx.status(200),
+          ctx.json({ ...detailWorkflow, revision: detailGets === 1 ? 3 : 4 })
+        );
+      }),
+      rest.put('/api/v1/workflows/workflows/:workflow_id', (req, res, ctx) => {
+        putCalls += 1;
+        return res(
+          ctx.status(409),
+          ctx.json({
+            detail: {
+              error: 'revision_conflict',
+              current_revision: 4,
+              message: 'Workflow revision is stale',
+            },
+          })
+        );
+      })
+    );
+
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+    await screen.findByText('Stale Workflow');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit workflow' }));
+
+    await screen.findByTestId('workflow-builder');
+    await waitFor(() => expect(detailGets).toBe(1));
+
+    const initialDataBefore = screen.getByTestId('builder-initial-data').textContent;
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/your local changes are still here/i)).toBeInTheDocument();
+    });
+    expect(putCalls).toBe(1);
+    expect(screen.getByTestId('workflow-builder')).toBeInTheDocument();
+    expect(screen.getByTestId('builder-initial-data').textContent).toBe(
+      initialDataBefore
+    );
+    expect(
+      screen.getByRole('button', { name: /reload latest/i })
+    ).toBeInTheDocument();
+    expect(mockToast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Reload required' })
+    );
+
+    // Reload guidance performs the GET again and clears the conflict state.
+    await waitFor(() => {
+      expect(
+        screen.getByRole('button', { name: /reload latest/i })
+      ).not.toBeDisabled();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /reload latest/i }));
+    await waitFor(() => expect(detailGets).toBe(2));
+    await waitFor(() => {
+      expect(screen.queryByTestId('builder-save-error')).not.toBeInTheDocument();
+    });
+  });
+
+  // Test 18f: while a save is pending, further Save clicks must not issue a
+  // duplicate PUT for the same edit session.
+  test('does not duplicate a pending same-ID save', async () => {
+    const detailWorkflow = {
+      id: 'dup-wf',
+      name: 'Duplicate Guard',
+      description: '',
+      version: '1.0',
+      revision: 2,
+      nodes: [
+        {
+          id: 'n1',
+          type: 'action',
+          title: 'Send Email',
+          description: '',
+          position: { x: 0, y: 0 },
+          config: { service: 'email', action: 'send', parameters: {} },
+          connections: [],
+        },
+      ],
+      connections: [],
+      triggers: [],
+      enabled: true,
+    };
+    let putCalls = 0;
+    let releasePut: (() => void) | null = null;
+    const putGate = new Promise<void>((resolve) => {
+      releasePut = resolve;
+    });
+    server.use(
+      rest.get('/api/v1/workflows/workflows', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json([detailWorkflow]))
+      ),
+      rest.get('/api/v1/workflows/workflows/:workflow_id', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json(detailWorkflow))
+      ),
+      rest.put('/api/v1/workflows/workflows/:workflow_id', async (req, res, ctx) => {
+        putCalls += 1;
+        await putGate;
+        return res(
+          ctx.status(200),
+          ctx.json({ ...detailWorkflow, revision: 3 })
+        );
+      })
+    );
+
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+    await screen.findByText('Duplicate Guard');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit workflow' }));
+    await screen.findByTestId('workflow-builder');
+
+    const save = screen.getByRole('button', { name: 'Save' });
+    fireEvent.click(save);
+    fireEvent.click(save);
+    fireEvent.click(save);
+
+    await waitFor(() => expect(putCalls).toBe(1));
+    expect(putCalls).toBe(1);
+
+    await act(async () => {
+      releasePut?.();
+    });
+    await waitFor(() => {
+      expect(mockToast).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Workflow Updated' })
+      );
+    });
+    expect(putCalls).toBe(1);
+  });
+
+  // Test 18g: reopening a saved workflow must surface only the persisted
+  // correction history returned by the canonical GET, in a collapsed section.
+  test('shows persisted change history when reopening a saved workflow', async () => {
+    const detailWorkflow = {
+      id: 'history-wf',
+      name: 'History Workflow',
+      description: 'Has persisted audit entries',
+      version: '1.0',
+      revision: 5,
+      nodes: [
+        {
+          id: 'n1',
+          type: 'action',
+          title: 'Send Email',
+          description: '',
+          position: { x: 0, y: 0 },
+          config: { service: 'email', action: 'send', parameters: {} },
+          connections: [],
+        },
+      ],
+      connections: [],
+      triggers: [],
+      enabled: true,
+      corrections: [
+        {
+          who: 'alex@example.com',
+          when: '2024-02-03T04:05:06Z',
+          reason: 'Corrected recipient',
+          before_revision: 4,
+          after_revision: 5,
+        },
+      ],
+    };
+
+    server.use(
+      rest.get('/api/v1/workflows/workflows', (req, res, ctx) => {
+        // The list projection is stale and does not carry corrections; the
+        // canonical detail GET must supply the history when the card is opened.
+        const listWorkflow: any = { ...detailWorkflow, revision: 1 };
+        delete listWorkflow.corrections;
+        return res(ctx.status(200), ctx.json([listWorkflow]));
+      }),
+      rest.get('/api/v1/workflows/workflows/:workflow_id', (req, res, ctx) => {
+        expect(req.params.workflow_id).toBe('history-wf');
+        return res(ctx.status(200), ctx.json(detailWorkflow));
+      })
+    );
+
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+    await screen.findByText('History Workflow');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit workflow' }));
+    await screen.findByTestId('workflow-builder');
+
+    const history = await screen.findByTestId('workflow-change-history');
+    expect(history).not.toHaveAttribute('open');
+
+    fireEvent.click(within(history).getByText('Change history'));
+
+    expect(within(history).getByText('Reason')).toBeInTheDocument();
+    expect(within(history).getByText('Actor')).toBeInTheDocument();
+    expect(within(history).getByText('Time')).toBeInTheDocument();
+    expect(within(history).getByText('Revisions')).toBeInTheDocument();
+    expect(within(history).getByText('Corrected recipient')).toBeInTheDocument();
+    expect(within(history).getByText('alex@example.com')).toBeInTheDocument();
+    expect(
+      within(history).getByText('2024-02-03T04:05:06Z')
+    ).toBeInTheDocument();
+    expect(within(history).getByText(/4\s*→\s*5/)).toBeInTheDocument();
+
+    // Reopening the same saved workflow loads the same persisted history from
+    // the canonical GET again (no local sample/fallback data).
+    fireEvent.click(screen.getByRole('button', { name: /classic view/i }));
+    await screen.findByText('History Workflow');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit workflow' }));
+    await screen.findByTestId('workflow-builder');
+
+    const reopenedHistory = await screen.findByTestId('workflow-change-history');
+    fireEvent.click(within(reopenedHistory).getByText('Change history'));
+    expect(
+      within(reopenedHistory).getByText('Corrected recipient')
+    ).toBeInTheDocument();
+    expect(
+      within(reopenedHistory).getByText('alex@example.com')
+    ).toBeInTheDocument();
+  });
+
+  // Test 18h: a successful PUT returns the authoritative corrections; the
+  // collapsed history must be refreshed with the newly persisted entry without
+  // reopening the workflow or opening another modal.
+  test('updates change history after a successful save', async () => {
+    const initialCorrections = [
+      {
+        who: 'alex@example.com',
+        when: '2024-02-03T04:05:06Z',
+        reason: 'Initial correction',
+        before_revision: 4,
+        after_revision: 5,
+      },
+    ];
+    const detailWorkflow = {
+      id: 'history-save-wf',
+      name: 'History Save Workflow',
+      description: 'Has persisted audit entries',
+      version: '1.0',
+      revision: 5,
+      nodes: [
+        {
+          id: 'n1',
+          type: 'action',
+          title: 'Send Email',
+          description: '',
+          position: { x: 0, y: 0 },
+          config: { service: 'email', action: 'send', parameters: {} },
+          connections: [],
+        },
+      ],
+      connections: [],
+      triggers: [],
+      enabled: true,
+      corrections: initialCorrections,
+    };
+    const puts: any[] = [];
+    server.use(
+      rest.get('/api/v1/workflows/workflows', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json([detailWorkflow]))
+      ),
+      rest.get('/api/v1/workflows/workflows/:workflow_id', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json(detailWorkflow))
+      ),
+      rest.put('/api/v1/workflows/workflows/:workflow_id', (req, res, ctx) => {
+        puts.push({ id: req.params.workflow_id, body: req.body });
+        const nextCorrection = {
+          who: 'sam@example.com',
+          when: '2024-02-04T05:06:07Z',
+          reason: req.body.reason,
+          before_revision: 5,
+          after_revision: 6,
+        };
+        return res(
+          ctx.status(200),
+          ctx.json({
+            ...detailWorkflow,
+            ...req.body,
+            id: 'history-save-wf',
+            revision: 6,
+            corrections: [...initialCorrections, nextCorrection],
+          })
+        );
+      })
+    );
+
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+    await screen.findByText('History Save Workflow');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit workflow' }));
+    await screen.findByTestId('workflow-builder');
+
+    const history = await screen.findByTestId('workflow-change-history');
+    fireEvent.click(within(history).getByText('Change history'));
+    expect(within(history).getByText('Initial correction')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Save reason'), {
+      target: { value: 'Fix recipient' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0].id).toBe('history-save-wf');
+    expect(puts[0].body.reason).toBe('Fix recipient');
+
+    await waitFor(() => {
+      expect(within(history).getByText('Fix recipient')).toBeInTheDocument();
+    });
+    expect(within(history).getByText('sam@example.com')).toBeInTheDocument();
+    expect(
+      within(history).getByText('2024-02-04T05:06:07Z')
+    ).toBeInTheDocument();
+    expect(within(history).getByText(/5\s*→\s*6/)).toBeInTheDocument();
+  });
+
+  // Test 18i: the saved-card Edit action and the builder reason field must be
+  // usable by their real accessible names, not by icon/DOM heuristics.
+  test('exposes the saved card edit action and reason field by accessible labels', async () => {
+    const detailWorkflow = {
+      id: 'accessible-wf',
+      name: 'Accessible Workflow',
+      description: '',
+      version: '1.0',
+      revision: 1,
+      nodes: [
+        {
+          id: 'n1',
+          type: 'action',
+          title: 'Send Email',
+          description: '',
+          position: { x: 0, y: 0 },
+          config: { service: 'email', action: 'send', parameters: {} },
+          connections: [],
+        },
+      ],
+      connections: [],
+      triggers: [],
+      enabled: true,
+    };
+
+    server.use(
+      rest.get('/api/v1/workflows/workflows', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json([detailWorkflow]))
+      ),
+      rest.get('/api/v1/workflows/workflows/:workflow_id', (req, res, ctx) =>
+        res(ctx.status(200), ctx.json(detailWorkflow))
+      )
+    );
+
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+    await screen.findByText('Accessible Workflow');
+
+    const editButton = screen.getByRole('button', { name: 'Edit workflow' });
+    expect(editButton).toBeInTheDocument();
+    expect(editButton).toHaveAttribute('title', 'Edit Accessible Workflow');
+    fireEvent.click(editButton);
+
+    const reasonInput = await screen.findByLabelText('Save reason');
+    expect(reasonInput).toHaveAttribute('id', 'mock-workflow-save-reason');
+    expect(reasonInput).not.toHaveAttribute('aria-label');
+    const nativeLabel = document.querySelector(
+      'label[for="mock-workflow-save-reason"]'
+    );
+    expect(nativeLabel).not.toBeNull();
+    expect(nativeLabel).toHaveTextContent('Save reason');
   });
 
   // Test 19: triggerNew prop (>0) opens the Visual Builder for a fresh workflow
@@ -1302,7 +2145,7 @@ describe('WorkflowAutomation', () => {
     fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
     await screen.findByText('Onboarding Flow');
 
-    fireEvent.click(getIconButtons()[0]); // ghost edit icon on the card
+    fireEvent.click(screen.getByRole('button', { name: 'Edit workflow' }));
     expect(mockRouter.push).toHaveBeenCalledWith('/workflows/editor/w1');
   });
 
