@@ -69,6 +69,79 @@ class TestBoardJourneys:
         except Exception:
             pass  # DB error — route is reachable
 
+    def test_task_workspace_creation_and_later_attachment(self, monkeypatch, request):
+        """Workspace canvases work on task create and on a later PATCH.
+
+        Regression: the bootstrap admin is intentionally created with a NULL
+        tenant scope. It can create a board, but task workspace creation used
+        to fail with ``tenant_id is required`` instead of resolving the
+        single-tenant default.
+        """
+        password = "Synthetic-Boards-Admin-123!"
+        monkeypatch.setenv("ADMIN_PASSWORD", password)
+        client = request.getfixturevalue("real_auth_client")
+        from core.admin_bootstrap import ensure_admin_user
+
+        ensure_admin_user()
+        login = client.post("/api/auth/login", json={
+            "username": "admin@example.com", "password": password,
+        })
+        assert login.status_code == 200, login.text
+        token = login.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        board_resp = client.post("/api/boards", json={
+            "name": "Workspace Journey Board",
+        }, headers=headers)
+        assert board_resp.status_code == 201, (
+            f"Create board: {board_resp.status_code} {board_resp.text}"
+        )
+        board_id = board_resp.json()["id"]
+
+        detail_resp = client.get(f"/api/boards/{board_id}", headers=headers)
+        assert detail_resp.status_code == 200, f"Board detail: {detail_resp.text}"
+        columns = detail_resp.json()["columns"]
+        assert columns, "Board was created without columns"
+        column_id = columns[0]["id"]
+
+        # Workspace requested at task creation time.
+        create_resp = client.post(f"/api/boards/{board_id}/tasks", json={
+            "title": "Workspace at creation",
+            "column_id": column_id,
+            "workspace": True,
+        }, headers=headers)
+        assert create_resp.status_code == 201, (
+            f"Create task workspace: {create_resp.status_code} {create_resp.text}"
+        )
+        created = create_resp.json()
+        assert created["canvas_id"], f"Task has no canvas: {created}"
+
+        # Workspace attached later via PATCH on an existing task.
+        plain_resp = client.post(f"/api/boards/{board_id}/tasks", json={
+            "title": "Workspace attached later",
+            "column_id": column_id,
+        }, headers=headers)
+        assert plain_resp.status_code == 201, (
+            f"Create plain task: {plain_resp.status_code} {plain_resp.text}"
+        )
+        plain = plain_resp.json()
+        assert plain["canvas_id"] is None
+
+        patch_resp = client.patch(
+            f"/api/boards/{board_id}/tasks/{plain['id']}",
+            json={
+                "expected_version": plain["version_id"],
+                "workspace": True,
+            },
+            headers=headers,
+        )
+        assert patch_resp.status_code == 200, (
+            f"Attach task workspace: {patch_resp.status_code} {patch_resp.text}"
+        )
+        assert patch_resp.json()["canvas_id"], (
+            f"PATCH did not link a canvas: {patch_resp.json()}"
+        )
+
 
 # ===========================================================================
 # Canvas
