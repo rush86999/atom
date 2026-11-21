@@ -26,7 +26,15 @@ const STATUS_BADGE: Record<string, string> = {
 };
 
 export function KanbanCard({ task, onClick }: Props) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
     id: task.id,
   });
 
@@ -44,43 +52,28 @@ export function KanbanCard({ task, onClick }: Props) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group relative cursor-pointer rounded-md border border-l-4 bg-white p-3 shadow-sm hover:shadow-md transition-shadow',
+        'group relative cursor-pointer rounded-md border border-l-4 bg-white shadow-sm hover:shadow-md transition-shadow',
         priorityClass,
         isDragging && 'ring-2 ring-blue-500',
       )}
-      onClick={() => onClick?.(task)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onClick?.(task);
-        }
-      }}
-      aria-label={`Task: ${task.title}`}
     >
       <button
         type="button"
-        className="absolute inset-0 cursor-grab active:cursor-grabbing"
-        aria-label="Drag task"
-        {...attributes}
-        {...listeners}
-        onClick={(e) => e.stopPropagation()}
-      />
-
-      <div className="relative pointer-events-none">
-        <div className="flex items-start justify-between gap-2">
-          <h4 className="font-medium text-sm text-gray-900 line-clamp-2">
+        className="block w-full cursor-pointer rounded-md p-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        onClick={() => onClick?.(task)}
+        aria-label={`Open task: ${task.title || 'Untitled'}`}
+      >
+        <span className="flex items-start justify-between gap-2 pr-8">
+          <span className="font-medium text-sm text-gray-900 line-clamp-2">
             {task.title || <span className="italic text-gray-500">Untitled</span>}
-          </h4>
-          <GripVertical className="h-4 w-4 text-gray-400 opacity-0 group-hover:opacity-100" />
-        </div>
+          </span>
+        </span>
 
         {task.description && (
-          <p className="mt-1 text-xs text-gray-600 line-clamp-2">{task.description}</p>
+          <span className="mt-1 text-xs text-gray-600 line-clamp-2">{task.description}</span>
         )}
 
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+        <span className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
           {statusBadge && (
             <span className={cn('rounded px-1.5 py-0.5 font-medium uppercase', statusBadge)}>
               {task.status.replace('_', ' ')}
@@ -97,15 +90,29 @@ export function KanbanCard({ task, onClick }: Props) {
               {task.canvas?.artifact_count ?? 0}
             </span>
           )}
-        </div>
+        </span>
 
         {task.status === 'blocked' && (
-          <div className="mt-2 flex items-center gap-1 rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700">
+          <span className="mt-2 flex items-center gap-1 rounded bg-red-50 px-1.5 py-0.5 text-[10px] text-red-700">
             <AlertCircle className="h-3 w-3" />
             Blocked
-          </div>
+          </span>
         )}
-      </div>
+      </button>
+
+      {/* Bounded drag affordance: keep it a sibling of the open-task button so a
+          normal click on the card can never be intercepted by the drag layer. */}
+      <button
+        ref={setActivatorNodeRef}
+        type="button"
+        className="absolute right-1 top-1 z-10 flex h-7 w-7 cursor-grab items-center justify-center rounded text-gray-400 opacity-0 hover:bg-gray-100 hover:text-gray-600 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:cursor-grabbing group-hover:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:opacity-100"
+        {...attributes}
+        {...listeners}
+        tabIndex={0}
+        aria-label="Drag task"
+      >
+        <GripVertical className="h-4 w-4" aria-hidden="true" />
+      </button>
     </div>
   );
 }
