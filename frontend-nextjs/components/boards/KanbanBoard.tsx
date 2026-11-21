@@ -130,6 +130,7 @@ export function KanbanBoard({ board }: Props) {
       <TaskDetailDrawer
         boardId={board.id}
         task={openTask}
+        columns={board.columns}
         open={openTask !== null}
         onClose={() => setOpenTaskId(null)}
         onDelete={async (t) => {
