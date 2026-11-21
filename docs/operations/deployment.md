@@ -36,25 +36,49 @@ This guide covers deploying the Atom platform to production using Docker Compose
 
 3. **Prepare the database before starting the application**:
 
-   **Existing Alembic-managed database:** the commands below apply to an
-   existing schema whose `server_encoding` is `UTF8`. Rehearse the upgrade
-   against a staging copy before applying it to production.
-
-   **Fresh production installation:** do not run the migration commands below
-   against an empty database. Read the [deployment runbook's migration
-   step](../deployment/DEPLOYMENT_RUNBOOK.md#step-2-run-database-migrations)
-   first: a full `alembic upgrade heads` on an empty PostgreSQL 16 schema fails
-   at revision `b78e9c2f1a3d`, and the application's startup bootstrap does not
-   record Alembic history. Verify a fresh-install path for your release before
-   provisioning a new database, and confirm `SHOW server_encoding;` returns
-   `UTF8`. Do not start the application until that path succeeds.
+   Run production Compose commands from the repository root with the existing
+   `--project-directory . -f infra/docker-compose.prod.yml` spelling. Start only
+   PostgreSQL first. The backend and frontend must not start until the schema
+   setup below succeeds.
 
    ```bash
    # Start only PostgreSQL. The backend and frontend are not started yet.
    docker compose --project-directory . -f infra/docker-compose.prod.yml up -d postgres
+   ```
 
-   # Clear the backend PYTHONPATH for Alembic so the local migration directory
-   # does not shadow the installed Alembic package.
+   **Fresh production installation:** Do not run `alembic upgrade heads` against
+   an empty database. Raw Alembic still cannot bootstrap an empty database: on
+   an empty PostgreSQL 16 schema it fails at revision `b78e9c2f1a3d`, which
+   alters `agent_registry` before the migration history creates it. The
+   application's startup bootstrap does not record Alembic history. Confirm
+   `SHOW server_encoding;` returns `UTF8`, then run the transactional
+   initializer in a one-off `atom-backend` container. Use the same
+   `DATABASE_URL` as the application; do not override it for these commands.
+
+   ```bash
+   # Bootstrap the empty UTF-8 target transactionally.
+   docker compose --project-directory . -f infra/docker-compose.prod.yml run --rm atom-backend python -m scripts.initialize_postgres
+
+   # Verify all migration heads with ordinary Alembic.
+   docker compose --project-directory . -f infra/docker-compose.prod.yml run --rm -e PYTHONPATH= atom-backend alembic heads
+   docker compose --project-directory . -f infra/docker-compose.prod.yml run --rm -e PYTHONPATH= atom-backend alembic current
+   ```
+
+   `alembic current` must report every revision returned by `alembic heads`.
+   If the initializer fails, do not start the application and do not fall back
+   to raw `alembic upgrade heads` on the empty database. After PostgreSQL and
+   the application are running, complete the signed starter-template read and
+   restart check in [Health Checks](#health-checks).
+
+   **Existing Alembic-managed database:** the commands below apply to an
+   existing schema whose `server_encoding` is `UTF8`. Take a backup and rehearse
+   the upgrade against a staging copy before applying it to production. Run the
+   read-only compatibility check first, then the ordinary Alembic upgrade:
+
+   ```bash
+   # Read-only: verify the target's exact Alembic history and upgrade path.
+   docker compose --project-directory . -f infra/docker-compose.prod.yml run --rm atom-backend python -m scripts.initialize_postgres --check-upgrade
+
    # Review the heads, then apply them in a one-off backend container.
    docker compose --project-directory . -f infra/docker-compose.prod.yml run --rm -e PYTHONPATH= atom-backend alembic heads
    docker compose --project-directory . -f infra/docker-compose.prod.yml run --rm -e PYTHONPATH= atom-backend alembic upgrade heads
@@ -63,7 +87,20 @@ This guide covers deploying the Atom platform to production using Docker Compose
    docker compose --project-directory . -f infra/docker-compose.prod.yml run --rm -e PYTHONPATH= atom-backend alembic current
    ```
 
-4. **Start the application after migrations succeed**:
+   The `--check-upgrade` check is read-only. An existing target with exact legacy
+   Alembic history needs no fresh bootstrap marker; proceed with `alembic upgrade
+   heads`. If the target history is unknown, stop. Do not bootstrap, stamp, or
+   upgrade an unknown target; follow the current release guidance and resolve
+   the history before retrying.
+
+   The initializer has been verified in PostgreSQL 15 (PG15) and PostgreSQL 16
+   (PG16) core database rehearsals. These rehearsals cover core database
+   bootstrap only; they are not a claim that a full Docker Compose deployment
+   has been verified. See the [deployment runbook's migration
+   step](../deployment/DEPLOYMENT_RUNBOOK.md#step-2-run-database-migrations)
+   for the full fresh-install and existing-target procedures.
+
+4. **Start the application after the schema setup succeeds**:
    ```bash
    docker compose --project-directory . -f infra/docker-compose.prod.yml up -d
    ```
@@ -249,9 +286,10 @@ print('✅ All tables exist')
 # 1. Create staging branch
 git checkout -b release/backend-migration-staging
 
-# 2. Ensure all migrations are applied
+# 2. For an existing PostgreSQL staging database, verify its history and migrate it.
 cd backend
-alembic upgrade head
+python -m scripts.initialize_postgres --check-upgrade
+alembic upgrade heads
 
 # 3. Deploy backend to staging
 ./deploy-backend.sh staging
