@@ -21,6 +21,21 @@ from core.models import User
 from tests.factories.user_factory import UserFactory
 
 
+def test_postgresql_onboarding_columns_use_idempotent_ddl(monkeypatch):
+    engine = MagicMock()
+    engine.dialect.name = "postgresql"
+    connection = engine.begin.return_value.__enter__.return_value
+    monkeypatch.setattr(onboarding_routes, "engine", engine)
+
+    onboarding_routes._ensure_onboarding_columns()
+
+    statements = [str(call.args[0]) for call in connection.execute.call_args_list]
+    assert statements == [
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_step VARCHAR DEFAULT 'welcome'",
+    ]
+
+
 # =============================================================================
 # Test Fixtures
 # =============================================================================
