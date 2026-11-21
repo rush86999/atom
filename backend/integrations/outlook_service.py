@@ -954,6 +954,7 @@ class OutlookService(IntegrationService):
         access_token: Optional[str] = None,
         full_url: bool = False,
         extra_headers: Optional[Dict[str, str]] = None,
+        allow_redirects: bool = True,
     ) -> Optional[Dict[str, Any]]:
         """Make authenticated request to Microsoft Graph API
 
@@ -965,6 +966,10 @@ class OutlookService(IntegrationService):
         ``extra_headers`` adds per-request headers (e.g. ``Prefer``) without
         changing any existing call site. Authorization is never overridable
         through it, and the value is merged only for this one request.
+
+        ``allow_redirects`` is forwarded only to the POST transport; the
+        one-shot forward disables it so a redirect cannot cause a second
+        submission. The default preserves every existing caller's behavior.
 
         Every request carries an explicit ``aiohttp.ClientTimeout``: a bare
         ``ClientSession()`` rides aiohttp's 300s default, so one hung Graph
@@ -1009,9 +1014,13 @@ class OutlookService(IntegrationService):
                     async with session.get(url, headers=headers) as response:
                         return await self._handle_response(response)
                 elif method.upper() == "POST":
-                    async with session.post(
-                        url, headers=headers, json=data
-                    ) as response:
+                    post_kwargs: Dict[str, Any] = {
+                        "headers": headers,
+                        "json": data,
+                    }
+                    if not allow_redirects:
+                        post_kwargs["allow_redirects"] = False
+                    async with session.post(url, **post_kwargs) as response:
                         return await self._handle_response(response)
                 elif method.upper() == "PATCH":
                     async with session.patch(
@@ -2374,6 +2383,242 @@ class OutlookService(IntegrationService):
         except Exception as e:
             logger.warning(f"HTML reply route failed for {user_id}: {e} — falling back")
             return None
+
+    @staticmethod
+    def _forward_result(
+        status: str,
+        *,
+        message_id: Optional[str] = None,
+        reason: Optional[str] = None,
+        http_status: Optional[int] = None,
+        provider_accepted: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """Result for one original-message forward submission.
+
+        ``provider_accepted`` is deliberately separate from delivery:
+        forwarding is asynchronous, so Graph 202 proves only that the
+        provider accepted the request. No readback is performed here.
+        """
+        unknown = status == "unknown"
+        result: Dict[str, Any] = {
+            "status": status,
+            "outcome": "unknown_effect" if unknown else status,
+            "provider_accepted": provider_accepted,
+            "effect_uncertain": unknown,
+            "message_id": message_id,
+        }
+        if reason is not None:
+            result["reason"] = reason
+        if http_status is not None:
+            result["http_status"] = http_status
+        return result
+
+    async def forward_email(
+        self,
+        user_id: str,
+        message_id: str,
+        to_recipients: List[str],
+        comment: Optional[str] = None,
+        token: Optional[str] = None,
+        *,
+        access_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Forward one original message with Graph ``POST .../forward``.
+
+        This implements exactly one connector action:
+        ``POST /me/messages/{id}/forward`` with the documented body
+        ``{"toRecipients": [{"emailAddress": {"address": ...}}], "comment":
+        ...}``. ``comment`` is optional and omitted when empty. The source
+        message ID is quoted as a single URL path segment, so an opaque ID
+        cannot change the request path or query.
+
+        The caller must supply the already-bound delegated access token
+        (``access_token``, or the historical ``token`` alias). This method
+        never reads a token from the database, never falls back to the
+        pinned/generic credential, and never chooses another mailbox. It
+        performs exactly ONE provider request: no retry, no draft, no
+        readback, and no second submission. That matters because a timeout or
+        transport failure is an uncertain outcome — the provider may already
+        have forwarded the message — and repeating it could forward twice.
+
+        The documented success response is HTTP 202 with no body. Only 202 is
+        ``provider_accepted``; it means the provider ACCEPTED the submission,
+        not that delivery to any recipient occurred. Conclusive 4xx denials
+        are ``not_forwarded``. Timeouts, transport failures, 5xx responses,
+        unexpected success statuses, and any other inconclusive result are
+        ``unknown`` with ``effect_uncertain`` true. Message content, recipient
+        addresses and IDs are never logged here.
+        """
+        self.last_graph_status = None
+        self.last_transport_error = None
+        self.last_send_error = None
+
+        # An explicit invocation-bound token is required. Do not consult
+        # self._pinned_access_token or _get_access_token: a missing token must
+        # fail before transport so a forward can never drift to another
+        # mailbox or be retried with a different credential.
+        bound_token = access_token if access_token is not None else token
+        if (
+            not isinstance(bound_token, str)
+            or not bound_token.strip()
+        ):
+            self.last_send_error = {
+                "error": "Outlook forward requires an explicit delegated token.",
+                "reason": "missing_access_token",
+            }
+            return self._forward_result(
+                "not_forwarded",
+                reason="missing_access_token",
+                provider_accepted=False,
+            )
+
+        if not isinstance(user_id, str) or not user_id.strip():
+            return self._forward_result(
+                "not_forwarded",
+                reason="invalid_user_id",
+                provider_accepted=False,
+            )
+
+        if not isinstance(message_id, str) or not message_id.strip():
+            return self._forward_result(
+                "not_forwarded",
+                reason="invalid_message_id",
+                provider_accepted=False,
+            )
+
+        if not isinstance(to_recipients, (list, tuple)) or not to_recipients:
+            return self._forward_result(
+                "not_forwarded",
+                reason="invalid_recipients",
+                provider_accepted=False,
+            )
+
+        addresses: List[str] = []
+        for recipient in to_recipients:
+            if not isinstance(recipient, str) or not recipient.strip():
+                return self._forward_result(
+                    "not_forwarded",
+                    reason="invalid_recipients",
+                    provider_accepted=False,
+                )
+            addresses.append(recipient.strip())
+
+        if comment is not None and not isinstance(comment, str):
+            return self._forward_result(
+                "not_forwarded",
+                reason="invalid_comment",
+                provider_accepted=False,
+            )
+
+        payload: Dict[str, Any] = {
+            "toRecipients": [
+                {"emailAddress": {"address": address}}
+                for address in addresses
+            ],
+        }
+        if isinstance(comment, str) and comment.strip():
+            payload["comment"] = comment
+
+        # quote(safe="") keeps '/', '?', '#', '=' etc. inside one segment, so
+        # the opaque source ID cannot alter the request path or query.
+        encoded_id = urllib.parse.quote(message_id, safe="")
+        try:
+            await self._make_graph_request(
+                user_id,
+                f"/me/messages/{encoded_id}/forward",
+                "POST",
+                payload,
+                access_token=bound_token,
+                allow_redirects=False,
+            )
+        except Exception as e:
+            # The existing transport normally converts this to None plus
+            # last_transport_error; keep this primitive safe if it does not.
+            self.last_transport_error = str(e)[:300]
+            self.last_send_error = {
+                "error": (
+                    "The connection failed after the forward was attempted; "
+                    "the provider may have accepted it."),
+                "outcome_uncertain": True,
+                "transport_error": self.last_transport_error,
+            }
+            return self._forward_result(
+                "unknown",
+                message_id=message_id,
+                reason="transport_error",
+                http_status=self.last_graph_status,
+            )
+
+        http_status = self.last_graph_status
+
+        # Exact documented acceptance: 202 means the provider took the
+        # submission. It does NOT prove downstream delivery.
+        if http_status == 202:
+            return self._forward_result(
+                "provider_accepted",
+                message_id=message_id,
+                http_status=http_status,
+                provider_accepted=True,
+            )
+
+        if http_status == 408:
+            return self._forward_result(
+                "unknown",
+                message_id=message_id,
+                reason="timeout",
+                http_status=http_status,
+            )
+        if isinstance(http_status, int) and 500 <= http_status < 600:
+            return self._forward_result(
+                "unknown",
+                message_id=message_id,
+                reason="provider_error",
+                http_status=http_status,
+            )
+
+        # A conclusive client denial proves the provider refused the forward;
+        # 408 is handled above because a timeout may still have reached it.
+        conclusive_denial_statuses = {
+            400, 401, 403, 404, 405, 406, 409, 410, 411, 412, 413, 414, 415,
+            416, 417, 418, 421, 422, 423, 424, 425, 426, 428, 429, 431, 451,
+        }
+        if http_status in conclusive_denial_statuses:
+            return self._forward_result(
+                "not_forwarded",
+                message_id=message_id,
+                reason="provider_rejected",
+                http_status=http_status,
+                provider_accepted=False,
+            )
+
+        if self.last_transport_error:
+            return self._forward_result(
+                "unknown",
+                message_id=message_id,
+                reason="transport_error",
+                http_status=http_status,
+            )
+        if http_status is None:
+            return self._forward_result(
+                "unknown",
+                message_id=message_id,
+                reason="no_provider_response",
+            )
+        if isinstance(http_status, int) and 200 <= http_status < 300:
+            # Only 202 is the documented acceptance response. Any other 2xx
+            # is not enough to claim either acceptance or delivery.
+            return self._forward_result(
+                "unknown",
+                message_id=message_id,
+                reason="inconclusive_status",
+                http_status=http_status,
+            )
+        return self._forward_result(
+            "unknown",
+            message_id=message_id,
+            reason="inconclusive_status",
+            http_status=http_status,
+        )
 
     async def _thread_embed(self, texts: List[str]) -> List[List[float]]:
         """Embedder for the leak guard's semantic tier, cached process-wide —
