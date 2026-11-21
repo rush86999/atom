@@ -312,6 +312,38 @@ def _strip_code_fences(text: str) -> str:
     return (m.group(1) if m else (text or "")).strip()
 
 
+def _valid_controller_error(value: Any) -> Optional[str]:
+    """Mirror the runtime's exact typed-controller error allowlist."""
+    from core.mini_app_service import valid_controller_error
+
+    return valid_controller_error(value)
+
+
+def _repair_failure_diagnostics(failures: Any) -> Any:
+    """Project repair feedback without leaking runtime output or inputs.
+
+    Typed deterministic controller failures are reduced to their case name and
+    exact error type. Ordinary assertion mismatches keep their existing shape
+    (diff/state/etc.) so repair behavior for them is unchanged.
+    """
+    if not isinstance(failures, (list, tuple)):
+        return failures
+    diagnostics: List[Any] = []
+    for row in failures:
+        if not isinstance(row, dict):
+            diagnostics.append(row)
+            continue
+        controller_error = _valid_controller_error(row.get("controller_error"))
+        if controller_error is None:
+            diagnostics.append(row)
+            continue
+        diagnostic = {"controller_error": controller_error}
+        if "name" in row:
+            diagnostic["name"] = row.get("name")
+        diagnostics.append(diagnostic)
+    return diagnostics
+
+
 async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional[str],
                         description: Optional[str], user_id: str,
                         lessons: Optional[str] = None,
@@ -359,7 +391,8 @@ async def _author_logic(llm_service: Any, app_id: str, name: str, kind: Optional
     if acceptance_cases:
         prompt += "\nFixed acceptance cases: " + json.dumps(acceptance_cases, sort_keys=True)
     if acceptance_failures:
-        prompt += "\nPrevious draft failed: " + json.dumps(acceptance_failures, sort_keys=True)
+        diagnostics = _repair_failure_diagnostics(acceptance_failures)
+        prompt += "\nPrevious draft failed: " + json.dumps(diagnostics, sort_keys=True)
 
     source = ""
     if llm_service is not None:
@@ -559,9 +592,19 @@ async def _verify_build(
             return {"status": "passed", "report": report,
                     "source_sha256": args["expected_source_sha256"]}
         failures = [row for row in report.get("results", []) if row.get("passed") is False]
-        if attempt or not failures or any(row.get("error") for row in failures):
+        # A mismatched (error-free) assertion is repairable, as before. An
+        # error-bearing row is repairable ONLY when it carries a validated,
+        # typed deterministic controller failure; timeout/stale/unavailable/
+        # unknown/legacy errors stay unrepairable.
+        unrepairable_error = any(
+            isinstance(row, dict)
+            and row.get("error")
+            and _valid_controller_error(row.get("controller_error")) is None
+            for row in failures
+        )
+        if attempt or not failures or unrepairable_error:
             break
-        repaired_sha256 = await repair(failures)
+        repaired_sha256 = await repair(_repair_failure_diagnostics(failures))
         if not repaired_sha256:
             break
         args = {**args, "expected_source_sha256": repaired_sha256}

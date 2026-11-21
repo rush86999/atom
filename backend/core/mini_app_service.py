@@ -47,6 +47,28 @@ _RAW_TOOL_SCOPES = (
 
 _MINIAPP_STATE_MARKER = "__MINIAPP_STATE__:"
 
+# Controller failures that are typed, deterministic consequences of the
+# authored code (not runtime/environment failures). Only these exact names may
+# cross the runtime → dry-grading boundary, where the authoring consumer can
+# use them as bounded repair feedback. Timeouts, stale/unavailable runtimes,
+# and unknown/legacy errors stay opaque and are never auto-repaired.
+CONTROLLER_ERROR_TYPES = frozenset({
+    "UnboundLocalError",
+    "NameError",
+    "TypeError",
+    "KeyError",
+    "IndexError",
+    "ValueError",
+    "ZeroDivisionError",
+})
+_CONTROLLER_ERROR_TYPES = CONTROLLER_ERROR_TYPES
+
+
+def valid_controller_error(value: Any) -> Optional[str]:
+    """Return ``value`` only when it is an exact known controller error name."""
+    return value if isinstance(value, str) and value in CONTROLLER_ERROR_TYPES else None
+
+
 # Default max bytes per injected asset object (manifest storage config).
 DEFAULT_ASSET_INJECTION_CAP = 5 * 1024 * 1024  # 5 MiB
 
@@ -1755,7 +1777,12 @@ async def run_stateful(
             # __MINIAPP_STATE__: stdout marker only when the structured channel
             # is absent (older guest agent / non-FC runtime).
             meta = getattr(result, "metadata", {}) or {}
-            envelope = meta.get("state_envelope")
+            if isinstance(meta, dict):
+                raw_controller_error = meta.get("controller_error")
+            else:
+                raw_controller_error = getattr(meta, "controller_error", None)
+            controller_error = valid_controller_error(raw_controller_error)
+            envelope = meta.get("state_envelope") if isinstance(meta, dict) else None
             if not isinstance(envelope, dict):
                 envelope = _parse_envelope(stdout) or _parse_envelope(stderr)
 
@@ -1766,7 +1793,7 @@ async def run_stateful(
             # production — every app compiled as a bare try: and silently
             # no-oped as "success" with unchanged state.
             if int(exit_code) != 0:
-                return {
+                failure = {
                     "success": False,
                     "error": (
                         "Mini-app run failed inside the sandbox "
@@ -1777,6 +1804,11 @@ async def run_stateful(
                     "stderr": stderr,
                     "exit_code": exit_code,
                 }
+                # Worker A emits this optional hint only for nonzero runs. Copy
+                # exactly the validated enum value; never any other metadata.
+                if controller_error is not None:
+                    failure["controller_error"] = controller_error
+                return failure
 
             # If stdout was truncated and no structured envelope was found, we
             # cannot trust a partial __MINIAPP_STATE__ line — fail loudly rather
@@ -2712,11 +2744,17 @@ async def run_tests(
         if not res.get("success"):
             if expected_source_sha256 is not None and res.get("error") == "mini_app_logic_changed":
                 return {"interrupted": True, "error": "mini_app_logic_changed"}
-            results.append({
+            failed = {
                 "name": name,
                 "passed": False,
                 "error": res.get("error", "run failed"),
-            })
+            }
+            # Project only the validated typed field from the failed run; raw
+            # runtime text/streams and unrelated result metadata stay out.
+            controller_error = valid_controller_error(res.get("controller_error"))
+            if controller_error is not None:
+                failed["controller_error"] = controller_error
+            results.append(failed)
             continue
 
         actual = res.get("state") or {}

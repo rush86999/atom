@@ -104,3 +104,11 @@ POST /api/mini-apps/{id}/install   # returns canvas_id
 All Firecracker execution is mocked in CI (subprocess + vsock/UDS + fs) — no
 real VM/KVM is needed for `pytest tests/test_mini_apps.py
 tests/test_mini_app_runtime.py`.
+
+### Controller errors during Canvas authoring
+
+Rebuild the base root filesystem and any prebuilt app images to pick up the
+guest's typed controller error reports. Existing images still run. When an
+older image reports an untyped failure, automatic authoring repair skips that
+failure. With an updated image, a recognized controller error can trigger one
+repair against the original saved acceptance cases.
