@@ -66,6 +66,8 @@ export type AgentJobReadback = {
   requires_reconciliation?: boolean;
   wait?: AgentJobWait | null;
   wait_unavailable?: boolean;
+  pending_action_approval?: boolean;
+  can_review_pending_action_approval?: boolean;
   deadline?: string | null;
   waiting_since?: string | null;
   waiting_age_seconds?: number | null;
@@ -563,6 +565,8 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget, onMessage 
   );
   const completed = job?.job_status === "success";
   const active = job?.job_status === "pending" || job?.job_status === "running";
+  const hasPendingApproval =
+    job?.job_status === "running" && job?.pending_action_approval === true;
   const failed =
     Boolean(job) &&
     !completed &&
@@ -632,6 +636,28 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget, onMessage 
           The agent is working on this job. This panel refreshes the job state
           without running the model.
         </p>
+      )}
+
+      {hasPendingApproval && (
+        <div
+          data-testid="agent-job-pending-approval"
+          className="space-y-2 p-3 text-sm bg-amber-50 text-amber-800 rounded border border-amber-200"
+        >
+          <p className="font-medium">An action is waiting for approval.</p>
+          {job?.can_review_pending_action_approval === true ? (
+            <a
+              data-testid="agent-job-approvals-link"
+              href="/approvals"
+              className="font-medium underline"
+            >
+              Review it on the Approvals page
+            </a>
+          ) : (
+            <p data-testid="agent-job-approvals-help">
+              Ask a workspace admin to review it.
+            </p>
+          )}
+        </div>
       )}
 
       {waitUnavailable && (

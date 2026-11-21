@@ -103,6 +103,12 @@ const runningJob = (): AgentJobReadback => ({
   requires_reconciliation: false,
 });
 
+const pendingApprovalJob = (): AgentJobReadback => ({
+  ...runningJob(),
+  pending_action_approval: true,
+  can_review_pending_action_approval: true,
+});
+
 const sameJobStatusEvent = (status: string) => ({
   type: "agent_status_change",
   data: {
@@ -453,6 +459,84 @@ describe("AgentJobWaitPanel", () => {
     expect(screen.queryByTestId("agent-job-question")).not.toBeInTheDocument();
     expect(screen.queryByTestId("agent-job-answer-input")).not.toBeInTheDocument();
     expect(screen.queryByTestId("agent-job-failure")).not.toBeInTheDocument();
+  });
+
+  test("a running job with a verified pending action approval links to Approvals without fact controls", async () => {
+    jest.useFakeTimers();
+    fetchMock.mockResolvedValue(jsonResponse(pendingApprovalJob()));
+
+    render(<AgentJobWaitPanel agentId="a1" jobId="job-1" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // The durable status stays distinct from the approval control.
+    expect(screen.getByTestId("agent-job-status")).toHaveTextContent("Working");
+    expect(screen.getByTestId("agent-job-status")).not.toHaveTextContent(
+      /approval/i,
+    );
+    expect(
+      screen.getByTestId("agent-job-pending-approval"),
+    ).toHaveTextContent(/waiting for approval/i);
+    expect(screen.getByTestId("agent-job-approvals-link")).toHaveAttribute(
+      "href",
+      "/approvals",
+    );
+    // No answer control or fabricated information wait is shown.
+    expect(screen.queryByTestId("agent-job-question")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("agent-job-answer-input"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("agent-job-wait-unavailable"),
+    ).not.toBeInTheDocument();
+    expect(postCalls(fetchMock)).toHaveLength(0);
+  });
+
+  test("without review permission the panel asks for a workspace admin, not the Approvals link", async () => {
+    jest.useFakeTimers();
+    fetchMock.mockResolvedValue(
+      jsonResponse({
+        ...pendingApprovalJob(),
+        can_review_pending_action_approval: false,
+      }),
+    );
+
+    render(<AgentJobWaitPanel agentId="a1" jobId="job-1" />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(
+      screen.getByTestId("agent-job-pending-approval"),
+    ).toHaveTextContent(/waiting for approval/i);
+    expect(screen.getByTestId("agent-job-approvals-help")).toHaveTextContent(
+      "Ask a workspace admin to review it.",
+    );
+    expect(
+      screen.queryByTestId("agent-job-approvals-link"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("agent-job-answer-input"),
+    ).not.toBeInTheDocument();
+    expect(postCalls(fetchMock)).toHaveLength(0);
+  });
+
+  test("an information wait is not presented as an action approval", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(waitingJob("wait-1", "What title?", "corr-1")),
+    );
+
+    render(<AgentJobWaitPanel agentId="a1" jobId="job-1" />);
+
+    expect(await screen.findByText("What title?")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("agent-job-pending-approval"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("agent-job-approvals-link"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("agent-job-answer-input")).toBeInTheDocument();
   });
 
   test("an unauthorized job exposes no question/result and is forgotten", async () => {
