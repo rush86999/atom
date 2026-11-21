@@ -193,7 +193,10 @@ kubectl get services --namespace=atom-production
 
 ### Database Migration Setup
 
-**Run migrations manually** (before first deployment):
+Use these commands for an existing Alembic-managed database. For an empty
+PostgreSQL database, see the [migration limitation in the deployment runbook](DEPLOYMENT_RUNBOOK.md#step-2-run-database-migrations).
+
+**Run migrations manually**:
 ```bash
 # Activate virtual environment
 cd backend
