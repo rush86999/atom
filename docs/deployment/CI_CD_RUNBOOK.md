@@ -689,8 +689,9 @@ alembic current
 # Review pending migrations
 alembic history | head -20
 
-# Test migration on staging database
-alembic upgrade head --sql
+# Inspect the migration heads and preview SQL
+alembic heads
+alembic upgrade heads --sql
 ```
 
 ### Migration Execution
@@ -700,7 +701,7 @@ alembic upgrade head --sql
 pg_dump atom > backup_$(date +%Y%m%d_%H%M%S).sql
 
 # Run migration
-alembic upgrade head
+alembic upgrade heads
 
 # Verify migration success
 alembic current

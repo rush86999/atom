@@ -204,7 +204,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # Run Alembic migrations
-alembic upgrade head
+alembic upgrade heads
 
 # Verify migrations
 alembic current

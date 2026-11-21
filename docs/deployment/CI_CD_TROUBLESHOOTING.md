@@ -435,7 +435,7 @@ psql -c "SELECT username FROM users WHERE username='smoke_test'"
 # If not exists, create migration
 alembic revision -m "create smoke test user"
 # Edit migration file to create user
-alembic upgrade head
+alembic upgrade heads
 ```
 
 **Solution 2: Update GitHub secrets**
