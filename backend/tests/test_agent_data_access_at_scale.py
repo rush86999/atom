@@ -316,6 +316,124 @@ class TestAgentToolBudget:
         assert hidden == 0
         assert json.loads(rendered)[0]["name"] == "a"
 
+    def test_render_projects_simple_parameter_names(self):
+        from core.agent_tool_budget import render_tool_catalog
+
+        tools = [{
+            "name": "search",
+            "description": "Search",
+            "parameters": {"search_query": "string", "workspace": "string"},
+        }]
+        parsed = json.loads(render_tool_catalog(tools)[0])
+        assert parsed[0]["parameter_names"] == ["search_query", "workspace"]
+        assert "string" not in json.dumps(parsed)  # names only, not values
+
+    @pytest.mark.parametrize("tool,expected", [
+        (
+            {
+                "name": "schema_params",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "search_query": {"type": "string", "example": "bandsaw"},
+                        "workspace": {"type": "string", "default": "main"},
+                    },
+                    "required": ["search_query"],
+                },
+            },
+            ["search_query", "workspace"],
+        ),
+        (
+            {
+                "name": "mcp_tool",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "owner": {"type": "string", "description": "owner name"},
+                        "repo": {"type": "string"},
+                    },
+                },
+            },
+            ["owner", "repo"],
+        ),
+    ])
+    def test_render_projects_schema_parameter_names(self, tool, expected):
+        from core.agent_tool_budget import render_tool_catalog
+
+        parsed = json.loads(render_tool_catalog([tool])[0])
+        assert parsed[0]["parameter_names"] == expected
+        blob = json.dumps(parsed)
+        assert "example" not in blob
+        assert "default" not in blob
+        assert "owner name" not in blob
+
+    def test_render_ignores_list_and_nested_mapping_values(self):
+        from core.agent_tool_budget import render_tool_catalog
+
+        tools = [
+            {"name": "listy", "parameters": ["search_query", "workspace"]},
+            {"name": "nested", "parameters": {"outer": {"inner": "string"}}},
+        ]
+        parsed = json.loads(render_tool_catalog(tools)[0])
+        assert "parameter_names" not in parsed[0]
+        assert "parameter_names" not in parsed[1]
+
+    def test_render_one_object_per_line(self):
+        from core.agent_tool_budget import render_tool_catalog
+
+        tools = [{
+            "name": "search",
+            "description": "Search",
+            "parameters": {"search_query": "string"},
+        }]
+        rendered, _ = render_tool_catalog(tools)
+        lines = rendered.splitlines()
+        assert lines[0] == "[" and lines[-1] == "]"
+        body = lines[1:-1]
+        assert len(body) == len(tools)
+        parsed = [json.loads(line) for line in body]
+        assert parsed == json.loads(rendered)
+        assert parsed[0]["name"] == "search"
+        assert parsed[0]["description"] == "Search"
+        assert parsed[0]["parameter_names"] == ["search_query"]
+
+    def test_render_absent_parameter_metadata_adds_nothing(self):
+        from core.agent_tool_budget import render_tool_catalog
+
+        rendered, hidden = render_tool_catalog(
+            [{"name": "plain", "description": "No schema"}]
+        )
+        parsed = json.loads(rendered)
+        assert parsed == [{"name": "plain", "description": "No schema"}]
+        assert "parameter_names" not in parsed[0]
+        assert hidden == 0
+
+        rendered, _ = render_tool_catalog(
+            [{"name": "empty_schema", "parameters": {"type": "object"}}]
+        )
+        assert "parameter_names" not in json.loads(rendered)[0]
+
+    def test_render_bounds_parameter_name_count(self):
+        from core.agent_tool_budget import render_tool_catalog
+
+        parameters = {f"p{i}": "string" for i in range(20)}
+        parsed = json.loads(
+            render_tool_catalog([{"name": "many", "parameters": parameters}])[0]
+        )
+        assert parsed[0]["parameter_names"] == [f"p{i}" for i in range(12)]
+
+    def test_render_bounds_parameter_name_bytes(self):
+        from core.agent_tool_budget import render_tool_catalog
+
+        parameters = {
+            f"parameter_{i:02d}_longer": "string" for i in range(20)
+        }
+        parsed = json.loads(
+            render_tool_catalog([{"name": "wide", "parameters": parameters}])[0]
+        )
+        # 11 names are 243 compact bytes; a 12th would be 265 > 256.
+        assert parsed[0]["parameter_names"] == list(parameters)[:11]
+
     def test_session_cap_env_override(self, monkeypatch):
         from core.agent_tool_budget import trim_session_tools
 
