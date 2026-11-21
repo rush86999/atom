@@ -240,10 +240,101 @@ def _as_aware_utc(value: Optional[datetime]) -> Optional[datetime]:
 # worker can still be in flight after ``wait_for`` stops awaiting it.
 _TEXT_MODEL_SERVICES = frozenset({"main_agent", "ai"})
 
+# Actions whose connector method is a single provider submission that cannot
+# be repeated safely. ``outlook.forward_email`` is the registered one-shot
+# side-effecting action: its adapter sends exactly one Graph request and owns
+# the explicit uncertainty envelope. The engine's outer ``wait_for`` can cancel
+# that adapter before the envelope is returned, so only an actual outer wait
+# timeout for these exact service/action pairs becomes an uncertain outcome.
+# Every other step keeps the existing timeout/retry/model policy.
+_WORKFLOW_DEADLINE_UNCERTAIN_ACTIONS = frozenset({
+    ("outlook", "forward_email"),
+})
+
 
 def _retry_step_failure(exc: BaseException) -> bool:
-    """Retry every step failure except the model timeout subtype."""
+    """Retry every step failure except the model timeout subtype.
+
+    An explicitly uncertain effect is also never retried: the provider may
+    already have applied it, so a retry could duplicate the effect.
+    """
+    if isinstance(exc, UncertainEffectError):
+        return False
     return not isinstance(exc, ModelStepTimeoutError)
+
+
+def _executor_effect_uncertainty(
+    result: Any,
+) -> Optional[Dict[str, Any]]:
+    """Return explicit uncertainty evidence from one executor envelope.
+
+    Only the executor's own top-level ``effect_uncertain is True`` marker is
+    honored. The known ``evidence`` member may carry the untouched provider
+    result; it is used only when it repeats that same explicit marker. This
+    never walks arbitrary nested result data or interprets status/reason
+    strings.
+    """
+    if not isinstance(result, dict) or result.get("effect_uncertain") is not True:
+        return None
+    evidence = result.get("evidence")
+    if isinstance(evidence, dict) and evidence.get("effect_uncertain") is True:
+        return evidence
+    return result
+
+
+def _paused_uncertain_step_id(state: Any) -> Optional[str]:
+    """Return a persisted PAUSED step whose own output marks uncertainty."""
+    steps = state.get("steps") if isinstance(state, dict) else None
+    if not isinstance(steps, dict):
+        return None
+    for step_id, step in steps.items():
+        if not isinstance(step, dict):
+            continue
+        if str(step.get("status") or "").strip().upper() != "PAUSED":
+            continue
+        output = step.get("output")
+        if isinstance(output, dict) and output.get("effect_uncertain") is True:
+            return str(step_id)
+    return None
+
+
+def _uncertainty_error_message(
+    step: Dict[str, Any],
+    evidence: Dict[str, Any],
+) -> str:
+    """Build the human-readable error for an explicitly uncertain effect."""
+    step_id = str((step or {}).get("id") or "unknown")
+    detail = str(
+        evidence.get("reason")
+        or evidence.get("outcome")
+        or "unknown")
+    outcome = str(evidence.get("outcome") or "unknown_effect")
+    provider_accepted = evidence.get("provider_accepted")
+    return (
+        f"Step {step_id} has an uncertain outcome "
+        f"(effect_uncertain=True, outcome={outcome}, "
+        f"provider_accepted={provider_accepted}, {detail}); the provider may "
+        "have applied the effect. The step was not retried and downstream "
+        "steps were not run; reconcile it before retrying."
+    )
+
+
+def _uncertainty_payload(
+    evidence: Dict[str, Any],
+    error_message: str,
+) -> Dict[str, Any]:
+    """Keep the action's explicit uncertainty evidence machine-readable."""
+    payload = dict(evidence) if isinstance(evidence, dict) else {}
+    original_reason = payload.get("reason")
+    payload["reason"] = "effect_uncertain"
+    if original_reason:
+        payload["action_reason"] = original_reason
+    payload["effect_uncertain"] = True
+    payload["outcome"] = payload.get("outcome") or "unknown_effect"
+    if "status" in payload:
+        payload["action_status"] = payload["status"]
+    payload["error"] = error_message
+    return payload
 
 
 def _step_timeout_error(
@@ -269,6 +360,41 @@ def _step_timeout_error(
         step_id=step_id,
         timeout=timeout,
     )
+
+
+def _deadline_step_error(
+    service: str,
+    action: str,
+    step_id: str,
+    timeout: float,
+    *,
+    message: Optional[str] = None,
+) -> "Union[StepTimeoutError, UncertainEffectError]":
+    """Translate an actual outer-deadline wait timeout for one dispatch.
+
+    For a registered one-shot side-effecting action, ``wait_for`` has already
+    cancelled the adapter, so the adapter can no longer return its explicit
+    uncertainty envelope even though the provider call may have started.
+    Preserve that ambiguity as the existing typed uncertain outcome with a
+    stable ``workflow_deadline`` reason; it is non-retryable and never falls
+    back. All other actions, including the model timeout subtype, keep the
+    existing typed timeout behavior.
+    """
+    if (service, action) in _WORKFLOW_DEADLINE_UNCERTAIN_ACTIONS:
+        evidence = {
+            "outcome": "unknown_effect",
+            "provider_accepted": None,
+            "effect_uncertain": True,
+            "reason": "workflow_deadline",
+            "timeout": timeout,
+        }
+        return UncertainEffectError(
+            _uncertainty_error_message({"id": step_id}, evidence),
+            step_id=step_id,
+            evidence=evidence,
+        )
+    return _step_timeout_error(
+        service, step_id, timeout, message=message)
 
 
 class WorkflowEngine:
@@ -947,6 +1073,19 @@ class WorkflowEngine:
 
                             return (step_id, True, output, None)
 
+                        except UncertainEffectError as e:
+                            logger.error(
+                                "Step %s has an uncertain outcome: %s",
+                                step_id, e)
+                            payload = _uncertainty_payload(
+                                e.evidence, str(e))
+                            async with state_lock:
+                                await self.state_manager.update_step_status(
+                                    execution_id, step_id, "PAUSED",
+                                    error=str(e), output=payload)
+                            step_status[step_id] = "PAUSED"
+                            return (step_id, False, None, e)
+
                         except Exception as e:
                             logger.error(f"Step {step_id} failed: {e}")
 
@@ -962,6 +1101,7 @@ class WorkflowEngine:
                 # Process results
                 has_failure = False
                 failure_error = None
+                uncertain_error = None
                 for result in results:
                     if isinstance(result, Exception):
                         # This should not happen as exceptions are caught in execute_single_step
@@ -972,6 +1112,13 @@ class WorkflowEngine:
 
                     step_id, success, output, error = result
                     if not success:
+                        if isinstance(error, UncertainEffectError):
+                            # The step is already paused. Never activate its
+                            # outgoing connections, even under
+                            # continue_on_error, and let uncertainty decide
+                            # the terminal status below.
+                            uncertain_error = error
+                            continue
                         # Check if step has continue_on_error flag
                         node = nodes[step_id]
                         config = node.get("config", {})
@@ -995,6 +1142,21 @@ class WorkflowEngine:
                             # If a step failed, we may want to stop the whole workflow
                             # For now, we continue processing other steps but mark failure
                             # The step status is already updated to FAILED
+
+                # An explicitly uncertain effect pauses the whole run before
+                # any further step is selected. It is not a generic failure
+                # and must not be retried or failed over.
+                if uncertain_error is not None:
+                    message = str(uncertain_error)
+                    payload = _uncertainty_payload(
+                        uncertain_error.evidence, message)
+                    async with state_lock:
+                        await self.state_manager.update_execution_status(
+                            execution_id, "PAUSED", error=message)
+                        await ws_manager.notify_workflow_status(
+                            user_id, execution_id, "PAUSED",
+                            {"step_id": uncertain_error.step_id, **payload})
+                    return
 
                 # If any step failed with MissingInputError, we've paused the workflow
                 # Check if workflow is paused
@@ -1120,6 +1282,16 @@ class WorkflowEngine:
 
         if state["status"] != "PAUSED":
             logger.warning(f"Cannot resume execution {execution_id} in state {state['status']}")
+            return False
+
+        uncertain_step_id = _paused_uncertain_step_id(state)
+        if uncertain_step_id is not None:
+            # An uncertain provider effect is authoritative until reconciled.
+            # Refuse before touching inputs, status or dispatch; no caller
+            # input can override this.
+            logger.warning(
+                "Cannot resume execution %s: step %s has an uncertain effect",
+                execution_id, uncertain_step_id)
             return False
 
         # Resume inputs are untrusted: they may carry the approval reference,
@@ -1851,6 +2023,23 @@ class WorkflowEngine:
                         "STEP_COMPLETED", workflow.get("id", "unknown"), execution_id, step_id,
                     )
 
+                except UncertainEffectError as e:
+                    # The effect may already have happened. Stop the run at a
+                    # visible noncompleted boundary instead of retrying,
+                    # failing over, or allowing downstream steps to run.
+                    logger.error(
+                        "Step %s has an uncertain outcome: %s", step_id, e)
+                    message = str(e)
+                    payload = _uncertainty_payload(e.evidence, message)
+                    await self.state_manager.update_step_status(
+                        execution_id, step_id, "PAUSED",
+                        error=message, output=payload)
+                    await self.state_manager.update_execution_status(
+                        execution_id, "PAUSED", error=message)
+                    await ws_manager.notify_workflow_status(
+                        user_id, execution_id, "PAUSED",
+                        {"step_id": step_id, **payload})
+                    return
                 except Exception as e:
                     logger.error(f"Step {step_id} failed: {e}")
                     await self.state_manager.update_step_status(execution_id, step_id, "FAILED", error=str(e))
@@ -2234,6 +2423,13 @@ class WorkflowEngine:
             try:
                 logger.info(f"Service {service} not in registry, attempting generic execution via catalog")
                 result = await self._execute_generic_action(service, action, params, step.get("connection_id"))
+                uncertainty = _executor_effect_uncertainty(result)
+                if uncertainty is not None:
+                    raise UncertainEffectError(
+                        _uncertainty_error_message(step, uncertainty),
+                        step_id=step.get("id"),
+                        evidence=uncertainty,
+                    )
                 return {
                     "status": "success",
                     "service": service,
@@ -2242,6 +2438,10 @@ class WorkflowEngine:
                     "timestamp": datetime.now().isoformat(),
                     "execution_method": "generic_catalog_executor"
                 }
+            except UncertainEffectError:
+                # An uncertain effect must not be retried or fall back to
+                # another service.
+                raise
             except Exception as e:
                 logger.warning(f"Generic execution failed or service not found in catalog: {e}")
                 # Record the failure and continue to the fallback path instead
@@ -2287,10 +2487,31 @@ class WorkflowEngine:
                         raise _step_timeout_error(
                             service, step['id'], timeout)
                     except asyncio.TimeoutError:
-                        raise _step_timeout_error(
-                            service, step['id'], timeout)
+                        raise _deadline_step_error(
+                            service, action, step['id'], timeout)
                 else:
                     result = await executor(action, params, connection_id=step.get("connection_id"), **step_kwargs)
+                # Normalize only the Outlook forward primitive's exact
+                # transport statuses (an executor may be exercised without
+                # the adapter). No other status is interpreted.
+                if (
+                    service == "outlook"
+                    and action == "forward_email"
+                    and isinstance(result, dict)
+                    and result.get("status") in (
+                        "provider_accepted", "not_forwarded")
+                ):
+                    result = self._outlook_forward_envelope(action, result)
+                # An explicit uncertainty marker wins over the adapter's outer
+                # "success": the provider may have applied the effect, so this
+                # is neither retryable nor fallback-safe.
+                uncertainty = _executor_effect_uncertainty(result)
+                if uncertainty is not None:
+                    raise UncertainEffectError(
+                        _uncertainty_error_message(step, uncertainty),
+                        step_id=step.get("id"),
+                        evidence=uncertainty,
+                    )
                 # Executors that return a non-success status envelope (e.g.
                 # MCP {"status": "error"}, sub-workflow {"status": "timeout"})
                 # must surface as failures, not be wrapped as a successful
@@ -2313,6 +2534,9 @@ class WorkflowEngine:
                     "timestamp": datetime.now().isoformat(),
                     "execution_method": "service_registry"
                 }
+            except UncertainEffectError:
+                # Never fall back after an effect may already have happened.
+                raise
             except Exception as e:
                 primary_error = e
                 logger.warning(f"Primary service {service}.{action} failed: {e}")
@@ -2345,8 +2569,9 @@ class WorkflowEngine:
                                 f"timed out after {timeout}s"),
                         )
                     except asyncio.TimeoutError:
-                        raise _step_timeout_error(
+                        raise _deadline_step_error(
                             fallback_service,
+                            action,
                             step.get("id", "unknown"),
                             timeout,
                             message=(
@@ -2355,6 +2580,21 @@ class WorkflowEngine:
                         )
                 else:
                     result = await fallback_executor(action, params, connection_id=step.get("connection_id"), **fallback_step_kwargs)
+                if (
+                    fallback_service == "outlook"
+                    and action == "forward_email"
+                    and isinstance(result, dict)
+                    and result.get("status") in (
+                        "provider_accepted", "not_forwarded")
+                ):
+                    result = self._outlook_forward_envelope(action, result)
+                uncertainty = _executor_effect_uncertainty(result)
+                if uncertainty is not None:
+                    raise UncertainEffectError(
+                        _uncertainty_error_message(step, uncertainty),
+                        step_id=step.get("id"),
+                        evidence=uncertainty,
+                    )
                 if isinstance(result, dict) and result.get("status") and result.get("status") != "success":
                     raise ValueError(
                         f"Fallback service {fallback_service}.{action} returned error: "
@@ -2370,6 +2610,10 @@ class WorkflowEngine:
                     "original_service": service,
                     "fallback_used": True
                 }
+            except UncertainEffectError:
+                # Preserve the uncertainty outcome and its evidence without
+                # wrapping it as a generic fallback failure.
+                raise
             except Exception as e:
                 logger.error(f"Fallback service {fallback_service}.{action} also failed: {e}")
                 # Both primary and fallback failed — raise so the run loop marks
@@ -3672,6 +3916,59 @@ Return your response in a clear, structured format."""
             logger.error(f"Error loading workflow {workflow_id}: {e}")
             return None
 
+    @staticmethod
+    def _outlook_forward_envelope(action: str, result: Dict[str, Any]) -> Dict[str, Any]:
+        """Translate the forward primitive's explicit outcome for the engine.
+
+        The provider method distinguishes acceptance (HTTP 202), a conclusive
+        rejection, and an uncertain effect. ``provider_accepted`` means only
+        that the provider took the submission — never delivery. An uncertain
+        effect is returned in the existing error envelope with its raw
+        evidence, so the shared action engine cannot wrap it as success.
+        """
+        evidence = dict(result)
+        if result.get("effect_uncertain") is True:
+            reason = result.get("reason") or result.get("outcome") or "unknown"
+            return {
+                "action": action,
+                "status": "error",
+                "error": (
+                    "Outlook forward outcome is uncertain "
+                    f"({reason}); the provider may have accepted it. "
+                    "Reconcile before retrying."),
+                "effect_uncertain": True,
+                "outcome": result.get("outcome") or "unknown_effect",
+                "provider_accepted": result.get("provider_accepted"),
+                "evidence": evidence,
+                "result": result,
+            }
+        if result.get("status") == "not_forwarded":
+            reason = result.get("reason") or "provider_rejected"
+            return {
+                "action": action,
+                "status": "error",
+                "error": (
+                    "Outlook forward was rejected by the provider "
+                    f"({reason})."),
+                "effect_uncertain": False,
+                "outcome": result.get("outcome") or "not_forwarded",
+                "provider_accepted": False,
+                "evidence": evidence,
+                "result": result,
+            }
+        if result.get("status") == "provider_accepted":
+            # Acceptance is only provider acknowledgement of the submission;
+            # the nested result remains the authoritative evidence.
+            return {
+                "action": action,
+                "status": "success",
+                "outcome": "provider_accepted",
+                "provider_accepted": True,
+                "effect_uncertain": False,
+                "result": result,
+            }
+        return {"status": "success", "result": result}
+
     async def _execute_outlook_action(self, action: str, params: dict, connection_id: Optional[str] = None) -> dict:
         """Execute Outlook service actions"""
         try:
@@ -3729,7 +4026,9 @@ Return your response in a clear, structured format."""
                      result = await call_service(action, **params)
                 else:
                     raise ValueError(f"Unknown Outlook action: {action}")
-            
+
+            if action == "forward_email" and isinstance(result, dict):
+                return self._outlook_forward_envelope(action, result)
             return {"status": "success", "result": result}
         except Exception as e:
             logger.error(f"Outlook execution failed: {e}")
@@ -4420,6 +4719,29 @@ class SchemaValidationError(Exception):
         super().__init__(message)
         self.schema_type = schema_type  # "input" or "output"
         self.errors = errors or []
+
+class UncertainEffectError(RuntimeError):
+    """An action explicitly reported that its effect may already be applied.
+
+    This is a noncompleted outcome, not a plain failure: the step must not be
+    retried, no fallback service may be attempted, and downstream steps must
+    not run until the effect is reconciled. ``evidence`` carries the action's
+    own machine-readable outcome without interpreting status strings.
+    """
+
+    retryable = False
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        step_id: Optional[str] = None,
+        evidence: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(message)
+        self.step_id = step_id
+        self.evidence = dict(evidence) if isinstance(evidence, dict) else {}
+
 
 class StepTimeoutError(Exception):
     #: Ordinary integration timeouts keep the shared retry helper's default
