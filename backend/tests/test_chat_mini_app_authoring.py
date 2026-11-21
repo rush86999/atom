@@ -287,6 +287,138 @@ async def test_chat_repairs_against_same_owner_acceptance_cases(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_verify_build_repairs_typed_controller_failure_once():
+    from unittest.mock import AsyncMock
+
+    from core.chat_mini_app_authoring import _verify_build
+
+    cases = [{"name": "typed", "expect_state": {"n": 1}}]
+    first = {
+        "success": True,
+        "tests_sha256": "tests-sha",
+        "total": 1,
+        "passed": 0,
+        "all_passed": False,
+        "results": [{
+            "name": "typed",
+            "passed": False,
+            "error": "raw controller traceback text",
+            "controller_error": "KeyError",
+            # None of these runtime/input fields may reach the repair prompt.
+            "stdout": "secret stdout",
+            "stderr": "secret stderr",
+            "state": {"secret": 1},
+            "diff": {"n": {"expected": 1, "actual": 0}},
+            "inputs": {"secret": 1},
+        }],
+    }
+    second = {
+        "success": True,
+        "tests_sha256": "tests-sha",
+        "total": 1,
+        "passed": 1,
+        "all_passed": True,
+        "results": [{"passed": True}],
+    }
+    run_cases = AsyncMock(side_effect=[first, second])
+    repair = AsyncMock(return_value="repaired-sha")
+    save_cases = AsyncMock(return_value={"success": True})
+
+    outcome = await _verify_build(
+        "app", {}, cases, "tests-sha", "source-sha",
+        save_cases, run_cases, repair,
+    )
+
+    assert outcome["status"] == "passed"
+    assert outcome["source_sha256"] == "repaired-sha"
+    repair.assert_awaited_once_with([
+        {"name": "typed", "controller_error": "KeyError"},
+    ])
+    # The original test digest is pinned on both runs; only source advances.
+    assert [call.args[0]["expected_tests_sha256"] for call in run_cases.await_args_list] == [
+        "tests-sha", "tests-sha",
+    ]
+    assert [call.args[0]["expected_source_sha256"] for call in run_cases.await_args_list] == [
+        "source-sha", "repaired-sha",
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [
+    {"name": "timeout", "passed": False, "error": "timeout"},
+    {"name": "stale", "passed": False, "error": "stale"},
+    {"name": "unavailable", "passed": False, "error": "runtime unavailable"},
+    {"name": "unknown", "passed": False, "error": "unexpected failure"},
+    {
+        "name": "legacy",
+        "passed": False,
+        "error": "legacy failure",
+        "controller_error": "RuntimeError",
+    },
+])
+async def test_verify_build_does_not_repair_untyped_error(failure):
+    from unittest.mock import AsyncMock
+
+    from core.chat_mini_app_authoring import _verify_build
+
+    cases = [{"name": "case", "expect_state": {"n": 1}}]
+    report = {
+        "success": True,
+        "tests_sha256": "tests-sha",
+        "total": 1,
+        "passed": 0,
+        "all_passed": False,
+        "results": [failure],
+    }
+    run_cases = AsyncMock(return_value=report)
+    repair = AsyncMock(return_value="repaired-sha")
+    save_cases = AsyncMock(return_value={"success": True})
+
+    outcome = await _verify_build(
+        "app", {}, cases, "tests-sha", "source-sha",
+        save_cases, run_cases, repair,
+    )
+
+    assert outcome["status"] == "failed"
+    assert outcome["source_sha256"] == "source-sha"
+    repair.assert_not_awaited()
+    run_cases.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_verify_build_preserves_existing_mismatch_diagnostic():
+    from unittest.mock import AsyncMock
+
+    from core.chat_mini_app_authoring import _verify_build
+
+    cases = [{"name": "mismatch", "expect_state": {"n": 2}}]
+    failure = {
+        "name": "mismatch",
+        "passed": False,
+        "diff": {"n": {"expected": 2, "actual": 1}},
+        "ops_ok": True,
+    }
+    report = {
+        "success": True,
+        "tests_sha256": "tests-sha",
+        "total": 1,
+        "passed": 0,
+        "all_passed": False,
+        "results": [failure],
+    }
+    run_cases = AsyncMock(return_value=report)
+    repair = AsyncMock(return_value=None)
+    save_cases = AsyncMock(return_value={"success": True})
+
+    await _verify_build(
+        "app", {}, cases, "tests-sha", "source-sha",
+        save_cases, run_cases, repair,
+    )
+
+    repair.assert_awaited_once_with([failure])
+
+
+@pytest.mark.asyncio
 async def test_starter_draft_retains_owner_acceptance_cases(patched_db, monkeypatch):
     from unittest.mock import AsyncMock
 

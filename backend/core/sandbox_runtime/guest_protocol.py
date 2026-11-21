@@ -10,7 +10,7 @@ protocol regardless of how the host reaches it:
     in the guest) and answers ``{"type":"callback_result", "ok", "data"|"error"}``.
   * Guest sends one terminal line tagged ``"type":"final"`` (or, for older
     agents, an untagged line treated as final) carrying
-    ``{"stdout","stderr","exit_code","state_envelope"?}``.
+    ``{"stdout","stderr","exit_code","state_envelope"?,"controller_error"?}``.
 
 Two transports exist, both ``asyncio`` ``StreamReader``/``StreamWriter`` pairs,
 so the exchange logic lives here ONCE:
@@ -37,6 +37,26 @@ logger = logging.getLogger(__name__)
 # Output cap per stream (mirrors the Docker/E2B runners).
 OUTPUT_CAP = 65536  # 64 KiB
 
+# Bounded dry-grading hint carried by newer guests. The guest only emits the
+# name of an EXACT built-in exception class from this allowlist; the host
+# validates again and never infers this from stderr text.
+CONTROLLER_ERRORS = frozenset({
+    "UnboundLocalError",
+    "NameError",
+    "TypeError",
+    "KeyError",
+    "IndexError",
+    "ValueError",
+    "ZeroDivisionError",
+})
+
+
+def _valid_controller_error(value: Any) -> Optional[str]:
+    """Return ``value`` only when it is an allowlisted exact diagnostic name."""
+    if isinstance(value, str) and value in CONTROLLER_ERRORS:
+        return value
+    return None
+
 
 async def exchange(
     reader: asyncio.StreamReader,
@@ -44,13 +64,17 @@ async def exchange(
     code: str,
     inputs: Dict[str, Any],
     callback_handler: Any = None,
-) -> Tuple[str, str, int, Optional[dict], List[dict]]:
+) -> Tuple[Any, ...]:
     """Send exec, service callbacks, read the final reply.
 
     Returns ``(stdout, stderr, exit_code, envelope, callbacks)``. ``envelope``
-    is the guest's ``state_envelope`` dict (or None). Callback time counts
-    against the CALLER's deadline — this coroutine owns no timeout of its own;
-    wrap it in ``asyncio.wait_for``.
+    is the guest's ``state_envelope`` dict (or None). Only an explicitly tagged
+    ``"final"`` reply with integer ``exit_code == 1`` and a validated
+    allowlisted diagnostic name appends a sixth ``controller_error`` element;
+    untagged/legacy replies, negative or other nonzero exits, successful exits,
+    and unknown values keep the original five-element shape. Callback time
+    counts against the CALLER's deadline — this coroutine owns no timeout of
+    its own; wrap it in ``asyncio.wait_for``.
     """
     callbacks: List[dict] = []
     payload = json.dumps({"type": "exec", "code": code, "inputs": inputs})
@@ -75,11 +99,27 @@ async def exchange(
         # Terminal (msg_type == "final") OR untagged legacy reply.
         stdout = str(data.get("stdout", ""))
         stderr = str(data.get("stderr", ""))
-        exit_code = int(data.get("exit_code", -1))
+        raw_exit_code = data.get("exit_code", -1)
+        exit_code = int(raw_exit_code)
         envelope = data.get("state_envelope")
         if not isinstance(envelope, dict):
             envelope = None
-        return (stdout, stderr, exit_code, envelope, callbacks)
+        result = (stdout, stderr, exit_code, envelope, callbacks)
+
+        # The diagnostic hint is only valid on an explicitly tagged final
+        # reply carrying the guest's actual exception exit code (integer 1).
+        controller_error = None
+        if (
+            msg_type == "final"
+            and isinstance(raw_exit_code, int)
+            and not isinstance(raw_exit_code, bool)
+            and raw_exit_code == 1
+        ):
+            controller_error = _valid_controller_error(
+                data.get("controller_error"))
+        if controller_error is not None:
+            return result + (controller_error,)
+        return result
 
 
 async def service_callback(

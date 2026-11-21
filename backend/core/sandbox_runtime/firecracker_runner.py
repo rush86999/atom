@@ -14,7 +14,7 @@ channel**:
   * ``vsock`` = ``{guest_cid: 3, uds_path: <run_dir>/vsock.sock}``.
   * After boot the runner accepts on the UDS, sends one JSON line
     ``{"code", "inputs"}``, the guest agent executes and replies with one JSON
-    line ``{"stdout", "stderr", "exit_code"}``.
+    line ``{"stdout", "stderr", "exit_code", "controller_error"?}``.
 
 Host provisioning (kernel download, per-app rootfs build) is operator-run via
 ``scripts/build_miniapp_rootfs.sh`` + ``docs/deployment/FIRECRACKER_HOST_SETUP.md``.
@@ -369,7 +369,10 @@ class FirecrackerRuntime:
                 )
 
             try:
-                stdout_text, stderr_text, exit_code, envelope, callbacks = await asyncio.wait_for(
+                (
+                    stdout_text, stderr_text, exit_code, envelope,
+                    callbacks, *controller_tail,
+                ) = await asyncio.wait_for(
                     self._exchange(code, inputs or {}, listener, callback_handler),
                     timeout=overall_timeout,
                 )
@@ -387,6 +390,7 @@ class FirecrackerRuntime:
                 # caller is cancelled during teardown.
                 await await_teardown(self._teardown_vm(proc))
 
+            controller_error = controller_tail[0] if controller_tail else None
             stdout_text = stdout_text or ""
             stderr_text = stderr_text or ""
             meta: Dict[str, Any] = {"backend": "firecracker", "vm_id": vm_id}
@@ -396,6 +400,9 @@ class FirecrackerRuntime:
             if callbacks:
                 # Mid-run integration calls the guest made (auditable).
                 meta["callbacks"] = callbacks
+            if controller_error is not None and int(exit_code) == 1:
+                # Bounded guest diagnostic hint; never parsed from stderr.
+                meta["controller_error"] = controller_error
             return SandboxExecResult(
                 success=int(exit_code) == 0,
                 stdout=stdout_text[:OUTPUT_CAP],
@@ -446,7 +453,8 @@ class FirecrackerRuntime:
         docker-dev stdio transport): host sends one ``{"type":"exec", ...}``
         line; the guest may interleave ``callback`` lines (serviced via
         ``callback_handler``) before its terminal ``final`` reply carrying
-        ``{"stdout","stderr","exit_code","state_envelope"?}``.
+        ``{"stdout","stderr","exit_code","state_envelope"?,
+        "controller_error"?}``.
 
         ``listener`` was bound at ``<vsock_uds>_<guest_port>`` before the VM
         booted. Accept-wait raises ``asyncio.TimeoutError`` if the guest never

@@ -592,6 +592,153 @@ async def test_acceptance_distinguishes_missing_null_and_empty_assertions(monkey
     assert guest.await_count == 2
 
 
+class _ControllerFailureResult:
+    truncated = False
+
+    def __init__(self, controller_error, *, exit_code=1, state=None):
+        self.stdout = "secret stdout"
+        self.stderr = "secret stderr"
+        self.exit_code = exit_code
+        self.metadata = {
+            "controller_error": controller_error,
+            "unrelated": "must not leak",
+        }
+        if state is not None:
+            self.metadata["state_envelope"] = {"state": state, "storage_ops": []}
+
+
+class _ControllerFailureRuntime:
+    def __init__(self, result):
+        self.result = result
+
+    async def execute_python(self, *args, **kwargs):
+        return self.result
+
+
+@pytest.mark.asyncio
+async def test_run_stateful_nonzero_projects_only_valid_controller_error(
+    patched_db, monkeypatch
+):
+    from core.mini_app_service import run_stateful
+
+    user_id = _uid()
+    sc = await _scaffold(user_id)
+    for controller_error in (
+        "UnboundLocalError", "NameError", "TypeError", "KeyError",
+        "IndexError", "ValueError", "ZeroDivisionError",
+    ):
+        runtime = _ControllerFailureRuntime(
+            _ControllerFailureResult(controller_error))
+        monkeypatch.setattr(
+            "core.mini_app_service.get_miniapp_runtime", lambda runtime=runtime: runtime)
+        res = await run_stateful(sc["canvas_id"], user_id=user_id, persist=False)
+
+        assert res["success"] is False
+        assert res["controller_error"] == controller_error
+        assert res["stdout"] == "secret stdout"
+        assert "unrelated" not in res
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("controller_error", [
+    None, "", "RuntimeError", "KeyError: boom", "SystemExit", 5,
+])
+async def test_run_stateful_nonzero_drops_invalid_controller_error(
+    patched_db, monkeypatch, controller_error
+):
+    from core.mini_app_service import run_stateful
+
+    user_id = _uid()
+    sc = await _scaffold(user_id)
+    runtime = _ControllerFailureRuntime(
+        _ControllerFailureResult(controller_error))
+    monkeypatch.setattr("core.mini_app_service.get_miniapp_runtime", lambda: runtime)
+
+    res = await run_stateful(sc["canvas_id"], user_id=user_id, persist=False)
+
+    assert res["success"] is False
+    assert "controller_error" not in res
+
+
+@pytest.mark.asyncio
+async def test_run_stateful_success_does_not_project_controller_error(
+    patched_db, monkeypatch
+):
+    from core.mini_app_service import run_stateful
+
+    user_id = _uid()
+    sc = await _scaffold(user_id)
+    runtime = _ControllerFailureRuntime(
+        _ControllerFailureResult("KeyError", exit_code=0, state={"n": 1}))
+    monkeypatch.setattr("core.mini_app_service.get_miniapp_runtime", lambda: runtime)
+
+    res = await run_stateful(sc["canvas_id"], user_id=user_id, persist=False)
+
+    assert res["success"] is True
+    assert "controller_error" not in res
+
+
+@pytest.mark.asyncio
+async def test_acceptance_failed_row_projects_only_valid_controller_error(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from core.mini_app_service import run_tests
+
+    for controller_error in (
+        "UnboundLocalError", "NameError", "TypeError", "KeyError",
+        "IndexError", "ValueError", "ZeroDivisionError",
+    ):
+        guest = AsyncMock(return_value={
+            "success": False,
+            "error": "raw runtime text",
+            "controller_error": controller_error,
+            "stdout": "secret stdout",
+            "stderr": "secret stderr",
+            "inputs": {"secret": 1},
+            "unrelated": "must not leak",
+        })
+        monkeypatch.setattr("core.mini_app_service.run_stateful", guest)
+
+        report = await run_tests(
+            "app", "canvas", [{"name": "typed", "expect_state": {"n": 1}}])
+
+        assert report["results"][0] == {
+            "name": "typed",
+            "passed": False,
+            "error": "raw runtime text",
+            "controller_error": controller_error,
+        }
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("controller_error", [
+    None, "", "RuntimeError", "KeyError: boom", "SystemExit", 5,
+])
+async def test_acceptance_failed_row_drops_invalid_controller_error(
+    monkeypatch, controller_error
+):
+    from unittest.mock import AsyncMock
+
+    from core.mini_app_service import run_tests
+
+    guest = AsyncMock(return_value={
+        "success": False,
+        "error": "raw runtime text",
+        "controller_error": controller_error,
+        "stdout": "secret stdout",
+    })
+    monkeypatch.setattr("core.mini_app_service.run_stateful", guest)
+
+    report = await run_tests(
+        "app", "canvas", [{"name": "typed", "expect_state": {"n": 1}}])
+
+    assert report["results"][0] == {
+        "name": "typed",
+        "passed": False,
+        "error": "raw runtime text",
+    }
+
+
 @pytest.mark.asyncio
 async def test_acceptance_checks_saved_case_digest_before_run(patched_db, monkeypatch):
     from unittest.mock import AsyncMock

@@ -18,7 +18,10 @@ Protocol (vsock command channel, multiplexed):
      ``{"type":"callback","kind":"fetch_integration",...}`` line and blocks on
      the host's ``{"type":"callback_result",...}`` reply (0..N times).
   4. Reply with one terminal JSON line:
-     ``{"type":"final", "stdout", "stderr", "exit_code", "state_envelope"}``.
+     ``{"type":"final", "stdout", "stderr", "exit_code", "state_envelope",
+     "controller_error"?}``. ``controller_error`` is an optional bounded hint
+     naming the exact built-in exception class when one of a small allowlist
+     escapes user code; it is never inferred from stderr.
      ``state_envelope`` carries ``{"state", "storage_ops", "record_ops"}``
      extracted from the exec globals after the run, so mini-app state is
      returned over the vsock reply channel (immune to the host's 64 KiB stdout
@@ -40,6 +43,19 @@ import sys
 
 HOST_CID = 2
 DEFAULT_PORT = 5050
+
+# Bounded dry-grading hint: only these EXACT built-in exception classes are
+# surfaced as ``controller_error``. Subclasses, SystemExit, compile failures,
+# and runner-synthesized errors stay stderr-only.
+CONTROLLER_ERROR_TYPES = frozenset({
+    UnboundLocalError,
+    NameError,
+    TypeError,
+    KeyError,
+    IndexError,
+    ValueError,
+    ZeroDivisionError,
+})
 
 
 def parse_miniapp_port() -> int:
@@ -118,9 +134,15 @@ def run_code(code: str, inputs: dict, fetch_integration=None) -> dict:
     If the executed code leaves a ``state`` global in scope, it is returned as
     a ``state_envelope`` (with any ``storage_ops`` list) so mini-app state
     round-trips over the vsock reply channel rather than via stdout.
+
+    On an uncaught user exception whose EXACT type is one of
+    ``CONTROLLER_ERROR_TYPES``, the result also carries a bounded
+    ``controller_error`` string (the class name). stderr is unchanged; the
+    field is never inferred from stderr text.
     """
     stdout_buf = io.StringIO()
     stderr_buf = io.StringIO()
+    controller_error = None
 
     g: dict = {"__name__": "__main__"}
     if fetch_integration is not None:
@@ -141,6 +163,8 @@ def run_code(code: str, inputs: dict, fetch_integration=None) -> dict:
 
             traceback.print_exc(file=stderr_buf)
             exit_code = 1
+            if type(e) in CONTROLLER_ERROR_TYPES:
+                controller_error = type(e).__name__
         finally:
             sys.stdout, sys.stderr = real_stdout, real_stderr
     except (SyntaxError, ValueError) as e:
@@ -152,6 +176,8 @@ def run_code(code: str, inputs: dict, fetch_integration=None) -> dict:
         "stderr": stderr_buf.getvalue(),
         "exit_code": exit_code,
     }
+    if controller_error is not None and exit_code == 1:
+        result["controller_error"] = controller_error
 
     # Extract the mini-app state envelope from globals (if present). Carrying
     # it in the structured reply avoids the 64 KiB stdout truncation that would

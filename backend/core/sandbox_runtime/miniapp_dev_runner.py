@@ -12,7 +12,8 @@ container swapped for the microVM and the vsock UDS swapped for pipes.
 Parity contract with ``FirecrackerRuntime``:
   * ``execute_python(code, policy=, inputs=, image=, callback_handler=, deps=``
     → ``SandboxExecResult`` with ``metadata["state_envelope"]`` and
-    ``metadata["callbacks"]`` (identical shapes).
+    ``metadata["callbacks"]`` (identical shapes), plus an optional
+    ``metadata["controller_error"]`` bounded guest diagnostic hint.
   * No network (``--network none`` ↔ no tap device), read-only rootfs
     (``--read-only`` ↔ read-only rootfs drive), memory/CPU caps, ephemeral
     container (``--rm`` ↔ auto-removed VM), non-root ``app`` user,
@@ -473,7 +474,10 @@ class MiniAppDevRuntime:
         drain_task = asyncio.create_task(_drain_stderr())
         try:
             try:
-                stdout_text, stderr_text, exit_code, envelope, callbacks = await asyncio.wait_for(
+                (
+                    stdout_text, stderr_text, exit_code, envelope,
+                    callbacks, *controller_tail,
+                ) = await asyncio.wait_for(
                     _guest_exchange(
                         proc.stdout, proc.stdin, code, inputs or {}, callback_handler
                     ),
@@ -520,6 +524,7 @@ class MiniAppDevRuntime:
             await await_teardown(
                 self._teardown_container(proc, container, drain_task))
 
+        controller_error = controller_tail[0] if controller_tail else None
         stdout_text = stdout_text or ""
         stderr_text = stderr_text or ""
         meta: Dict[str, Any] = {
@@ -532,6 +537,9 @@ class MiniAppDevRuntime:
             meta["state_envelope"] = envelope
         if callbacks:
             meta["callbacks"] = callbacks
+        if controller_error is not None and int(exit_code) == 1:
+            # Bounded guest diagnostic hint; never parsed from stderr.
+            meta["controller_error"] = controller_error
         return SandboxExecResult(
             success=int(exit_code) == 0,
             stdout=stdout_text[:OUTPUT_CAP],
