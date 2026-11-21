@@ -796,10 +796,13 @@ async def mini_app_run_tests(args: Dict[str, Any], context: Dict[str, Any]) -> D
             **({"expected_source_sha256": expected_source_sha256}
                if expected_source_sha256 is not None else {}),
         )
+        if report.get("interrupted"):
+            return {"success": False, "error": report["error"]}
         return {
             "success": True,
             "app_id": app_id,
             "tests_sha256": tests_sha256,
+            **({"source_sha256": expected_source_sha256} if expected_source_sha256 is not None else {}),
             "passed": report["passed"],
             "total": report["total"],
             "all_passed": report["passed"] == report["total"],
