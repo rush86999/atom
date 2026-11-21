@@ -306,7 +306,7 @@ def build_request_expectations(
 
     _mini_app_app_actions = {
         "mini_app_set_tests", "mini_app_write_logic", "mini_app_publish",
-        "mini_app_install", "mini_app_revert_logic",
+        "mini_app_install", "mini_app_revert_logic", "mini_app_start_grade",
     }
     expected_app_id = (
         str(args.get("app_id") or "")
@@ -315,6 +315,14 @@ def build_request_expectations(
     expected_tests_sha256 = ""
     if name == "mini_app_set_tests":
         expected_tests_sha256 = approved_payload_sha256(args.get("tests"))
+
+    expected_submission_id = ""
+    expected_source_digest = ""
+    expected_tests_digest = ""
+    if name == "mini_app_start_grade":
+        expected_submission_id = str(args.get("submission_id") or "")
+        expected_source_digest = str(args.get("expected_source_digest") or "")
+        expected_tests_digest = str(args.get("expected_tests_digest") or "")
 
     expected_mini_app_name = ""
     expected_mini_app_declared_scopes: list = []
@@ -427,6 +435,9 @@ def build_request_expectations(
         "_oracle_expected_shopify_fulfillment": expected_shopify_fulfillment,
         "_oracle_expected_radio_message": expected_radio_message,
         "_oracle_expected_app_id": expected_app_id,
+        "_oracle_expected_submission_id": expected_submission_id,
+        "_oracle_expected_source_digest": expected_source_digest,
+        "_oracle_expected_tests_digest": expected_tests_digest,
         "_oracle_expected_tests": expected_tests,
         "_oracle_expected_tests_sha256": expected_tests_sha256,
         "_oracle_expected_mini_app_name": expected_mini_app_name,
