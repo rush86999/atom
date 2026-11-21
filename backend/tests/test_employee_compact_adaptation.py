@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 import json
 
+import pytest
+
 from core.assignment_plan import (
     new_assignment, new_step, new_teaching_snapshot,
 )
@@ -71,7 +73,7 @@ def _assignment():
     )
 
 
-def _quote_assignment():
+def _quote_assignment(terms=None):
     step = new_step(
         step_id="price-rows", title="Read price rows",
         operation_type="retrieve", adapter="workbook.read",
@@ -94,13 +96,90 @@ def _quote_assignment():
             "coverage": {"complete": True, "truncated": False}},
     })
     teaching = new_teaching_snapshot(revision="quote-compact-terms")
-    teaching["terms"] = {
-        "currency": "USD", "freight": "9.00", "tax_basis": "none"}
+    teaching["terms"] = (
+        {"currency": "USD", "freight": "9.00", "tax_basis": "none"}
+        if terms is None else terms)
     return new_assignment(
         objective="Quote the price list while receiving is owed",
         employee_id="lead-1", workspace_id="ws-1", tenant_id="tenant-1",
         teaching_snapshot=teaching, steps=[step],
         authorized_actions=["retrieve", "calculate"])
+
+
+def _structured_quote_terms():
+    """Reviewed structured terms: the envelope is longer than MoneyTerm."""
+    return {
+        "currency": {
+            "value": "USD",
+            "currency": "USD",
+            "role": "currency",
+            "validity": {"policy": "current"},
+            "source_refs": [{
+                "source_id": "price-book", "version": "v1"}],
+            "provenance": {
+                "reviewed": True, "reviewer": "finance"},
+        },
+        "freight": {
+            "value": "9.00",
+            "currency": "USD",
+            "role": "freight_amount",
+            "validity": {"policy": "current"},
+            "source_refs": [{
+                "source_id": "price-book", "version": "v1"}],
+            "provenance": {
+                "reviewed": True, "reviewer": "finance"},
+        },
+        "tax_basis": {
+            "value": "none",
+            "role": "tax_exemption",
+            "validity": {"policy": "current"},
+            "source_refs": [{
+                "source_id": "tax-policy", "version": "v4"}],
+            "provenance": {
+                "reviewed": True, "reviewer": "finance"},
+        },
+    }
+
+
+def _quote_context(terms):
+    return {
+        "objective": "Quote the price list while the receiving record is owed",
+        "identity": {"workspace_id": "ws-1", "tenant_id": "tenant-1"},
+        "teaching": {"terms": terms},
+        "rules": {"allowed_work_requests": [
+            "quote_calculation", "await_evidence"]},
+        "waiting": [{
+            "step_id": "await", "fact": "receiving",
+            "subject": "purchase order PO-QH-8100",
+            "blocks": "invoice reconciliation",
+        }],
+        "missing_prerequisites": [{
+            "operation": "invoice_reconciliation",
+            "label": "invoice reconciliation",
+            "status": "missing",
+            "missing": ["receiving"],
+        }],
+        "available_business_operations": [{
+            "operation": "quote_calculation",
+            "label": "quote calculation",
+            "status": "ready",
+            "missing": [],
+            "evidence": [{
+                "step_id": "price-rows", "shape": "tabular",
+                "verified": True, "title": "Read price-book-fresh.xlsx",
+                "columns": ["Currency", "Item", "Price", "Qty"],
+            }],
+            "roles": {},
+            "known_identities": {},
+        }],
+        "evidence_results": [{
+            "step_id": "price-rows", "business_role": "quote_rows",
+            "data_keys": [], "data_preview": {},
+            "schema": [{"column": "Item"}, {"column": "Qty"},
+                       {"column": "Price"}, {"column": "Currency"}],
+        }],
+        "business_requirements": [],
+    }
 
 
 def _context():
@@ -391,6 +470,164 @@ def test_compact_quote_expands_to_the_existing_typed_request(monkeypatch):
     assert request["freight"]["authority_ref"] == "freight"
     assert request["tax"]["basis"] == "none"
     assert request["currency"] == "USD"
+
+
+@pytest.mark.parametrize("terms", [
+    {"currency": "USD", "freight": "9.00", "tax_basis": "none"},
+    _structured_quote_terms(),
+], ids=["legacy-scalar", "structured-record"])
+def test_compact_quote_adaptation_uses_term_values_only(monkeypatch, terms):
+    original = json.loads(json.dumps(terms))
+    context = _quote_context(terms)
+    assignment = _quote_assignment(terms=terms)
+    observations = [{
+        "observation_id": "waiting-1", "kind": "waiting_state",
+        "step_id": "await"}]
+
+    compact = _compact_single_request_context(
+        context, observations, require_unresolved_requirement=True)
+    assert compact is not None
+    assert compact["operation"] == "quote_calculation"
+    assert '"freight": "9.00"' in compact["prompt"]
+    if isinstance(terms["freight"], dict):
+        # The reviewed record is much longer than the 80-character MoneyTerm
+        # bound, but only its scalar value may reach the typed request.
+        assert len(str(terms["freight"])) > 80
+        assert "source_refs" not in compact["prompt"]
+        assert "provenance" not in compact["prompt"]
+
+    async def fake_pinned(_llm, *, response_model, **_kwargs):
+        return response_model.model_validate({
+            "decision": "replan",
+            "work_request": {
+                "operation": "quote_calculation",
+                "source_step_id": "price-rows",
+                "item_id": "Item",
+                "quantity": "Qty",
+                "unit_price": "Price",
+                "freight_ref": "freight",
+                "tax_basis": "none",
+                "tax_ref": "tax_basis",
+            },
+        })
+
+    class FakeLLM:
+        pass
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.pinned_structured_call", fake_pinned)
+    result = asyncio.run(propose_adaptation(
+        context, observations, assignment=assignment, llm_service=FakeLLM()))
+    assert result["source"] == "model_compact", result
+    request = result["proposal"]["work_request"]
+    assert request["freight"]["value"] == "9.00"
+    assert request["freight"]["authority_ref"] == "freight"
+    assert request["tax"]["basis"] == "none"
+    assert request["tax"]["value"] == ""
+    assert request["tax"]["authority_ref"] == "tax_basis"
+    assert request["currency"] == "USD"
+    # Authoritative references and provenance remain on the durable snapshot.
+    assert assignment["teaching_snapshot"]["terms"] == original
+
+
+def test_compact_null_reasons_validate_normalize_and_convert(monkeypatch):
+    from pydantic import ValidationError
+
+    terms = _structured_quote_terms()
+    terms["freight"] = {**terms["freight"], "value": "31.00"}
+    original = json.loads(json.dumps(terms))
+    context = _quote_context(terms)
+    assignment = _quote_assignment(terms=terms)
+    assignment["teaching_snapshot"]["fingerprint"] = "review-freight-31"
+    observations = [{
+        "observation_id": "waiting-1", "kind": "waiting_state",
+        "step_id": "await"}]
+
+    compact = _compact_single_request_context(
+        context, observations, require_unresolved_requirement=True)
+    assert compact is not None
+    response_model = compact["response_model"]
+    assert response_model.__name__ == "CompactEmployeeWorkProposal"
+    work_model = response_model.model_fields[
+        "work_request"].annotation.__args__[0]
+    assert work_model.__name__ == "CompactQuoteCalculationRequest"
+
+    # The exact dynamic schema advertises null only for the two explanation
+    # fields; decision values, operations, authority refs and amounts remain
+    # strictly typed.
+    schema = response_model.model_json_schema()
+    assert {"type": "null"} in schema["properties"]["reason"]["anyOf"]
+    work_schema = schema["$defs"][work_model.__name__]
+    assert {"type": "null"} in work_schema["properties"]["reason"]["anyOf"]
+
+    payload = {
+        "decision": "replan",
+        "reason": None,
+        "observation_ids": ["waiting-1"],
+        "work_request": {
+            "operation": "quote_calculation",
+            "source_step_id": "price-rows",
+            "item_id": "Item",
+            "quantity": "Qty",
+            "unit_price": "Price",
+            "currency": "USD",
+            "freight_ref": "freight",
+            "tax_basis": "none",
+            "tax_ref": "tax_basis",
+            "reason": None,
+        },
+    }
+    accepted = response_model.model_validate(payload)
+    assert accepted.reason == ""
+    assert accepted.work_request.reason == ""
+
+    invalid = json.loads(json.dumps(payload))
+    invalid["decision"] = None
+    with pytest.raises(ValidationError):
+        response_model.model_validate(invalid)
+    for field in ("operation", "freight_ref", "quantity", "unit_price"):
+        invalid = json.loads(json.dumps(payload))
+        invalid["work_request"][field] = None
+        with pytest.raises(ValidationError):
+            response_model.model_validate(invalid)
+
+    async def fake_pinned(_llm, *, response_model, **_kwargs):
+        assert response_model.model_json_schema() == schema
+        return response_model.model_validate(payload)
+
+    class FakeLLM:
+        pass
+
+    monkeypatch.setattr(
+        "core.llm.pinned_planning.pinned_structured_call", fake_pinned)
+    result = asyncio.run(propose_adaptation(
+        context, observations, assignment=assignment, llm_service=FakeLLM()))
+    assert result["source"] == "model_compact", result
+    assert result["proposal"]["reason"] == ""
+    request = result["proposal"]["work_request"]
+    assert request["operation"] == "quote_calculation"
+    assert request["reason"] == ""
+    assert request["freight"]["value"] == "31.00"
+    assert request["freight"]["authority_ref"] == "freight"
+    assert request["tax"]["basis"] == "none"
+    assert assignment["teaching_snapshot"]["terms"] == original
+
+
+def test_noncompact_prompt_exposes_scalar_term_values_not_records():
+    from core.employee_adaptation import _adaptation_prompt
+
+    terms = _structured_quote_terms()
+    original = json.loads(json.dumps(terms))
+    context = _quote_context(terms)
+    prompt = _adaptation_prompt(context, [{
+        "observation_id": "waiting-1", "kind": "waiting_state",
+        "step_id": "await"}])
+    assert '"freight": "9.00"' in prompt
+    assert '"currency": "USD"' in prompt
+    assert '"tax_basis": "none"' in prompt
+    assert "source_refs" not in prompt
+    assert "provenance" not in prompt
+    assert context["teaching"]["terms"] == original
 
 
 def test_compact_invoice_schema_keeps_compiler_owned_fields_out():

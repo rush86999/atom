@@ -283,7 +283,19 @@ def resolve_accepted_term(
                 f"authority {ref!r} has no declared semantic role")
         validity = dict(record.get("validity") or {})
         _check_validity(validity, assignment, ref, current)
-        return {
+        provenance = record.get("provenance")
+        provenance = dict(provenance) if isinstance(
+            provenance, Mapping) else {}
+        source_refs = list(record.get("source_refs")
+                           or provenance.get("source_refs") or [])
+        lesson_id = str(
+            record.get("lesson_id") or provenance.get("lesson_id") or "")
+        lesson_revision = (
+            record.get("lesson_revision") or provenance.get("revision"))
+        lesson_digest = str(
+            record.get("lesson_digest") or record.get("digest")
+            or provenance.get("digest") or "")
+        resolved = {
             "term_id": ref,
             "value": value,
             "currency": (
@@ -293,7 +305,7 @@ def resolve_accepted_term(
             "dimension": role_dimension(role),
             "basis": key,
             "source": "teaching",
-            "source_refs": list(record.get("source_refs") or []),
+            "source_refs": source_refs,
             "subject": dict(record.get("subject") or {}),
             "teaching_revision": str(
                 (teaching or {}).get("revision") or ""),
@@ -301,6 +313,34 @@ def resolve_accepted_term(
                 (teaching or {}).get("fingerprint") or ""),
             "validity": validity,
         }
+        # Reviewed commercial terms carry the deterministic journal identity
+        # and provenance through to the execution receipt. Legacy/raw local
+        # terms have none of these keys and keep their historical shape.
+        if lesson_id:
+            resolved.update({
+                "lesson_id": lesson_id,
+                "lesson": {
+                    "id": lesson_id,
+                    "revision": lesson_revision or 1,
+                    "digest": lesson_digest,
+                },
+                "lesson_revision": lesson_revision or 1,
+                "lesson_digest": lesson_digest,
+                "revision": lesson_revision or 1,
+                "digest": lesson_digest,
+                "source_kind": str(
+                    record.get("source_kind") or "commercial_terms"),
+            })
+        if record.get("source") not in (None, ""):
+            resolved["authority_source"] = str(record.get("source"))
+        if provenance:
+            resolved["provenance"] = provenance
+            resolved["source_provenance"] = dict(provenance)
+        if record.get("term_revision") not in (None, ""):
+            resolved["term_revision"] = record.get("term_revision")
+        if record.get("term_digest") not in (None, ""):
+            resolved["term_digest"] = record.get("term_digest")
+        return resolved
 
     for fact in facts:
         if not isinstance(fact, Mapping):

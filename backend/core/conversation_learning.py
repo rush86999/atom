@@ -28,13 +28,22 @@ import re
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from core.assignment_plan import canonical_sha256
+from core.employee_money_terms import (
+    ROLE_CURRENCY,
+    ROLE_FREIGHT_AMOUNT,
+    ROLE_TAX_AMOUNT,
+    ROLE_TAX_EXEMPTION,
+    ROLE_TAX_RATE,
+    TermContractError,
+    validate_role_value,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +166,102 @@ def _bounded(value: Any, limit: int = 2000) -> str:
 def _norm(value: Any) -> str:
     return " ".join(
         re.sub(r"[^a-z0-9]+", " ", str(value or "").lower()).split())
+
+
+# Commercial terms are a CLOSED vocabulary. These are semantic roles, not a
+# free-form key/value bag: an arbitrary key could silently become money
+# authority the user never taught. The canonical spellings map directly to
+# the roles the employee money-term consumer already understands.
+_COMMERCIAL_TERM_ROLES = {
+    "currency": ROLE_CURRENCY,
+    "freight": ROLE_FREIGHT_AMOUNT,
+    "tax_rate": ROLE_TAX_RATE,
+    "tax_amount": ROLE_TAX_AMOUNT,
+    "tax_basis": ROLE_TAX_EXEMPTION,
+}
+# Only money amounts carry an optional unit. A rate, an exemption decision and
+# the currency term itself have no currency field of their own.
+_COMMERCIAL_MONEY_TERMS = {"freight", "tax_amount"}
+_COMMERCIAL_TERM_FIELDS = {"value", "currency"}
+_COMMERCIAL_TERM_LIMIT = len(_COMMERCIAL_TERM_ROLES)
+_COMMERCIAL_TEXT_LIMIT = 80
+# Reject exponent bombs before formatting a Decimal into a giant string.
+_COMMERCIAL_EXPONENT_LIMIT = 30
+
+
+def _bounded_commercial_value(term: str, role: str, value: Any) -> str:
+    """Validate one scalar against its existing money-term role."""
+    if value is None:
+        raise ValueError(f"commercial_term_value_invalid:{term}")
+    if isinstance(value, (dict, list, tuple, set)):
+        raise ValueError(f"commercial_term_value_invalid:{term}")
+    if isinstance(value, bool) and role != ROLE_TAX_EXEMPTION:
+        # False is a legitimate exemption value in the existing contract;
+        # True is not. Booleans never stand in for money/rate/currency.
+        raise ValueError(f"commercial_term_value_invalid:{term}")
+    if len(str(value)) > _COMMERCIAL_TEXT_LIMIT:
+        raise ValueError(f"commercial_term_value_too_long:{term}")
+    try:
+        validated = validate_role_value(role, value)
+    except TermContractError as exc:
+        raise ValueError(f"commercial_term_invalid:{term}:{exc}") from exc
+    if isinstance(validated, Decimal):
+        # employee_money_terms already refuses NaN/Infinity; this bound keeps
+        # the persisted record small and refuses exponent-bomb inputs
+        # (including zero with an extreme negative exponent).
+        if abs(validated.adjusted()) > _COMMERCIAL_EXPONENT_LIMIT:
+            raise ValueError(f"commercial_term_value_out_of_range:{term}")
+        text = format(validated, "f")
+        if len(text) > _COMMERCIAL_TEXT_LIMIT:
+            raise ValueError(f"commercial_term_value_too_long:{term}")
+        return text
+    return str(validated)
+
+
+def normalize_commercial_terms(raw: Any) -> Dict[str, Dict[str, str]]:
+    """Validate a proposed commercial-term mapping.
+
+    Accepted shape::
+
+        {"freight": {"value": "12.50", "currency": "USD"},
+         "tax_rate": {"value": "0.20"}}
+
+    Only the five canonical keys are accepted, each term is a bounded record
+    whose only fields are ``value`` and (for money) ``currency``. Provenance,
+    formulas, validity windows and role overrides are deliberately refused:
+    the reviewed candidate, its source provenance and the existing
+    employee_money_terms contract are the only authority for a term.
+    """
+    if raw is None:
+        return {}
+    if not isinstance(raw, Mapping):
+        raise ValueError("commercial_terms_must_be_mapping")
+    if len(raw) > _COMMERCIAL_TERM_LIMIT:
+        raise ValueError("commercial_terms_too_many")
+    normalized: Dict[str, Dict[str, str]] = {}
+    for raw_key, record in raw.items():
+        key = str(raw_key or "").strip().lower()
+        role = _COMMERCIAL_TERM_ROLES.get(key)
+        if role is None:
+            raise ValueError(f"commercial_term_unsupported:{key or raw_key}")
+        if not isinstance(record, Mapping) or not record:
+            raise ValueError(f"commercial_term_record_required:{key}")
+        fields = {str(field) for field in record}
+        unsupported = sorted(fields - _COMMERCIAL_TERM_FIELDS)
+        if unsupported:
+            raise ValueError(
+                f"commercial_term_field_unsupported:{key}:{unsupported[0]}")
+        if "value" not in record:
+            raise ValueError(f"commercial_term_value_required:{key}")
+        value = _bounded_commercial_value(key, role, record.get("value"))
+        term: Dict[str, str] = {"value": value}
+        if "currency" in record:
+            if key not in _COMMERCIAL_MONEY_TERMS:
+                raise ValueError(f"commercial_term_currency_not_allowed:{key}")
+            term["currency"] = _bounded_commercial_value(
+                key, ROLE_CURRENCY, record.get("currency"))
+        normalized[key] = term
+    return normalized
 
 
 def split_authored_quoted(body: str) -> Tuple[str, str]:
@@ -417,6 +522,10 @@ class LearningCandidate(BaseModel):
     format_spec: Dict[str, Any] = Field(default_factory=dict)
     conditions: Dict[str, Any] = Field(default_factory=dict)
     decision_options: List[str] = Field(default_factory=list)
+    # Optional reviewed commercial terms. Empty on legacy candidates and on
+    # ordinary lessons; only the canonical keys in normalize_commercial_terms
+    # are ever stored here.
+    commercial_terms: Dict[str, Any] = Field(default_factory=dict)
     method: MethodSpec = Field(default_factory=MethodSpec)
     method_status: str = "unresolved"
     dependencies: List[LearningDependency] = Field(default_factory=list)
@@ -449,6 +558,38 @@ class LearningCandidate(BaseModel):
 
     def review_payload(self) -> Dict[str, Any]:
         return review_payload(self)
+
+
+def _method_is_empty(method: MethodSpec) -> bool:
+    """True when the candidate carries no executable/partial method at all."""
+    return not any((
+        method.intended_outcome,
+        method.operation,
+        method.inputs,
+        method.output_unit,
+        method.transformation,
+        method.decision_conditions,
+        method.exceptions,
+        method.required_evidence,
+        method.output_requirements,
+        method.assumptions,
+        method.rounding,
+    ))
+
+
+def _pure_commercial_terms(candidate: LearningCandidate) -> bool:
+    """A terms-only lesson: structured terms and no arithmetic method."""
+    return bool(candidate.commercial_terms) and _method_is_empty(candidate.method)
+
+
+def _effective_method_status(candidate: LearningCandidate) -> str:
+    """Terms-only lessons are guidance, not an unresolved calculation."""
+    if (
+        candidate.method_status in ("", "unresolved")
+        and _pure_commercial_terms(candidate)
+    ):
+        return "not_applicable"
+    return candidate.method_status
 
 
 # ---------------------------------------------------------------------------
@@ -1057,9 +1198,10 @@ def derive_dependencies(candidate: LearningCandidate) -> List[LearningDependency
             edge_id=edge.edge_id,
         )
 
-    if candidate.method_status not in ("explicit", "not_applicable"):
+    effective_method_status = _effective_method_status(candidate)
+    if effective_method_status not in ("explicit", "not_applicable"):
         status = (
-            "missing" if candidate.method_status == "unresolved"
+            "missing" if effective_method_status == "unresolved"
             else "ambiguous")
         add(
             "method",
@@ -1068,7 +1210,7 @@ def derive_dependencies(candidate: LearningCandidate) -> List[LearningDependency
             "calculation, conditions and exceptions before promotion.",
         )
 
-    if candidate.method_status != "not_applicable":
+    if effective_method_status != "not_applicable":
         for issue in validate_method(candidate.method):
             add(
                 issue["kind"], issue["status"], issue["question"],
@@ -1114,6 +1256,19 @@ def derive_dependencies(candidate: LearningCandidate) -> List[LearningDependency
             "Where does this lesson apply? State the task, output, topic or "
             "context conditions.",
         )
+
+    if candidate.commercial_terms:
+        from core.artifact_teaching import positive_context_keys
+
+        if not positive_context_keys(candidate.context):
+            add(
+                "commercial_terms",
+                "missing",
+                "Where do these commercial terms apply? Confirm at least one "
+                "task qualification (for example a named customer or task "
+                "type); workspace/tenant, dates, exceptions, replacements "
+                "and field mappings do not identify the task.",
+            )
 
     for key, value in (candidate.context or {}).items():
         if isinstance(value, dict) and "value" in value:
@@ -1172,7 +1327,8 @@ def candidate_readiness(candidate: LearningCandidate) -> Dict[str, Any]:
     review_ready = (
         source_ready
         and not blocking
-        and candidate.method_status in ("explicit", "not_applicable")
+        and _effective_method_status(candidate) in (
+            "explicit", "not_applicable")
         and bool(candidate.proposed_lesson.strip())
         and bool(candidate.applies_to or candidate.context)
         and candidate.status not in ("rejected", "invalidated")
@@ -1265,10 +1421,20 @@ def _candidate_digest(candidate: LearningCandidate) -> str:
         payload["conditions"] = candidate.conditions
     if candidate.decision_options:
         payload["decision_options"] = list(candidate.decision_options)
+    if candidate.commercial_terms:
+        payload["commercial_terms"] = candidate.commercial_terms
     return canonical_sha256(payload)
 
 
 def refresh_candidate(candidate: LearningCandidate) -> LearningCandidate:
+    # Persist only the validated, canonical terms shape even when a caller
+    # constructed the candidate directly instead of using build_candidate.
+    candidate.commercial_terms = normalize_commercial_terms(
+        candidate.commercial_terms)
+    # A terms-only lesson has no executable method by design. Normalizing the
+    # status here keeps the confirmation digest and the journal provenance
+    # consistent with what readiness already accepts.
+    candidate.method_status = _effective_method_status(candidate)
     readiness = candidate_readiness(candidate)
     candidate.dependencies = readiness["dependencies"]
     candidate.status = readiness["status"]
@@ -1332,6 +1498,7 @@ def build_candidate(
     format_spec: Optional[Dict[str, Any]] = None,
     conditions: Optional[Dict[str, Any]] = None,
     decision_options: Optional[Sequence[str]] = None,
+    commercial_terms: Optional[Dict[str, Any]] = None,
     evidence: Optional[ConversationEvidence] = None,
     references: Optional[Sequence[ReferenceEdge | Dict[str, Any]]] = None,
     authority_message_id: str = "",
@@ -1373,6 +1540,16 @@ def build_candidate(
     method_model = (
         method if isinstance(method, MethodSpec)
         else MethodSpec.model_validate(method or {}))
+    normalized_terms = normalize_commercial_terms(commercial_terms)
+    if (
+        normalized_terms
+        and method_status in ("", "unresolved")
+        and _method_is_empty(method_model)
+    ):
+        # A pure terms lesson is structured guidance, not an unresolved
+        # calculation. Requiring a dummy arithmetic operation would fabricate
+        # executable behavior the speaker never taught.
+        method_status = "not_applicable"
     candidate = LearningCandidate(
         candidate_id=candidate_id or f"lc-{uuid.uuid4().hex[:16]}",
         workspace_id=str(workspace_id or ""),
@@ -1395,6 +1572,7 @@ def build_candidate(
             _bounded(item, 80) for item in (decision_options or [])
             if _bounded(item, 80)
         ][:20],
+        commercial_terms=normalized_terms,
         method=method_model,
         method_status=method_status,
         references=[
@@ -1688,6 +1866,7 @@ _HISTORY_DIFF_FIELDS = (
     "format_spec",
     "conditions",
     "decision_options",
+    "commercial_terms",
     "method",
     "status",
 )
@@ -1751,6 +1930,8 @@ def _snapshot_summary(raw: Dict[str, Any]) -> Dict[str, Any]:
         "context": _bounded_record(raw.get("context") or {}),
         "format_spec": _bounded_record(raw.get("format_spec") or {}),
         "conditions": _bounded_record(raw.get("conditions") or {}),
+        "commercial_terms": _bounded_record(
+            raw.get("commercial_terms") or {}),
         "method": _bounded_record(method),
     }
 
@@ -2048,6 +2229,7 @@ def revise_candidate(
     format_spec: Optional[Dict[str, Any]] = None,
     conditions: Optional[Dict[str, Any]] = None,
     decision_options: Optional[Sequence[str]] = None,
+    commercial_terms: Optional[Dict[str, Any]] = None,
     expected_revision: Optional[int] = None,
     expected_status: Optional[str] = None,
     changed_by: str = "",
@@ -2073,6 +2255,11 @@ def revise_candidate(
         raise ValueError("candidate_revision_changed")
     if expected_status and str(expected_status) != str(candidate.status):
         raise ValueError("candidate_status_changed")
+    # Validate a terms correction BEFORE any promoted-lesson retirement or
+    # other mutation. An invalid proposal writes nothing at all.
+    normalized_terms = (
+        normalize_commercial_terms(commercial_terms)
+        if commercial_terms is not None else None)
     if candidate.status == "promoted" and candidate.promoted_entry_id:
         _mark_promoted_lesson_stale(
             db, candidate, "candidate_revised", commit=False, strict=True)
@@ -2098,6 +2285,10 @@ def revise_candidate(
             _bounded(item, 80) for item in decision_options
             if _bounded(item, 80)
         ][:20]
+    if commercial_terms is not None:
+        # Omitted terms keep the reviewed mapping; an explicit empty mapping
+        # is a correction that clears it. Both are visible in history.
+        candidate.commercial_terms = normalized_terms or {}
     candidate.revision += 1
     candidate.confirmed_by = None
     candidate.confirmed_revision = None
@@ -2272,6 +2463,9 @@ def promote_candidate(
             "promoted_at": _now_iso(),
         }
     }
+    if candidate.commercial_terms:
+        details["conversation_learning"]["commercial_terms"] = dict(
+            candidate.commercial_terms)
     entry = journal_standing_lesson_entry(
         db,
         candidate.agent_id,
@@ -2573,6 +2767,7 @@ def review_payload(candidate: LearningCandidate) -> Dict[str, Any]:
             "applies_to": list(candidate.applies_to),
             "context": candidate.context,
         },
+        "commercial_terms": dict(candidate.commercial_terms),
         "artifact_and_protocol": {
             "format_spec": dict(candidate.format_spec),
             "conditions": dict(candidate.conditions),

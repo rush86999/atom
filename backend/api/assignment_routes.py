@@ -363,6 +363,508 @@ def _teaching_snapshot_for_start(
     )
 
 
+#: Journal key -> the snapshot term key the existing money-term consumer
+#: already asks for (``currency``/``freight``/``tax_basis``).
+_COMMERCIAL_TERM_KEY_BY_ROLE = {
+    "currency": "currency",
+    "freight_amount": "freight",
+    "tax_rate": "tax_rate",
+    "tax_amount": "tax_amount",
+    "tax_exemption": "tax_basis",
+}
+
+
+def _with_teaching_terms(
+    teaching: Mapping[str, Any],
+    terms: Mapping[str, Any],
+    lesson_refs: Optional[List[Mapping[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """Attach accepted terms and re-fingerprint the whole snapshot."""
+    import hashlib
+
+    updated = dict(teaching or {})
+    updated["terms"] = dict(terms or {})
+    updated["terms_digest"] = hashlib.sha256(json.dumps(
+        updated["terms"], sort_keys=True, default=str,
+        separators=(",", ":")).encode()).hexdigest()
+    if lesson_refs or "effective_lesson_ids" in updated:
+        effective = [
+            dict(item) for item in updated.get("effective_lesson_ids") or []
+            if isinstance(item, Mapping)
+        ]
+        seen = {(str(item.get("id") or ""), str(item.get("revision") or ""))
+                for item in effective}
+        for item in lesson_refs or []:
+            key = (str(item.get("id") or ""),
+                   str(item.get("revision") or ""))
+            if key[0] and key not in seen:
+                effective.append({"id": item.get("id"),
+                                  "revision": item.get("revision") or 1})
+                seen.add(key)
+        updated["effective_lesson_ids"] = effective
+    payload = {key: value for key, value in updated.items()
+               if key != "fingerprint"}
+    updated["fingerprint"] = hashlib.sha256(json.dumps(
+        payload, sort_keys=True, default=str,
+        separators=(",", ":")).encode()).hexdigest()
+    return updated
+
+
+def _lesson_learning(entry: Mapping[str, Any]) -> Mapping[str, Any]:
+    details = entry.get("details")
+    details = details if isinstance(details, Mapping) else {}
+    learning = details.get("conversation_learning")
+    return learning if isinstance(learning, Mapping) else {}
+
+
+def _lesson_scope_value(
+    entry: Mapping[str, Any], learning: Mapping[str, Any], key: str,
+) -> str:
+    """Promotion scope on the learning record, with the journal workspace."""
+    value = learning.get(key)
+    if value in (None, ""):
+        value = entry.get(key)
+    return str(value or "").strip()
+
+
+def _lesson_revision(
+    entry: Mapping[str, Any], learning: Mapping[str, Any],
+) -> int:
+    value = learning.get("revision")
+    if value in (None, ""):
+        value = entry.get("revision")
+    try:
+        return int(value or 1)
+    except (TypeError, ValueError):
+        return 1
+
+
+def _lesson_digest(
+    entry: Mapping[str, Any], learning: Mapping[str, Any],
+) -> str:
+    """The promotion digest, or a stable digest of the journal identity."""
+    import hashlib
+
+    declared = learning.get("digest")
+    if declared not in (None, ""):
+        return str(declared)
+    payload = {
+        "lesson_id": entry.get("id"),
+        "revision": _lesson_revision(entry, learning),
+        "journal_revision": entry.get("revision") or 1,
+        "candidate_id": learning.get("candidate_id"),
+        "reviewed_by": learning.get("reviewed_by"),
+        "topic": entry.get("topic"),
+        "text": entry.get("lesson") or entry.get("summary"),
+        "context": entry.get("context") or {},
+        "commercial_terms": learning.get("commercial_terms"),
+        "references": learning.get("references") or [],
+        "workspace_id": _lesson_scope_value(entry, learning, "workspace_id"),
+        "tenant_id": _lesson_scope_value(entry, learning, "tenant_id"),
+        "agent_id": _lesson_scope_value(entry, learning, "agent_id"),
+        "source": entry.get("source"),
+    }
+    return hashlib.sha256(json.dumps(
+        payload, sort_keys=True, default=str,
+        separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+def _term_candidates_from_lesson(
+    entry: Mapping[str, Any],
+    *,
+    specificity: int,
+    agent_id: Optional[str],
+) -> List[Dict[str, Any]]:
+    """Project the canonical mapping at ``conversation_learning`` terms."""
+    from core.employee_money_terms import (
+        ROLE_DIMENSIONS,
+        TermContractError,
+        canonical_role,
+        validate_role_value,
+    )
+
+    learning = _lesson_learning(entry)
+    raw_terms = learning.get("commercial_terms")
+    if not isinstance(raw_terms, Mapping):
+        return []
+    lesson_revision = _lesson_revision(entry, learning)
+    identity = {
+        "candidate_id": str(learning.get("candidate_id") or ""),
+        "reviewed_by": str(learning.get("reviewed_by") or ""),
+        "lesson_id": str(entry.get("id") or ""),
+        "lesson_revision": lesson_revision,
+        "lesson_digest": _lesson_digest(entry, learning),
+        "agent_id": (
+            _lesson_scope_value(entry, learning, "agent_id")
+            or str(agent_id or "")),
+        "workspace_id": _lesson_scope_value(entry, learning, "workspace_id"),
+        "tenant_id": _lesson_scope_value(entry, learning, "tenant_id"),
+    }
+    source_refs = [
+        dict(item) for item in (learning.get("references") or [])
+        if isinstance(item, Mapping)
+    ]
+    provenance = {
+        "kind": "reviewed_commercial_terms",
+        **identity,
+        "revision": lesson_revision,
+        "digest": identity["lesson_digest"],
+        "lesson_source": str(entry.get("source") or ""),
+        "source_refs": source_refs,
+    }
+    candidates: List[Dict[str, Any]] = []
+    for raw_key, raw_term in raw_terms.items():
+        role = canonical_role(raw_key)
+        if role not in ROLE_DIMENSIONS:
+            continue
+        record = dict(raw_term) if isinstance(raw_term, Mapping) else {}
+        if not record and raw_term is not None:
+            record = {"value": raw_term}
+        try:
+            canonical_value = validate_role_value(role, record.get("value"))
+        except TermContractError:
+            # A malformed reviewed value is not authority. The run-local
+            # path remains available; it is never guessed from this record.
+            continue
+        currency = str(record.get("currency") or "").strip().upper()
+        if role == "currency":
+            currency = str(canonical_value)
+        term = {
+            **identity,
+            "value": str(canonical_value),
+            "currency": currency,
+            "role": role,
+            "source": "reviewed_commercial_terms",
+            "source_kind": "commercial_terms",
+            "revision": lesson_revision,
+            "digest": identity["lesson_digest"],
+            "source_refs": source_refs,
+            "provenance": provenance,
+        }
+        candidates.append({
+            "key": _COMMERCIAL_TERM_KEY_BY_ROLE.get(role, role),
+            "role": role,
+            "candidate_id": identity["candidate_id"],
+            "revision": lesson_revision,
+            "term": term,
+            "specificity": int(specificity or 0),
+        })
+    return candidates
+
+
+def _term_value_signature(term: Mapping[str, Any]) -> str:
+    value = str(term.get("value") or "").strip()
+    currency = str(term.get("currency") or "").strip().upper()
+    if term.get("role") == "currency":
+        return value.upper()
+    return f"{value}|{currency}" if currency else value
+
+
+def _terms_equivalent(
+    role: str, left: Mapping[str, Any], right: Mapping[str, Any],
+) -> bool:
+    from core.employee_money_terms import (
+        ROLE_FREIGHT_AMOUNT,
+        ROLE_TAX_AMOUNT,
+        same_role_value,
+    )
+
+    left_term = left.get("term") if isinstance(left.get("term"), Mapping) else left
+    right_term = (
+        right.get("term") if isinstance(right.get("term"), Mapping) else right)
+    if not same_role_value(
+            role, left_term.get("value"), right_term.get("value")):
+        return False
+    if role in (ROLE_FREIGHT_AMOUNT, ROLE_TAX_AMOUNT):
+        left_currency = str(left_term.get("currency") or "").strip().upper()
+        right_currency = str(right_term.get("currency") or "").strip().upper()
+        if left_currency and right_currency and (
+                left_currency != right_currency):
+            return False
+    return True
+
+
+def _term_public(candidate: Mapping[str, Any]) -> Dict[str, Any]:
+    term = candidate.get("term") if isinstance(
+        candidate.get("term"), Mapping) else {}
+    return {
+        "key": candidate.get("key"),
+        "role": candidate.get("role"),
+        "value": term.get("value"),
+        "currency": term.get("currency") or "",
+        "specificity": int(candidate.get("specificity") or 0),
+        "lesson_id": term.get("lesson_id"),
+        "revision": term.get("lesson_revision"),
+        "digest": term.get("lesson_digest"),
+        "source_refs": list(term.get("source_refs") or []),
+        "provenance": dict(term.get("provenance") or {}),
+    }
+
+
+def _term_conflict_detail(
+    role: str, candidates: List[Dict[str, Any]],
+) -> Dict[str, Any]:
+    label = _COMMERCIAL_TERM_KEY_BY_ROLE.get(role, role).replace("_", " ")
+    public = [_term_public(item) for item in candidates]
+    values = list(dict.fromkeys(
+        _term_value_signature(item.get("term") or {})
+        for item in candidates))
+    question = (
+        f"Which approved {label} term governs; the reviewed values "
+        f"{', '.join(repr(value) for value in values)} are equally specific?"
+    )
+    return {
+        "key": role,
+        "role": role,
+        "specificity": int(candidates[0].get("specificity") or 0),
+        "values": values,
+        "candidates": public,
+        "question": question,
+        "reason": "equally_specific_reviewed_terms",
+    }
+
+
+def _terms_conflict_http(
+    message: str, conflicts: List[Dict[str, Any]],
+) -> HTTPException:
+    return HTTPException(
+        status_code=409,
+        detail={
+            "error": "commercial_terms_conflict",
+            "code": "commercial_terms_conflict",
+            "teaching_error": "teaching_terms_conflict",
+            "message": message,
+            "conflicts": conflicts,
+            "clarifications": [{
+                "concept": _COMMERCIAL_TERM_KEY_BY_ROLE.get(
+                    item["role"], item["role"]),
+                "key": item["key"],
+                "question": item["question"],
+                "candidates": item["candidates"],
+            } for item in conflicts],
+        },
+    )
+
+
+def _local_term_candidate(
+    key: Any, value: Any,
+) -> Optional[Dict[str, Any]]:
+    from core.employee_money_terms import (
+        ROLE_DIMENSIONS,
+        TermContractError,
+        canonical_role,
+        validate_role_value,
+    )
+
+    role = canonical_role(key)
+    if role not in ROLE_DIMENSIONS:
+        return None
+    record = dict(value) if isinstance(value, Mapping) else {}
+    raw_value = record.get("value") if "value" in record else value
+    try:
+        canonical_value = validate_role_value(role, raw_value)
+    except TermContractError:
+        # Previously supported scalar run-local input is preserved verbatim
+        # when it cannot be canonicalized; reviewed terms never take this path.
+        canonical_value = raw_value
+    currency = str(record.get("currency") or "").strip().upper()
+    if role == "currency":
+        currency = str(canonical_value)
+    return {
+        "key": str(key or ""),
+        "role": role,
+        "term": {
+            **record,
+            "value": str(canonical_value),
+            "currency": currency,
+            "role": role,
+            "source": "run_local",
+        },
+        "specificity": 0,
+    }
+
+
+def _reviewed_commercial_terms(
+    db: Session,
+    *,
+    agent_id: Optional[str],
+    workspace_id: str,
+    tenant_id: str,
+    task_context: Optional[Mapping[str, Any]],
+    objective: str,
+    now: Optional[str],
+) -> tuple:
+    """Select current reviewed terms through the published lesson accessors.
+
+    Returns ``(terms_by_role, lesson_refs)``. The keys are canonical semantic
+    roles (``freight_amount``), never the permitted snapshot spelling, so the
+    merged teaching path can compare run-local overrides by role and
+    materialize the permitted keys exactly once.
+    """
+    if not agent_id:
+        return {}, []
+    from core.artifact_teaching import evaluate_lesson_context
+    from core.student_learning_service import get_agent_lessons
+
+    lessons = get_agent_lessons(
+        db, str(agent_id), query=objective or None, limit=50,
+        task_context=dict(task_context or {}),
+        workspace_id=workspace_id or None,
+        include_workspace=False, include_context_bound=True)
+    # Authenticated scope is established context, not a missing qualification.
+    context = {**dict(task_context or {}),
+               "workspace_id": workspace_id, "tenant_id": tenant_id}
+    candidates: List[Dict[str, Any]] = []
+    for entry in lessons:
+        learning = _lesson_learning(entry)
+        if not isinstance(learning.get("commercial_terms"), Mapping):
+            continue
+        lesson_agent = _lesson_scope_value(entry, learning, "agent_id")
+        if lesson_agent and lesson_agent != str(agent_id):
+            continue
+        lesson_context = dict(entry.get("context") or {})
+        for key in ("workspace_id", "tenant_id"):
+            value = _lesson_scope_value(entry, learning, key)
+            if value:
+                lesson_context[key] = value
+        evaluation = evaluate_lesson_context(
+            lesson_context, context,
+            workspace_id=workspace_id or None, now=now)
+        if evaluation.get("status") == "applicable":
+            candidates.extend(_term_candidates_from_lesson(
+                entry,
+                specificity=int(evaluation.get("specificity") or 0),
+                agent_id=str(agent_id)))
+
+    # A newer promotion revision corrects the older journal row for the same
+    # candidate. Different candidates at equal specificity still conflict.
+    latest: Dict[str, int] = {}
+    for item in candidates:
+        if item["candidate_id"]:
+            latest[item["candidate_id"]] = max(
+                latest.get(item["candidate_id"], 0), item["revision"])
+    candidates = [
+        item for item in candidates
+        if not item["candidate_id"]
+        or item["revision"] == latest[item["candidate_id"]]]
+
+    grouped: Dict[str, List[Dict[str, Any]]] = {}
+    for item in candidates:
+        grouped.setdefault(item["role"], []).append(item)
+    selected: Dict[str, Dict[str, Any]] = {}
+    conflicts: List[Dict[str, Any]] = []
+    for role, items in sorted(grouped.items()):
+        top = max(item["specificity"] for item in items)
+        best = sorted(
+            (item for item in items if item["specificity"] == top),
+            key=lambda item: (
+                str(item["term"].get("lesson_id") or ""),
+                item["term"].get("lesson_revision") or 1,
+                str(item["term"].get("lesson_digest") or "")))
+        distinct: List[Dict[str, Any]] = []
+        for item in best:
+            if not any(_terms_equivalent(role, item, other)
+                       for other in distinct):
+                distinct.append(item)
+        if len(distinct) > 1:
+            conflicts.append(_term_conflict_detail(role, distinct))
+        else:
+            selected[role] = distinct[0]
+    if conflicts:
+        raise _terms_conflict_http(
+            "Equally specific reviewed commercial terms conflict; "
+            "confirm which approved term governs. Recency is not used "
+            "to choose.", conflicts)
+
+    # Keep semantic roles as the internal identity. Override comparison in
+    # ``_resolve_employee_teaching_terms`` is role-based (for example
+    # ``freight_amount``); the permitted snapshot key (``freight``) is
+    # materialized exactly once, when the merged teaching snapshot is built.
+    resolved = {role: item["term"] for role, item in selected.items()}
+    refs: List[Dict[str, Any]] = []
+    for term in resolved.values():
+        key = (str(term.get("lesson_id") or ""),
+               str(term.get("lesson_revision") or ""))
+        if key[0] and key not in {(str(ref["id"]), str(ref["revision"]))
+                                  for ref in refs}:
+            refs.append({"id": term.get("lesson_id"),
+                         "revision": term.get("lesson_revision") or 1,
+                         "digest": term.get("lesson_digest")})
+    return resolved, refs
+
+
+def _resolve_employee_teaching_terms(
+    teaching: Mapping[str, Any],
+    *,
+    db: Session,
+    agent_id: Optional[str],
+    workspace_id: str,
+    tenant_id: str,
+    task_context: Optional[Mapping[str, Any]],
+    local_terms: Optional[Mapping[str, Any]],
+    objective: str,
+    now: Optional[str],
+) -> Dict[str, Any]:
+    """Merge reviewed terms with explicit run-local terms without overrides.
+
+    Reviewed terms are keyed by semantic role, so a run-local alias such as
+    ``shipping`` is compared against ``freight_amount`` and refused as an
+    override. Only after that comparison is the permitted snapshot key
+    materialized.
+    """
+    reviewed, lesson_refs = _reviewed_commercial_terms(
+        db,
+        agent_id=agent_id,
+        workspace_id=workspace_id,
+        tenant_id=tenant_id,
+        task_context=task_context,
+        objective=objective,
+        now=now,
+    )
+    local = dict(local_terms or {})
+    existing = dict((teaching or {}).get("terms") or {})
+    if not reviewed and not local and not existing:
+        return dict(teaching or {})
+    terms = {**existing, **local}
+    local_candidates = [
+        candidate for candidate in (
+            _local_term_candidate(key, value)
+            for key, value in terms.items())
+        if candidate
+    ]
+    local_by_role = {
+        candidate["role"]: candidate for candidate in local_candidates}
+    for role, reviewed_term in reviewed.items():
+        requested = local_by_role.get(role)
+        if requested is None or _terms_equivalent(
+                role, requested, {"term": reviewed_term}):
+            continue
+        label = _COMMERCIAL_TERM_KEY_BY_ROLE.get(role, role).replace("_", " ")
+        approved = {
+            "key": _COMMERCIAL_TERM_KEY_BY_ROLE.get(role, role),
+            "role": role, "term": reviewed_term, "specificity": 0,
+        }
+        conflict = _term_conflict_detail(role, [requested, approved])
+        conflict.update({
+            "reason": "run_local_override_conflict",
+            "approved": _term_public(approved),
+            "requested": _term_public(requested),
+        })
+        raise _terms_conflict_http(
+            f"The explicit run-local {label} term conflicts with the "
+            "approved reviewed term; it is not a silent override. "
+            "Confirm the intended value.",
+            [conflict])
+    if reviewed:
+        reviewed_roles = set(reviewed)
+        for local_candidate in local_candidates:
+            if local_candidate["role"] in reviewed_roles:
+                terms.pop(local_candidate["key"], None)
+        for role, term in reviewed.items():
+            terms[_COMMERCIAL_TERM_KEY_BY_ROLE.get(role, role)] = term
+    return _with_teaching_terms(teaching, terms, lesson_refs)
+
+
 def _resolve_objective_sources(
     body: "EmployeeObjectiveStart",
     current_user: User,
@@ -2049,6 +2551,7 @@ async def start_employee_objective(
         (body.task_context or {}).get("recipient") or "") or None
     teaching_scope = str(
         (body.task_context or {}).get("task_scope") or "") or None
+    teaching_now = datetime.now(timezone.utc).isoformat()
     teaching = _teaching_snapshot_for_start(
         db,
         agent_id=body.agent_id,
@@ -2057,14 +2560,19 @@ async def start_employee_objective(
         task_context=body.task_context,
         recipient=teaching_recipient,
         task_scope=teaching_scope,
-        now=datetime.now(timezone.utc).isoformat(),
+        now=teaching_now,
     )
-    if body.teaching_terms:
-        teaching = dict(teaching)
-        teaching["terms"] = {
-            **dict(teaching.get("terms") or {}),
-            **{str(key): value for key, value in body.teaching_terms.items()},
-        }
+    teaching = _resolve_employee_teaching_terms(
+        teaching,
+        db=db,
+        agent_id=body.agent_id,
+        workspace_id=workspace_id,
+        tenant_id=tenant_id,
+        task_context=body.task_context,
+        local_terms=body.teaching_terms,
+        objective=body.objective,
+        now=teaching_now,
+    )
     context = build_employee_context(
         objective=body.objective,
         employee_id=employee.id,
@@ -2971,6 +3479,7 @@ async def reassess_assignment(
             (assignment.get("provenance") or {}).get("email_to") or [])
         if str(item).strip()]
     try:
+        teaching_now = datetime.now(timezone.utc).isoformat()
         teaching = _teaching_snapshot_for_start(
             db,
             agent_id=agent_id,
@@ -2979,7 +3488,30 @@ async def reassess_assignment(
             task_context=task_context,
             recipient=recipients[0] if recipients else None,
             task_scope=str(task_context.get("task_scope") or "") or None,
-            now=datetime.now(timezone.utc).isoformat(),
+            now=teaching_now,
+        )
+        # Reviewed terms are current at reassessment time. Keep only the
+        # run-local values from the accepted snapshot; reviewed values are
+        # re-resolved (and may be corrected/withdrawn) rather than pinned to
+        # their old journal entry.
+        previous_terms = dict(
+            (assignment.get("teaching_snapshot") or {}).get("terms") or {})
+        local_terms = {
+            key: value for key, value in previous_terms.items()
+            if not (
+                isinstance(value, Mapping)
+                and value.get("source") == "reviewed_commercial_terms")
+        }
+        teaching = _resolve_employee_teaching_terms(
+            teaching,
+            db=db,
+            agent_id=agent_id,
+            workspace_id=current_user.workspace_id or "default",
+            tenant_id=current_user.tenant_id or "default",
+            task_context=task_context,
+            local_terms=local_terms,
+            objective=str(assignment.get("objective") or ""),
+            now=teaching_now,
         )
         result = executor.reassess_teaching(
             run_id, teaching,

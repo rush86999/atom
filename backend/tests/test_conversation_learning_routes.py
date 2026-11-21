@@ -117,31 +117,35 @@ def route_env(tmp_path):
 
 
 def _create_candidate(env, *, lesson="Use the confirmed rates workbook.",
-                      context=None, method=None):
+                      context=None, method=None, commercial_terms=None,
+                      method_status="explicit"):
+    payload = {
+        "thread_id": "thread-1",
+        "agent_id": "agent-1",
+        "proposed_lesson": lesson,
+        "method": method if method is not None else {
+            "intended_outcome": "Price the order",
+            "operation": "multiply_sum",
+            "inputs": [
+                {"concept": "quantity", "column": "Qty", "unit": "units"},
+                {"concept": "unit_price", "column": "Price",
+                 "unit": "USD"},
+            ],
+            "output_unit": "USD",
+            "transformation": "quantity * unit_price",
+            "rounding": {"places": 2, "stage": "final"},
+        },
+        "method_status": method_status,
+        "applies_to": ["pricing"],
+        "context": context or {},
+        "authority_message_id": "m1",
+        "authority_excerpt": "Use the attached workbook",
+    }
+    if commercial_terms is not None:
+        payload["commercial_terms"] = commercial_terms
     response = env["client"].post(
         "/api/conversation-learning/candidates",
-        json={
-            "thread_id": "thread-1",
-            "agent_id": "agent-1",
-            "proposed_lesson": lesson,
-            "method": method or {
-                "intended_outcome": "Price the order",
-                "operation": "multiply_sum",
-                "inputs": [
-                    {"concept": "quantity", "column": "Qty", "unit": "units"},
-                    {"concept": "unit_price", "column": "Price",
-                     "unit": "USD"},
-                ],
-                "output_unit": "USD",
-                "transformation": "quantity * unit_price",
-                "rounding": {"places": 2, "stage": "final"},
-            },
-            "method_status": "explicit",
-            "applies_to": ["pricing"],
-            "context": context or {},
-            "authority_message_id": "m1",
-            "authority_excerpt": "Use the attached workbook",
-        },
+        json=payload,
     )
     assert response.status_code == 200, response.text
     return response.json()
@@ -955,6 +959,146 @@ def test_route_scope_hides_foreign_candidate(route_env):
         params={"thread_id": "thread-1"},
     )
     assert response.status_code == 404, response.text
+
+
+def _route_commercial_terms():
+    return {
+        "currency": {"value": "usd"},
+        "freight": {"value": "12.50", "currency": "usd"},
+        "tax_rate": {"value": "0.20"},
+        "tax_amount": {"value": "2.50", "currency": "usd"},
+        "tax_basis": {"value": "exempt"},
+    }
+
+
+def _route_expected_terms():
+    return {
+        "currency": {"value": "USD"},
+        "freight": {"value": "12.50", "currency": "USD"},
+        "tax_rate": {"value": "0.20"},
+        "tax_amount": {"value": "2.50", "currency": "USD"},
+        "tax_basis": {"value": "exempt"},
+    }
+
+
+def test_route_commercial_terms_review_promote_and_revision_patch(route_env):
+    from core.student_learning_service import get_agent_lessons
+
+    created = _create_candidate(
+        route_env, lesson="Apply the reviewed freight and tax terms.",
+        method={}, method_status="unresolved",
+        context={"customer": "Customer-A"},
+        commercial_terms=_route_commercial_terms())
+    assert created["review_ready"] is True, created
+    candidate = created["candidate"]
+    candidate_id = candidate["candidate_id"]
+    expected = _route_expected_terms()
+    assert candidate["method_status"] == "not_applicable"
+    assert candidate["commercial_terms"] == expected
+    assert created["review"]["commercial_terms"] == expected
+
+    confirmed = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/confirm",
+        json={"thread_id": "thread-1", "reviewer": "owner",
+              "expected_revision": 1},
+    )
+    assert confirmed.status_code == 200, confirmed.text
+    promoted = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/promote",
+        json={"thread_id": "thread-1", "reviewer": "owner",
+              "expected_revision": 1,
+              "expected_digest": confirmed.json()["review"]["digest"]},
+    )
+    assert promoted.status_code == 200, promoted.text
+    details = promoted.json()["entry"]["details"]["conversation_learning"]
+    assert details["commercial_terms"] == expected
+    assert details["reviewed_by"] == "member@example.com"
+    lesson_id = promoted.json()["lesson_id"]
+    visible = get_agent_lessons(
+        route_env["db"], "agent-1", include_context_bound=True)
+    assert [entry["id"] for entry in visible] == [lesson_id]
+
+    # Omitting commercial_terms preserves the reviewed mapping.
+    preserved = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/revise",
+        json={"thread_id": "thread-1", "expected_revision": 1,
+              "proposed_lesson": "Apply the reviewed terms exactly."},
+    )
+    assert preserved.status_code == 200, preserved.text
+    assert preserved.json()["candidate"]["commercial_terms"] == expected
+    assert get_agent_lessons(
+        route_env["db"], "agent-1", include_context_bound=True) == []
+
+    # An explicit empty mapping clears it.
+    cleared = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/revise",
+        json={"thread_id": "thread-1", "expected_revision": 2,
+              "commercial_terms": {}},
+    )
+    assert cleared.status_code == 200, cleared.text
+    assert cleared.json()["candidate"]["commercial_terms"] == {}
+    assert cleared.json()["review"]["commercial_terms"] == {}
+
+
+def test_route_commercial_terms_require_reviewed_context(route_env):
+    created = _create_candidate(
+        route_env, lesson="Apply unscoped terms.",
+        method={}, method_status="unresolved", context={},
+        commercial_terms=_route_commercial_terms())
+    assert created["review_ready"] is False, created
+    assert any(
+        dep["kind"] == "commercial_terms"
+        for dep in created["blocking"]
+    )
+    candidate_id = created["candidate"]["candidate_id"]
+    confirmed = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/confirm",
+        json={"thread_id": "thread-1", "reviewer": "owner",
+              "expected_revision": 1},
+    )
+    assert confirmed.status_code == 409, confirmed.text
+    assert confirmed.json()["detail"] == "candidate_not_review_ready"
+
+
+def test_route_rejects_invalid_commercial_terms_without_writing(route_env):
+    invalid = route_env["client"].post(
+        "/api/conversation-learning/candidates",
+        json={
+            "thread_id": "thread-1",
+            "agent_id": "agent-1",
+            "proposed_lesson": "Apply invalid terms.",
+            "method_status": "not_applicable",
+            "applies_to": ["pricing"],
+            "context": {"customer": "Customer-A"},
+            "commercial_terms": {
+                "freight": {"value": "10", "formula": "a+b"},
+            },
+            "authority_message_id": "m1",
+            "authority_excerpt": "Use the attached workbook",
+        },
+    )
+    assert invalid.status_code == 400, invalid.text
+    assert "commercial_term_field_unsupported" in invalid.json()["detail"]
+
+    created = _create_candidate(
+        route_env, lesson="Apply valid terms.", method={},
+        method_status="unresolved", context={"customer": "Customer-A"},
+        commercial_terms=_route_commercial_terms())
+    candidate_id = created["candidate"]["candidate_id"]
+    invalid_revision = route_env["client"].post(
+        f"/api/conversation-learning/candidates/{candidate_id}/revise",
+        json={"thread_id": "thread-1", "expected_revision": 1,
+              "commercial_terms": {"duty": {"value": "1"}}},
+    )
+    assert invalid_revision.status_code == 400, invalid_revision.text
+    current = route_env["client"].get(
+        f"/api/conversation-learning/candidates/{candidate_id}",
+        params={"thread_id": "thread-1"},
+    )
+    assert current.status_code == 200, current.text
+    assert current.json()["candidate"]["revision"] == 1
+    assert current.json()["candidate"]["commercial_terms"] == (
+        _route_expected_terms())
 
 
 def _history_url(candidate_id: str) -> str:

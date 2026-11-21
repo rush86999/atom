@@ -18,6 +18,8 @@ import {
   getLearningCandidateHistory,
   LearningCandidateHistory,
   LearningCandidatePayload,
+  LearningCommercialTerms,
+  LearningCommercialTermKey,
   LearningEmployee,
   LearningReview,
   listLearningCandidates,
@@ -81,6 +83,7 @@ const HISTORY_FIELD_LABELS: Record<string, string> = {
   method_status: "method status",
   applies_to: "applies to",
   context: "context",
+  commercial_terms: "business terms",
   format_spec: "format",
   conditions: "conditions",
   decision_options: "decision options",
@@ -163,6 +166,260 @@ function parseObjectInput(raw: string, label: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
+/**
+ * The server owns the commercial-terms contract. The UI only mirrors the five
+ * supported keys, in this order, so no extra term can be invented locally.
+ */
+const COMMERCIAL_TERM_FIELDS: Array<{
+  key: LearningCommercialTermKey;
+  label: string;
+  formLabel?: string;
+  hint?: string;
+  testId: string;
+  monetary: boolean;
+  placeholder: string;
+}> = [
+  {
+    key: "currency",
+    label: "Currency",
+    testId: "currency",
+    monetary: false,
+    placeholder: "e.g. USD",
+  },
+  {
+    key: "freight",
+    label: "Freight",
+    testId: "freight",
+    monetary: true,
+    placeholder: "e.g. 150.00",
+  },
+  {
+    key: "tax_rate",
+    label: "Tax rate",
+    formLabel: "Tax rate (decimal 0 to 1)",
+    hint: "Enter the canonical decimal fraction, for example 0.0825.",
+    testId: "tax-rate",
+    monetary: false,
+    placeholder: "e.g. 0.0825",
+  },
+  {
+    key: "tax_amount",
+    label: "Tax amount",
+    testId: "tax-amount",
+    monetary: true,
+    placeholder: "e.g. 42.10",
+  },
+  {
+    key: "tax_basis",
+    label: "Tax basis",
+    formLabel: "Tax basis (no-tax decision)",
+    hint: "This only records that no tax applies; it is not a taxable-base label.",
+    testId: "tax-basis",
+    monetary: false,
+    placeholder: "",
+  },
+];
+
+/**
+ * The server stores tax_rate as a decimal fraction between 0 and 1. Accept a
+ * typed percent for convenience, but always encode the canonical fraction.
+ */
+function normalizeTaxRate(raw: string): string | null {
+  const text = String(raw || "").trim();
+  if (!text) return null;
+  const isPercent = text.endsWith("%");
+  const numericText = isPercent ? text.slice(0, -1).trim() : text;
+  if (!numericText) return null;
+  const parsed = Number(numericText);
+  if (!Number.isFinite(parsed)) return null;
+  const fraction = isPercent ? parsed / 100 : parsed;
+  if (fraction < 0 || fraction > 1) return null;
+  return String(fraction);
+}
+
+/**
+ * tax_basis only carries the no-tax decision. Older generic taxable-base
+ * labels are not part of the contract and are not resubmitted.
+ */
+function normalizeTaxBasis(raw: string): string {
+  const value = String(raw || "").trim().toLowerCase();
+  if (!value) return "";
+  if (["no_tax", "none", "no tax", "not_applicable", "not applicable"]
+    .includes(value)) {
+    return "none";
+  }
+  return "";
+}
+
+type CommercialTermFormEntry = { value: string; currency: string };
+type CommercialTermsForm =
+  Record<LearningCommercialTermKey, CommercialTermFormEntry>;
+
+function blankCommercialTerms(): CommercialTermsForm {
+  return {
+    currency: { value: "", currency: "" },
+    freight: { value: "", currency: "" },
+    tax_rate: { value: "", currency: "" },
+    tax_amount: { value: "", currency: "" },
+    tax_basis: { value: "", currency: "" },
+  };
+}
+
+function commercialTermsFromReview(
+  terms?: LearningCommercialTerms | null,
+): CommercialTermsForm {
+  const next = blankCommercialTerms();
+  if (!terms || typeof terms !== "object") return next;
+  for (const field of COMMERCIAL_TERM_FIELDS) {
+    const saved = terms[field.key];
+    if (!saved || typeof saved !== "object") continue;
+    const rawValue = typeof saved.value === "string" ? saved.value : "";
+    let value = rawValue;
+    if (field.key === "tax_rate") {
+      value = normalizeTaxRate(rawValue) ?? rawValue;
+    } else if (field.key === "tax_basis") {
+      value = normalizeTaxBasis(rawValue);
+    }
+    next[field.key] = {
+      value,
+      currency: typeof saved.currency === "string" ? saved.currency : "",
+    };
+  }
+  return next;
+}
+
+/**
+ * Serialize only the five allowed keys. Empty values are not saved, so an
+ * explicitly cleared section becomes {} while an untouched form stays absent
+ * from the request entirely.
+ */
+function commercialTermsPayload(
+  form?: CommercialTermsForm | null,
+): LearningCommercialTerms {
+  const out: LearningCommercialTerms = {};
+  if (!form) return out;
+  for (const field of COMMERCIAL_TERM_FIELDS) {
+    const entry = form[field.key];
+    if (!entry) continue;
+    const rawValue = entry.value.trim();
+    if (!rawValue) continue;
+    let value = rawValue;
+    if (field.key === "tax_rate") {
+      const normalized = normalizeTaxRate(rawValue);
+      if (normalized == null) {
+        throw new Error(
+          "Tax rate must be a decimal fraction from 0 to 1 "
+          + "(for example 0.0825).",
+        );
+      }
+      value = normalized;
+    } else if (field.key === "tax_basis") {
+      const normalized = normalizeTaxBasis(rawValue);
+      if (!normalized) {
+        throw new Error(
+          "Tax basis can only record a no-tax decision.",
+        );
+      }
+      value = normalized;
+    }
+    const currency = field.monetary ? entry.currency.trim() : "";
+    out[field.key] = currency ? { value, currency } : { value };
+  }
+  return out;
+}
+
+function hasTermValues(form?: CommercialTermsForm | null): boolean {
+  if (!form) return false;
+  return COMMERCIAL_TERM_FIELDS.some((field) => {
+    const entry = form[field.key];
+    return Boolean(entry && entry.value.trim());
+  });
+}
+
+/**
+ * Commercial terms need a real typed context on the server. Applies-to labels
+ * alone are not context, so only customer or qualification satisfy this.
+ */
+function hasTypedLessonScope(
+  customer: string,
+  qualification: string,
+): boolean {
+  return customer.trim().length > 0 || qualification.trim().length > 0;
+}
+
+function CommercialTermsFields({
+  prefix,
+  terms,
+  onChange,
+}: {
+  prefix: string;
+  terms: CommercialTermsForm;
+  onChange: (
+    key: LearningCommercialTermKey,
+    entry: CommercialTermFormEntry,
+  ) => void;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {COMMERCIAL_TERM_FIELDS.map((field) => {
+        const label = field.formLabel || field.label;
+        const entry = terms[field.key];
+        return (
+          <div key={field.key} className="block">
+            <span>{label}</span>
+            <div className="mt-1 flex gap-1">
+              {field.key === "tax_basis" ? (
+                <select
+                  className="min-w-0 flex-1 rounded border p-1"
+                  data-testid={`${prefix}-${field.testId}`}
+                  aria-label={label}
+                  value={entry.value}
+                  onChange={(event) => onChange(field.key, {
+                    ...entry,
+                    value: event.target.value,
+                  })}
+                >
+                  <option value="">Not stated</option>
+                  <option value="none">No tax applies</option>
+                </select>
+              ) : (
+                <input
+                  className="min-w-0 flex-1 rounded border p-1"
+                  data-testid={`${prefix}-${field.testId}`}
+                  aria-label={label}
+                  inputMode={field.key === "tax_rate" ? "decimal" : undefined}
+                  value={entry.value}
+                  onChange={(event) => onChange(field.key, {
+                    ...entry,
+                    value: event.target.value,
+                  })}
+                  placeholder={field.placeholder}
+                />
+              )}
+              {field.monetary ? (
+                <input
+                  className="w-20 rounded border p-1"
+                  data-testid={`${prefix}-${field.testId}-currency`}
+                  aria-label={`${field.label} currency`}
+                  value={entry.currency}
+                  onChange={(event) => onChange(field.key, {
+                    ...entry,
+                    currency: event.target.value,
+                  })}
+                  placeholder="currency"
+                />
+              ) : null}
+            </div>
+            {field.hint ? (
+              <span className="mt-1 block text-slate-500">{field.hint}</span>
+            ) : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 type LearningEditDraft = {
   lesson: string;
   appliesTo: string;
@@ -179,6 +436,7 @@ type LearningEditDraft = {
   decisionOptions: string;
   customer: string;
   qualification: string;
+  commercialTerms: CommercialTermsForm;
 };
 
 function editDraftFromReview(review: LearningReview): LearningEditDraft {
@@ -209,6 +467,7 @@ function editDraftFromReview(review: LearningReview): LearningEditDraft {
     customer: typeof context.customer === "string" ? context.customer : "",
     qualification:
       typeof context.qualification === "string" ? context.qualification : "",
+    commercialTerms: commercialTermsFromReview(review.commercial_terms),
   };
 }
 
@@ -258,6 +517,15 @@ function revisionPayload(
   const currentContext = contextWithDraft(baseContext, current);
   if (JSON.stringify(currentContext) !== JSON.stringify(initialContext)) {
     payload.context = currentContext;
+  }
+
+  // commercial_terms is one optional top-level field. Omit it completely while
+  // the terms are untouched; once they change, send the complete set the
+  // reviewer can see, and send {} when every saved term was explicitly cleared.
+  const initialTerms = commercialTermsPayload(initial.commercialTerms);
+  const currentTerms = commercialTermsPayload(current.commercialTerms);
+  if (JSON.stringify(currentTerms) !== JSON.stringify(initialTerms)) {
+    payload.commercial_terms = currentTerms;
   }
 
   const initialFormat = parseObjectInput(initial.formatSpec, "Format spec");
@@ -416,6 +684,7 @@ export function ConversationLearningReview({
     formatSpec: "",
     conditions: "",
     decisionOptions: "",
+    commercialTerms: blankCommercialTerms(),
   });
 
   /** Drop the cached page and invalidate any in-flight request for it. */
@@ -496,6 +765,22 @@ export function ConversationLearningReview({
   const review = payload?.review;
   const selectedAgentId = draft.agentId || employees[0]?.id || "";
   const unresolved = review?.unresolved_questions || [];
+  const savedCommercialTerms: LearningCommercialTerms =
+    review?.commercial_terms
+    && typeof review.commercial_terms === "object"
+      ? review.commercial_terms : {};
+  const savedTermFields = COMMERCIAL_TERM_FIELDS.filter((field) => {
+    const term = savedCommercialTerms[field.key];
+    return Boolean(term && typeof term.value === "string" && term.value.trim());
+  });
+  const draftTermsEntered = hasTermValues(draft.commercialTerms);
+  const draftTermsScopeMissing = draftTermsEntered
+    && !hasTypedLessonScope(draft.customer, draft.qualification);
+  const editTermsEntered = editDraft
+    ? hasTermValues(editDraft.commercialTerms) : false;
+  const editTermsScopeMissing = editDraft && editTermsEntered
+    ? !hasTypedLessonScope(editDraft.customer, editDraft.qualification)
+    : false;
 
   const resourceOptions = useMemo(() => {
     const out: Array<{ id: string; label: string }> = [];
@@ -643,6 +928,15 @@ export function ConversationLearningReview({
       const conditions = parseObject(draft.conditions, "Conditions");
       const decisionOptions = draft.decisionOptions
         .split(",").map((item) => item.trim()).filter(Boolean);
+      const commercialTerms = commercialTermsPayload(draft.commercialTerms);
+      const typedCustomer = draft.customer.trim();
+      const typedQualification = draft.qualification.trim();
+      if (Object.keys(commercialTerms).length
+          && !hasTypedLessonScope(typedCustomer, typedQualification)) {
+        throw new Error(
+          "Business terms need a customer or qualification as typed scope.",
+        );
+      }
       const created = await createLearningCandidate({
         thread_id: threadId,
         source_kind: sourceKind,
@@ -651,9 +945,9 @@ export function ConversationLearningReview({
         applies_to: draft.appliesTo
           .split(",").map((item) => item.trim()).filter(Boolean),
         context: {
-          ...(draft.customer ? { customer: draft.customer } : {}),
-          ...(draft.qualification
-            ? { qualification: draft.qualification } : {}),
+          ...(typedCustomer ? { customer: typedCustomer } : {}),
+          ...(typedQualification
+            ? { qualification: typedQualification } : {}),
         },
         ...(Object.keys(formatSpec).length
           ? { format_spec: formatSpec } : {}),
@@ -661,6 +955,8 @@ export function ConversationLearningReview({
           ? { conditions } : {}),
         ...(decisionOptions.length
           ? { decision_options: decisionOptions } : {}),
+        ...(Object.keys(commercialTerms).length
+          ? { commercial_terms: commercialTerms } : {}),
         ...(draft.guidanceOnly
           ? { method: {}, method_status: "not_applicable" }
           : {
@@ -828,6 +1124,14 @@ export function ConversationLearningReview({
     setNotice(null);
     try {
       const body = revisionPayload(review, editInitial, editDraft);
+      const bodyTerms = body?.commercial_terms;
+      if (bodyTerms && typeof bodyTerms === "object"
+          && Object.keys(bodyTerms).length
+          && !hasTypedLessonScope(editDraft.customer, editDraft.qualification)) {
+        throw new Error(
+          "Business terms need a customer or qualification as typed scope.",
+        );
+      }
       const reason = editReason.trim();
       if (!body) {
         setNotice(reason
@@ -1011,15 +1315,56 @@ export function ConversationLearningReview({
           </div>
           <input className="w-full rounded border p-1" data-testid="learning-decisions-input" value={draft.decisionOptions} onChange={(e) => setDraft({ ...draft, decisionOptions: e.target.value })} placeholder="review decision labels, comma separated (optional)" />
           <div className="grid grid-cols-2 gap-2">
-            <input className="rounded border p-1" data-testid="learning-customer-input" value={draft.customer} onChange={(e) => setDraft({ ...draft, customer: e.target.value })} placeholder="customer (optional)" />
-            <input className="rounded border p-1" data-testid="learning-qualification-input" value={draft.qualification} onChange={(e) => setDraft({ ...draft, qualification: e.target.value })} placeholder="qualification (optional)" />
+            <label>
+              Customer (typed scope)
+              <input className="mt-1 w-full rounded border p-1" data-testid="learning-customer-input" value={draft.customer} onChange={(e) => setDraft({ ...draft, customer: e.target.value })} placeholder="e.g. Acme" />
+            </label>
+            <label>
+              Qualification (typed scope)
+              <input className="mt-1 w-full rounded border p-1" data-testid="learning-qualification-input" value={draft.qualification} onChange={(e) => setDraft({ ...draft, qualification: e.target.value })} placeholder="e.g. enterprise" />
+            </label>
+          </div>
+          <div
+            className="space-y-2 rounded border bg-white p-2"
+            data-testid="learning-terms-form"
+          >
+            <p className="font-semibold">Business terms (optional)</p>
+            <p className="text-slate-500">
+              Business terms need a typed scope: enter a customer or
+              qualification above. Applies-to labels alone are not context.
+            </p>
+            <CommercialTermsFields
+              prefix="learning-terms"
+              terms={draft.commercialTerms}
+              onChange={(key, entry) => setDraft({
+                ...draft,
+                commercialTerms: {
+                  ...draft.commercialTerms,
+                  [key]: entry,
+                },
+              })}
+            />
+            {draftTermsScopeMissing ? (
+              <p
+                className="text-amber-700"
+                data-testid="learning-terms-scope-hint"
+              >
+                Add a customer or qualification above before saving these
+                terms. The server validates the final typed scope.
+              </p>
+            ) : null}
           </div>
           <div className="grid grid-cols-3 gap-2">
             <input className="rounded border p-1" data-testid="learning-concept-2" value={draft.concept2} onChange={(e) => setDraft({ ...draft, concept2: e.target.value })} placeholder="second input concept (optional)" />
             <input className="rounded border p-1" data-testid="learning-column-2" value={draft.column2} onChange={(e) => setDraft({ ...draft, column2: e.target.value })} placeholder="second column" />
             <input className="rounded border p-1" data-testid="learning-unit-2" value={draft.unit2} onChange={(e) => setDraft({ ...draft, unit2: e.target.value })} placeholder="second unit" />
           </div>
-          <Button data-testid="learning-draft-button" disabled={busy || !selectedAgentId || !draft.lesson} onClick={create}>
+          <Button
+            data-testid="learning-draft-button"
+            disabled={busy || !selectedAgentId || !draft.lesson
+              || draftTermsScopeMissing}
+            onClick={create}
+          >
             Draft candidate
           </Button>
         </div>
@@ -1200,13 +1545,63 @@ export function ConversationLearningReview({
                 placeholder="review decision labels, comma separated (optional)"
               />
               <div className="grid grid-cols-2 gap-2">
-                <input className="rounded border p-1" data-testid="learning-edit-customer-input" value={editDraft.customer} onChange={(event) => setEditDraft({ ...editDraft, customer: event.target.value })} placeholder="customer (optional)" />
-                <input className="rounded border p-1" data-testid="learning-edit-qualification-input" value={editDraft.qualification} onChange={(event) => setEditDraft({ ...editDraft, qualification: event.target.value })} placeholder="qualification (optional)" />
+                <label>
+                  Customer (typed scope)
+                  <input className="mt-1 w-full rounded border p-1" data-testid="learning-edit-customer-input" value={editDraft.customer} onChange={(event) => setEditDraft({ ...editDraft, customer: event.target.value })} placeholder="e.g. Acme" />
+                </label>
+                <label>
+                  Qualification (typed scope)
+                  <input className="mt-1 w-full rounded border p-1" data-testid="learning-edit-qualification-input" value={editDraft.qualification} onChange={(event) => setEditDraft({ ...editDraft, qualification: event.target.value })} placeholder="e.g. enterprise" />
+                </label>
+              </div>
+              <div
+                className="space-y-2 rounded border bg-white p-2"
+                data-testid="learning-edit-terms-form"
+              >
+                <p className="font-semibold">Business terms (optional)</p>
+                <p className="text-slate-500">
+                  Business terms need a customer or qualification as typed
+                  scope. Leave a field blank to remove that term from the saved
+                  revision.
+                </p>
+                <CommercialTermsFields
+                  prefix="learning-edit-terms"
+                  terms={editDraft.commercialTerms}
+                  onChange={(key, entry) => setEditDraft({
+                    ...editDraft,
+                    commercialTerms: {
+                      ...editDraft.commercialTerms,
+                      [key]: entry,
+                    },
+                  })}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-testid="learning-edit-terms-clear"
+                  disabled={busy || !hasTermValues(editDraft.commercialTerms)}
+                  onClick={() => setEditDraft({
+                    ...editDraft,
+                    commercialTerms: blankCommercialTerms(),
+                  })}
+                >
+                  Clear terms
+                </Button>
+                {editTermsScopeMissing ? (
+                  <p
+                    className="text-amber-700"
+                    data-testid="learning-edit-terms-scope-hint"
+                  >
+                    Add a customer or qualification above before saving these
+                    terms. The server validates the final typed scope.
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-wrap gap-2">
                 <Button
                   data-testid="learning-revise-save"
-                  disabled={busy || !editDraft.lesson.trim()}
+                  disabled={busy || !editDraft.lesson.trim()
+                    || editTermsScopeMissing}
                   onClick={saveRevision}
                 >
                   Save revision
@@ -1256,6 +1651,43 @@ export function ConversationLearningReview({
                 </ul>
               ) : null}
             </div>
+          </div>
+
+          <div
+            className="rounded border p-2"
+            data-testid="learning-commercial-terms"
+          >
+            <p className="font-semibold">Business terms</p>
+            {savedTermFields.length ? (
+              <dl className="mt-1 grid gap-x-3 gap-y-1 sm:grid-cols-2">
+                {savedTermFields.map((field) => {
+                  const term = savedCommercialTerms[field.key]!;
+                  const displayValue = field.key === "tax_rate"
+                    ? normalizeTaxRate(term.value) ?? term.value
+                    : field.key === "tax_basis"
+                      ? (normalizeTaxBasis(term.value) === "none"
+                        ? "No tax applies"
+                        : term.value)
+                      : term.value;
+                  return (
+                    <div
+                      key={field.key}
+                      className="flex flex-wrap gap-1"
+                      data-testid={`learning-term-${field.testId}`}
+                    >
+                      <dt className="font-semibold">{field.label}:</dt>{" "}
+                      <dd>
+                        {displayValue}
+                        {field.monetary && term.currency
+                          ? ` ${term.currency}` : ""}
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            ) : (
+              <p className="text-slate-500">No business terms stated.</p>
+            )}
           </div>
 
           <div className="rounded border p-2" data-testid="learning-references">

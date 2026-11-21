@@ -64,6 +64,8 @@ class CandidateCreate(BaseModel):
     format_spec: Dict[str, Any] = {}
     conditions: Dict[str, Any] = {}
     decision_options: List[str] = []
+    # Optional reviewed commercial terms. Omitted/empty means ordinary lesson.
+    commercial_terms: Dict[str, Any] = {}
     references: Optional[List[Dict[str, Any]]] = None
     authority_message_id: str = ""
     authority_excerpt: str = ""
@@ -86,6 +88,8 @@ class CandidateRevise(BaseModel):
     format_spec: Optional[Dict[str, Any]] = None
     conditions: Optional[Dict[str, Any]] = None
     decision_options: Optional[List[str]] = None
+    # None preserves the reviewed terms; an explicit {} clears them.
+    commercial_terms: Optional[Dict[str, Any]] = None
     # Optional reviewer-authored plain text. Absent means "not recorded";
     # the server never substitutes a rationale the reviewer did not give.
     reason: str = ""
@@ -336,6 +340,7 @@ def create_candidate(request: CandidateCreate, db: Session = Depends(get_db),
             context=request.context, format_spec=request.format_spec,
             conditions=request.conditions,
             decision_options=request.decision_options,
+            commercial_terms=request.commercial_terms,
             evidence=evidence,
             references=request.references,
             authority_message_id=request.authority_message_id,
@@ -404,6 +409,7 @@ def revise(candidate_id: str, request: CandidateRevise,
             format_spec=request.format_spec,
             conditions=request.conditions,
             decision_options=request.decision_options,
+            commercial_terms=request.commercial_terms,
             expected_revision=request.expected_revision,
             expected_status=request.expected_status or None,
             changed_by=_reviewer(user),

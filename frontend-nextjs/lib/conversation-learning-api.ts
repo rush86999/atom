@@ -9,6 +9,26 @@ export interface LearningReferenceCandidate {
   status: string;
 }
 
+export type LearningCommercialTermKey =
+  | "currency"
+  | "freight"
+  | "tax_rate"
+  | "tax_amount"
+  | "tax_basis";
+
+/**
+ * One optional business term. Monetary terms (freight and tax_amount) may
+ * carry their own currency. tax_rate is the canonical decimal fraction from 0
+ * to 1, and tax_basis only records the no-tax decision ("no_tax").
+ */
+export interface LearningCommercialTerm {
+  value: string;
+  currency?: string;
+}
+
+export type LearningCommercialTerms =
+  Partial<Record<LearningCommercialTermKey, LearningCommercialTerm>>;
+
 export interface LearningReview {
   candidate_id: string;
   status: string;
@@ -16,6 +36,7 @@ export interface LearningReview {
   digest: string;
   review_ready: boolean;
   proposed_lesson: string;
+  commercial_terms?: LearningCommercialTerms | null;
   where_it_applies: {
     applies_to: string[];
     context: Record<string, unknown>;
@@ -142,6 +163,7 @@ export async function createLearningCandidate(payload: {
   method_status?: string;
   applies_to?: string[];
   context?: Record<string, any>;
+  commercial_terms?: LearningCommercialTerms;
   format_spec?: Record<string, any>;
   conditions?: Record<string, any>;
   decision_options?: string[];
@@ -181,6 +203,7 @@ export interface LearningHistorySnapshot {
   applies_to: string[];
   decision_options: string[];
   context: unknown;
+  commercial_terms?: LearningCommercialTerms | null;
   format_spec: unknown;
   conditions: unknown;
   method: unknown;
@@ -237,6 +260,7 @@ export async function reviseLearningCandidate(
     method_status?: string;
     applies_to?: string[];
     context?: Record<string, unknown>;
+    commercial_terms?: LearningCommercialTerms;
     format_spec?: Record<string, unknown>;
     conditions?: Record<string, unknown>;
     decision_options?: string[];

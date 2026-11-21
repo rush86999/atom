@@ -588,12 +588,25 @@ def _quote_patch(
                 "an equivalent quote calculation from this evidence is "
                 "already present; resolve the durable wait or continue "
                 "different work instead of repeating it")
+    # Resolve the accepted currency after the mapping/duplicate diagnostics so
+    # an invalid column keeps the parent ordering. The currency term and any
+    # explicit request/source currency are still validated before source rows
+    # are inspected, so a request that omitted values still binds the
+    # reviewed/local term without weakening authority.
+    currency_term = _resolved_currency(
+        assignment, context, "currency", "quote currency")
+    quote_currency = currency_term["value"]
+    requested_currency = str(request.currency or "").strip().upper()
+    if requested_currency and requested_currency != quote_currency:
+        raise WorkRequestCompileError(
+            f"quote currency {request.currency!r} does not match the "
+            f"accepted teaching currency {quote_currency!r}")
     sample_rows = [
         row for row in (result.get("rows") or [])
         if isinstance(row, Mapping)
     ][:25]
     resolved_columns = _resolve_quote_columns(
-        columns, sample_rows, list(available), currency=request.currency)
+        columns, sample_rows, list(available), currency=quote_currency)
     if resolved_columns != columns:
         columns = resolved_columns
     currency_column = columns.get("currency")
@@ -617,12 +630,12 @@ def _quote_patch(
                 f"malformed value(s) {malformed}; no default substitution")
         conflicts = sorted({
             value.upper() for value in currency_values
-            if value.upper() != str(request.currency).strip().upper()
+            if value.upper() != quote_currency
         })
         if conflicts:
             raise WorkRequestCompileError(
-                f"source currency {conflicts!r} conflicts with the requested "
-                f"quote currency {request.currency!r}; implicit FX or default "
+                f"source currency {conflicts!r} conflicts with the accepted "
+                f"quote currency {quote_currency!r}; implicit FX or default "
                 "substitution is not allowed")
     for semantic, column in columns.items():
         if semantic in ("quantity", "unit_price", "discount"):
@@ -656,24 +669,17 @@ def _quote_patch(
                     f"quote mapping 'item_id' column "
                     f"{columns['item_id']!r} is empty in accepted row "
                     f"{index + 1}")
-    if not request.currency.strip():
-        raise WorkRequestCompileError("quote currency must be explicit")
-    currency_term = _resolved_currency(
-        assignment, context, "currency", "quote currency")
-    if str(request.currency).strip().upper() != currency_term["value"]:
-        raise WorkRequestCompileError(
-            f"quote currency {request.currency!r} does not match the "
-            f"accepted teaching currency {currency_term['value']!r}")
     freight = _resolved_money(
         assignment, context, request.freight.authority_ref, "quote freight",
-        request.currency, (ROLE_FREIGHT_AMOUNT,))
-    if not _same_money(request.freight.value, freight["value"]):
+        quote_currency, (ROLE_FREIGHT_AMOUNT,))
+    requested_freight = str(request.freight.value or "").strip()
+    if requested_freight and not _same_money(
+            requested_freight, freight["value"]):
         raise WorkRequestCompileError(
             f"quote freight {request.freight.value!r} does not match the "
             f"accepted term {freight['value']!r}")
     if request.freight.currency and str(
-            request.freight.currency).strip().upper() != str(
-            request.currency).strip().upper():
+            request.freight.currency).strip().upper() != quote_currency:
         raise WorkRequestCompileError(
             "quote freight currency must match the quote currency")
     if request.tax.basis == "none":
@@ -684,11 +690,9 @@ def _quote_patch(
     elif request.tax.basis == "rate":
         tax = _resolved_money(
             assignment, context, request.tax.authority_ref,
-            "quote tax rate", request.currency, (ROLE_TAX_RATE,))
-        if not str(request.tax.value).strip():
-            raise WorkRequestCompileError(
-                "quote tax rate requires the taught rate value")
-        if not _same_money(request.tax.value, tax["value"]):
+            "quote tax rate", quote_currency, (ROLE_TAX_RATE,))
+        requested_tax = str(request.tax.value or "").strip()
+        if requested_tax and not _same_money(requested_tax, tax["value"]):
             raise WorkRequestCompileError(
                 f"quote tax rate {request.tax.value!r} does not match the "
                 f"accepted term {tax['value']!r}")
@@ -697,11 +701,9 @@ def _quote_patch(
     else:
         tax = _resolved_money(
             assignment, context, request.tax.authority_ref,
-            "quote tax amount", request.currency, (ROLE_TAX_AMOUNT,))
-        if not str(request.tax.value).strip():
-            raise WorkRequestCompileError(
-                "quote tax amount requires the taught amount value")
-        if not _same_money(request.tax.value, tax["value"]):
+            "quote tax amount", quote_currency, (ROLE_TAX_AMOUNT,))
+        requested_tax = str(request.tax.value or "").strip()
+        if requested_tax and not _same_money(requested_tax, tax["value"]):
             raise WorkRequestCompileError(
                 f"quote tax amount {request.tax.value!r} does not match the "
                 f"accepted term {tax['value']!r}")
@@ -712,6 +714,15 @@ def _quote_patch(
         "freight": dict(freight),
         "tax": dict(tax),
     }
+    teaching_snapshot = assignment.get("teaching_snapshot") or {}
+    for key, receipt_key in (
+        ("revision", "teaching_revision"),
+        ("fingerprint", "teaching_fingerprint"),
+        ("terms_digest", "terms_digest"),
+    ):
+        value = teaching_snapshot.get(key)
+        if value not in (None, ""):
+            term_receipt[receipt_key] = value
     map_id = _unique_id(assignment, "quote-lines")
     calc_id = _unique_id(assignment, "quote-total")
     patch = _base_patch(assignment, request, context)
@@ -726,7 +737,7 @@ def _quote_patch(
     map_inputs = {
         "rows": f"${{{request.source_step_id}.rows}}",
         "columns": columns,
-        "defaults": {"currency": request.currency},
+        "defaults": {"currency": quote_currency},
     }
     if discount_rules:
         patch["observations"].append({
