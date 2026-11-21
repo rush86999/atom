@@ -29,7 +29,8 @@ This guide covers deploying the Atom platform to production using Docker Compose
    cp .env.example .env
    # Edit .env and fill in required values:
    # - POSTGRES_PASSWORD (use a strong password)
-   # - JWT_SECRET_KEY (openssl rand -hex 32)
+   # - SECRET_KEY (openssl rand -hex 32; backend authentication/session signing)
+   #   JWT_SECRET_KEY remains a documented compatibility fallback when SECRET_KEY is unset.
    # - BYOK_ENCRYPTION_KEY (openssl rand -hex 32)
    # - NEXTAUTH_SECRET (openssl rand -hex 32; runtime web auth secret)
    # - AI provider keys (optional — LLM features disabled without; add via Settings > AI or .env)
@@ -130,7 +131,8 @@ This guide covers deploying the Atom platform to production using Docker Compose
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `POSTGRES_PASSWORD` | ✅ | Database password |
-| `JWT_SECRET_KEY` | ✅ | Authentication token signing |
+| `SECRET_KEY` | ✅ | Backend authentication/session signing secret. Generate with `openssl rand -hex 32`; the production Compose file passes it to the backend at container start |
+| `JWT_SECRET_KEY` | — | Documented compatibility fallback for `SECRET_KEY`. When `SECRET_KEY` is unset, the production Compose file passes `JWT_SECRET_KEY` as the backend's `SECRET_KEY`; prefer setting `SECRET_KEY` directly |
 | `BYOK_ENCRYPTION_KEY` | ✅ | AI key encryption |
 | `NEXTAUTH_SECRET` | ✅ | Web auth runtime secret; passed to the frontend at container start, never baked into the image |
 | `NEXT_PUBLIC_API_URL` | — | Browser-facing backend origin compiled into the frontend. Defaults to `http://localhost:8001` for the Compose example |
@@ -139,6 +141,11 @@ This guide covers deploying the Atom platform to production using Docker Compose
 | `OPENAI_API_KEY` | — | OpenAI API access (optional — LLM features disabled without) |
 | `ANTHROPIC_API_KEY` | — | Anthropic Claude access (optional) |
 | `TAVILY_API_KEY` | Optional | Web search capability |
+
+The backend signing secret is `SECRET_KEY`. At container start, the production
+Compose file resolves it from `SECRET_KEY` when provided, otherwise from the
+documented `JWT_SECRET_KEY` compatibility name; `SECRET_KEY` wins when both are
+set. Keep the same secret across restarts and backend replicas.
 
 `BACKEND_URL` is fixed to `http://atom-backend:8000` by the production Compose
 file for container-to-container server requests; it is not the browser-facing
@@ -176,7 +183,10 @@ are compiled into the browser bundle.
   runbook](../deployment/DEPLOYMENT_RUNBOOK.md#step-2-run-database-migrations)
   for the full fresh-install rehearsal.
 
-- Frontend: `curl -fsS http://localhost:3000`
+- Frontend: `curl -fsS http://localhost:3000/api/health`
+
+  `/api/health` is public and reports this frontend HTTP service directly; it
+  does not require a session or call the backend.
 
 ## Scaling
 
