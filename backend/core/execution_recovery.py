@@ -12,6 +12,16 @@ The workflow engine already has resume-skip logic
 (workflow_engine.py:614, :253) for the future auto-resume path, but that
 should only be enabled once steps declare idempotency.
 
+WORKFLOW EVENT RUNS
+Rows whose execution id starts with ``evt_`` are dispatched event actions.
+They are never replayed by this sweep. A claimed event row is reconciled only
+when the claim/admission records an owner that ``owner_liveness`` can VERIFY
+DEAD; the resulting marker says the action outcome is
+``action-outcome-uncertain`` and requires reconciliation. A live, self,
+cross-host or UNKNOWN owner is left ``RUNNING`` and reported, as is every
+claimed event row for which no ownership stamp exists. Requeueing PENDING
+event rows belongs to the separate dispatcher, not to this startup sweep.
+
 A row whose owner is VERIFIED ALIVE is left alone, and a row whose ownership
 cannot be established is also left alone -- this sweep must never fail another
 live worker's execution, and "I cannot see who owns this" is not evidence that it
@@ -44,12 +54,17 @@ import json
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from core.database import SessionLocal
+from core.execution_state_manager import (
+    EVENT_CLAIM_CONTEXT_KEY,
+    decode_json_object,
+    is_event_execution_id,
+)
 from core.models import (
     AgentExecution,
     AgentJob,
@@ -68,6 +83,13 @@ logger = logging.getLogger(__name__)
 RECOVERY_ENABLED = os.getenv("ATOM_EXECUTION_RECOVERY_ENABLED", "true").lower() == "true"
 
 _CRASH_ERROR_MESSAGE = "Process restarted while execution was running (crashed)"
+
+#: Workflow-event rows use a reserved id prefix and a server-owned admission
+#: record in the existing JSON ``context`` column. They are recovered on the
+#: same sweep, but with an explicit "outcome may already have happened" marker
+#: instead of the ordinary crash verdict. No migration is required.
+EVENT_ACTION_OUTCOME_UNCERTAIN = "action-outcome-uncertain"
+
 
 #: Chain statuses that are already resolved. A chain in one of these states has
 #: nothing left to recover, even if it still points at a dead root execution.
@@ -100,10 +122,130 @@ _SAFE_REGISTRY_PRIOR_STATUSES = frozenset({
 })
 
 
-def _recover_workflow_executions(session: Session) -> int:
-    """Mark orphaned RUNNING WorkflowExecution rows as FAILED.
+def _owner_dict(value: Any) -> Any:
+    """Normalize a persisted ownership value, tolerating JSON-string form."""
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except (ValueError, TypeError):
+            return None
+    return dict(value) if isinstance(value, dict) else None
 
-    Returns the count recovered.
+
+def _event_claim_owner(context: Dict[str, Any]) -> Tuple[Any, Any]:
+    """Locate the owner recorded by the event claim itself.
+
+    There is exactly one claim context path: ``_atom_event_claim``.  An
+    admission record may describe who admitted the run, but it is not proof of
+    which process currently owns it.  No claim entry means UNKNOWN, not dead.
+    """
+    owner = _owner_dict(context.get(EVENT_CLAIM_CONTEXT_KEY))
+    if owner and owner.get("pid"):
+        return owner, "claim"
+    return None, None
+
+
+def _event_owner_verdict(owner: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+    """Run the normal ownership liveness check for one claimed event owner."""
+    try:
+        from core.execution_ownership import owner_liveness
+    except Exception as exc:  # noqa: BLE001
+        return "unknown", {
+            "reason": f"ownership-dependency-unavailable: {exc}",
+        }
+    try:
+        state, info = owner_liveness({"owner": owner})
+    except Exception as exc:  # noqa: BLE001
+        return "unknown", {"reason": f"ownership-check-failed: {exc}"}
+    if not isinstance(info, dict):
+        info = {}
+    return state, info
+
+
+def _mark_event_execution_reconciled(
+    session: Session, row: WorkflowExecution, now: datetime, owner_state: str,
+    owner_info: Dict[str, Any], owner_source: Any,
+    observed_context: Any, observed_version: Any,
+) -> bool:
+    """Fail one event run while explicitly preserving action-outcome doubt.
+
+    Event actions are external side effects.  A worker that finds a verified
+    dead owner cannot know whether the action landed, so the recovery marker
+    says so instead of implying a clean crash or scheduling a replay.
+
+    The verdict is followed by the sweep's commit, so this transition is a
+    single conditional UPDATE rather than an ORM attribute write.  It matches
+    the exact execution id, observed RUNNING status, observed version and exact
+    observed context.  A concurrent product action (such as cancellation) that
+    commits while the liveness verdict is in flight therefore wins: its row is
+    not rewritten, its version is not replaced and the sweep does not count a
+    recovery.  Returns whether this update won.
+    """
+    ctx = decode_json_object(observed_context)
+    marker = {
+        "crashed": True,
+        "recovered_at": now.isoformat(),
+        "action_outcome": "uncertain",
+        "action_outcome_uncertain": True,
+        "action_outcome_status": EVENT_ACTION_OUTCOME_UNCERTAIN,
+        "outcome": "uncertain",
+        "status": EVENT_ACTION_OUTCOME_UNCERTAIN,
+        "reason": EVENT_ACTION_OUTCOME_UNCERTAIN,
+        "requires_reconciliation": True,
+        "next_action": "reconcile_operation",
+        "event": True,
+        "owner_state": owner_state,
+        "owner_source": owner_source,
+    }
+    for key in ("pid", "host", "token"):
+        if owner_info.get(key) is not None:
+            marker[key] = owner_info.get(key)
+    ctx["recovery"] = marker
+    # A second, event-namespaced copy makes the uncertainty machine-readable
+    # without forcing readers of the generic ``recovery`` marker to know about
+    # event runs.
+    ctx["_atom_event_recovery"] = dict(marker)
+
+    conditions = [
+        WorkflowExecution.execution_id == row.execution_id,
+        WorkflowExecution.status == WorkflowExecutionStatus.RUNNING.value,
+        WorkflowExecution.version == observed_version,
+    ]
+    if observed_context is None:
+        conditions.append(WorkflowExecution.context.is_(None))
+    elif not isinstance(observed_context, (dict, list)):
+        conditions.append(WorkflowExecution.context == observed_context)
+
+    result = session.execute(
+        update(WorkflowExecution)
+        .where(*conditions)
+        .values(
+            status=WorkflowExecutionStatus.FAILED.value,
+            error=_CRASH_ERROR_MESSAGE,
+            completed_at=now,
+            context=json.dumps(ctx),
+            version=WorkflowExecution.version + 1,
+        )
+    )
+    return result.rowcount == 1
+
+
+def _recover_workflow_executions(
+    session: Session, event_report: Optional[Dict[str, Any]] = None,
+) -> int:
+    """Reconcile orphaned RUNNING WorkflowExecution rows.
+
+    Manual/cron rows keep the original sweep behaviour: a RUNNING row at
+    startup is failed with the crash marker.  Event rows are different: their
+    action may be an external side effect owned by another live worker.  They
+    are reconciled only when the claim/admission records a VERIFIED dead owner;
+    a live, self, cross-host or otherwise UNKNOWN owner is left RUNNING and
+    reported.  When no owner was recorded at all, the row is left for explicit
+    reconciliation and the dependency on a dispatcher/ownership stamp is
+    reported instead of treating "this process just started" as proof of death.
+
+    Returns the count recovered.  When ``event_report`` is supplied it receives
+    the event-specific counts and deferred-row details for the caller.
     """
     rows = (
         session.query(WorkflowExecution)
@@ -112,22 +254,74 @@ def _recover_workflow_executions(session: Session) -> int:
     )
     now = datetime.now(timezone.utc)
     recovered = 0
+    event_recovered = 0
+    event_left: List[Dict[str, Any]] = []
+
     for row in rows:
+        if is_event_execution_id(row.execution_id):
+            # Capture the row as observed before the liveness verdict; the CAS
+            # below must compare against this exact state, not anything a
+            # concurrent writer may have done while the verdict was running.
+            observed_context = row.context
+            observed_version = row.version
+            ctx = decode_json_object(observed_context)
+            owner, owner_source = _event_claim_owner(ctx)
+            if owner is None:
+                event_left.append({
+                    "execution_id": row.execution_id,
+                    "owner_state": "unknown",
+                    "reason": "event-owner-not-recorded",
+                    "owner_source": None,
+                    "requires_reconciliation": True,
+                })
+                continue
+            owner_state, owner_info = _event_owner_verdict(owner)
+            if owner_state != "dead":
+                # Do not fail another active worker merely because this process
+                # started.  UNKNOWN is not dead either.
+                event_left.append({
+                    "execution_id": row.execution_id,
+                    "owner_state": owner_state,
+                    "owner_source": owner_source,
+                    "requires_reconciliation": owner_state == "unknown",
+                    **owner_info,
+                })
+                continue
+            # Only count the row when the CAS won.  If a product action already
+            # moved it out of RUNNING, that later state is authoritative.
+            if _mark_event_execution_reconciled(
+                session, row, now, owner_state, owner_info, owner_source,
+                observed_context, observed_version,
+            ):
+                event_recovered += 1
+                recovered += 1
+            continue
+
+        # Manual/cron path: unchanged semantics.
         row.status = WorkflowExecutionStatus.FAILED.value
         row.error = _CRASH_ERROR_MESSAGE
         row.completed_at = now
         # Stamp a recovery marker in context (JSON-stored) so operators can
         # distinguish crash-recovered failures from genuine logic failures.
-        ctx = {}
-        if row.context:
-            try:
-                ctx = json.loads(row.context) if isinstance(row.context, str) else dict(row.context)
-            except (ValueError, TypeError):
-                ctx = {}
+        ctx = decode_json_object(row.context)
         ctx.setdefault("recovery", {})
         ctx["recovery"] = {"crashed": True, "recovered_at": now.isoformat()}
         row.context = json.dumps(ctx)
         recovered += 1
+
+    if event_report is not None:
+        dependency = any(
+            row.get("reason") == "event-owner-not-recorded"
+            or row.get("owner_state") == "unknown"
+            for row in event_left
+        )
+        event_report.update({
+            "workflow_event_recovered": event_recovered,
+            "workflow_event_left_running": len(event_left),
+            "workflow_event_detail": event_left,
+            "workflow_event_ownership_dependency": dependency,
+            "workflow_event_reconciliation_required": bool(event_left),
+        })
     return recovered
 
 
@@ -682,6 +876,13 @@ def reconcile_orphaned_executions() -> dict:
            "fleet_chains_recovered": int, "fleet_links_reconciled": int,
            "fleet_chain_scope_skipped": [...],
            "chat_requests_released": int, "enabled": bool}``
+
+        Event-run additions: ``workflow_event_recovered`` (uncertain outcomes
+        reconciled), ``workflow_event_left_running`` / ``workflow_event_detail``
+        (left for explicit reconciliation),
+        ``workflow_event_ownership_dependency`` and
+        ``workflow_event_reconciliation_required``.  The separate dispatcher
+        owns requeueing PENDING rows; this startup sweep never does that.
     """
     if not RECOVERY_ENABLED:
         logger.info("Execution recovery disabled (ATOM_EXECUTION_RECOVERY_ENABLED=false)")
@@ -691,11 +892,18 @@ def reconcile_orphaned_executions() -> dict:
                 "agent_unknown_owner": 0, "agent_unknown_detail": [],
                 "fleet_chains_recovered": 0, "fleet_links_reconciled": 0,
                 "fleet_chain_scope_skipped": [],
+                "workflow_event_recovered": 0,
+                "workflow_event_left_running": 0,
+                "workflow_event_detail": [],
+                "workflow_event_ownership_dependency": False,
+                "workflow_event_reconciliation_required": False,
                 "chat_requests_released": 0, "enabled": False}
 
     session: Session = SessionLocal()
+    event_report: Dict[str, Any] = {}
     try:
-        wf_count = _recover_workflow_executions(session)
+        wf_count = _recover_workflow_executions(
+            session, event_report=event_report)
         (agent_count, untouched, untouched_detail,
          unknown, recovered_ids) = _recover_agent_executions(session)
         job_count = _recover_agent_jobs(session)
@@ -703,17 +911,21 @@ def reconcile_orphaned_executions() -> dict:
          chain_scope_skipped) = _recover_fleet_chains(session, recovered_ids)
         released = _release_crashed_chat_requests(session, recovered_ids)
         session.commit()
+        event_recovered = event_report.get("workflow_event_recovered", 0)
+        event_left = event_report.get("workflow_event_detail", [])
         if (wf_count or agent_count or job_count or released
-                or chain_count or link_count):
+                or chain_count or link_count or event_recovered):
             logger.warning(
-                f"Crash recovery: reconciled {wf_count} workflow execution(s), "
+                f"Crash recovery: reconciled {wf_count} workflow execution(s) "
+                f"({event_recovered} event action(s) with UNCERTAIN outcomes), "
                 f"{agent_count} agent execution(s) and {job_count} agent job(s) "
                 f"with a VERIFIED dead owner; "
                 f"failed {chain_count} fleet delegation chain(s) and "
                 f"{link_count} non-terminal chain link(s) bound to them; "
                 f"released {released} in-progress chat request(s); left "
-                f"{untouched} alone (live owner) and {len(unknown)} UNKNOWN "
-                f"(ownership not established -- not touched, not declared crashed)"
+                f"{untouched} alone (live owner), {len(unknown)} UNKNOWN "
+                f"(ownership not established) and {len(event_left)} event "
+                f"row(s) for explicit reconciliation"
             )
         else:
             # "no orphaned executions found" is only true when there was nothing
@@ -722,7 +934,7 @@ def reconcile_orphaned_executions() -> dict:
             # could not see why a killed continuation's row stayed `running`:
             # the sweep reported success while a running row sat right there.
             # Name the rows and the verdict for each.
-            if untouched or unknown:
+            if untouched or unknown or event_left:
                 # `untouched` is a COUNT; the rows themselves are in
                 # `untouched_detail` / `unknown`. Formatting the count as if it
                 # were the list raised TypeError inside the sweep, which the
@@ -732,9 +944,10 @@ def reconcile_orphaned_executions() -> dict:
                 logger.warning(
                     f"Crash recovery: no executions reconciled, but "
                     f"{untouched} running execution(s) were LEFT ALONE "
-                    f"(live owner) and {len(unknown)} are UNKNOWN (ownership "
-                    f"not established): "
-                    f"live={untouched_detail[:5]} unknown={unknown[:5]}"
+                    f"(live owner), {len(unknown)} are UNKNOWN (ownership "
+                    f"not established) and {len(event_left)} event row(s) "
+                    f"await explicit reconciliation: live={untouched_detail[:5]} "
+                    f"unknown={unknown[:5]} events={event_left[:5]}"
                 )
             else:
                 logger.info("Crash recovery: no orphaned executions found")
@@ -747,6 +960,16 @@ def reconcile_orphaned_executions() -> dict:
                     "declared crashed: execution=%s reason=%s owner=%s",
                     row.get("execution_id"), row.get("reason"),
                     {k: row.get(k) for k in ("pid", "host", "token")})
+        for row in event_left:
+            # A claimed event row is not replayed and is not failed on the
+            # strength of "this process started".  Name it so the separate
+            # dispatcher/reconciler can decide with the action-outcome context.
+            logger.warning(
+                "Crash recovery: event execution %s left RUNNING for explicit "
+                "reconciliation (owner_state=%s owner_source=%s reason=%s)",
+                row.get("execution_id"), row.get("owner_state"),
+                row.get("owner_source"), row.get("reason"),
+            )
         for row in chain_scope_skipped:
             # A durable id matched but the recorded scope did not. Failing the
             # chain across that boundary would be a cross-tenant write on the
@@ -771,6 +994,16 @@ def reconcile_orphaned_executions() -> dict:
             "fleet_links_reconciled": link_count,
             "fleet_chain_scope_skipped": chain_scope_skipped,
             "chat_requests_released": released,
+            "workflow_event_recovered": event_report.get(
+                "workflow_event_recovered", 0),
+            "workflow_event_left_running": event_report.get(
+                "workflow_event_left_running", 0),
+            "workflow_event_detail": event_report.get(
+                "workflow_event_detail", []),
+            "workflow_event_ownership_dependency": event_report.get(
+                "workflow_event_ownership_dependency", False),
+            "workflow_event_reconciliation_required": event_report.get(
+                "workflow_event_reconciliation_required", False),
             "enabled": True,
         }
     except Exception as e:
@@ -782,6 +1015,11 @@ def reconcile_orphaned_executions() -> dict:
                 "agent_unknown_owner": 0, "agent_unknown_detail": [],
                 "fleet_chains_recovered": 0, "fleet_links_reconciled": 0,
                 "fleet_chain_scope_skipped": [],
+                "workflow_event_recovered": 0,
+                "workflow_event_left_running": 0,
+                "workflow_event_detail": [],
+                "workflow_event_ownership_dependency": False,
+                "workflow_event_reconciliation_required": False,
                 "chat_requests_released": 0, "enabled": True, "error": str(e)}
     finally:
         session.close()

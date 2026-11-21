@@ -9,6 +9,7 @@ Handles the execution of workflows with support for:
 """
 
 import asyncio
+import copy
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 from datetime import datetime, timezone
@@ -16,7 +17,7 @@ import logging
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 import uuid
 import httpx
 import jsonschema
@@ -1148,6 +1149,139 @@ class WorkflowEngine:
 
         # Resume execution — strong ref to prevent GC cancellation
         task = asyncio.create_task(self._run_execution(execution_id, workflow))
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        return True
+
+    async def launch_reserved_event_execution(
+        self,
+        execution_id: str,
+        state: Dict[str, Any],
+        dispatch_preflight: Callable[
+            [str, Dict[str, Any], Dict[str, Any]], Awaitable[bool]
+        ],
+    ) -> bool:
+        """Launch an already-reserved event execution exactly once.
+
+        The execution row and its workflow snapshot are created by the event
+        reservation path. This entry never creates another row, never accepts a
+        caller-chosen workflow, and performs no engine effect (claim, event
+        publish, or run dispatch) until the exact PENDING receipt has been
+        validated and the trusted preflight has approved the dispatch.
+
+        ``state`` is the already-loaded execution state. The receipt must live
+        under ``context._atom_event_admission`` and name this exact ``evt_``
+        execution id and the state's workflow id; its ``workflow_snapshot`` is
+        the only workflow this entry will launch.
+        """
+        if not isinstance(state, dict):
+            return False
+
+        token = str(execution_id or "").strip()
+        if not token.startswith("evt_"):
+            logger.warning(
+                "reserved event execution %s: not a reserved event id", token)
+            return False
+
+        if str(state.get("execution_id") or "").strip() != token:
+            logger.warning(
+                "reserved event execution %s: state execution id mismatch",
+                token)
+            return False
+
+        if str(state.get("status") or "").strip() != "PENDING":
+            logger.warning(
+                "reserved event execution %s: execution is not pending", token)
+            return False
+
+        context = state.get("context")
+        if isinstance(context, str):
+            try:
+                context = json.loads(context)
+            except (TypeError, ValueError):
+                context = None
+        admission = (
+            context.get("_atom_event_admission")
+            if isinstance(context, dict) else None)
+        if not isinstance(admission, dict):
+            logger.warning(
+                "reserved event execution %s: missing event admission", token)
+            return False
+
+        if str(admission.get("execution_id") or "").strip() != token:
+            logger.warning(
+                "reserved event execution %s: admission execution id mismatch",
+                token)
+            return False
+
+        workflow_id = str(state.get("workflow_id") or "").strip()
+        admission_workflow_id = str(
+            admission.get("workflow_id") or "").strip()
+        if (not workflow_id or not admission_workflow_id
+                or workflow_id != admission_workflow_id):
+            logger.warning(
+                "reserved event execution %s: workflow id mismatch", token)
+            return False
+
+        snapshot = admission.get("workflow_snapshot")
+        if not isinstance(snapshot, dict):
+            logger.warning(
+                "reserved event execution %s: missing workflow snapshot", token)
+            return False
+
+        # Copy before graph conversion so adding steps never mutates the frozen
+        # reservation material.
+        workflow = copy.deepcopy(snapshot)
+        snapshot_workflow_id = str(
+            workflow.get("id") or workflow.get("workflow_id") or "").strip()
+        if snapshot_workflow_id and snapshot_workflow_id != workflow_id:
+            logger.warning(
+                "reserved event execution %s: workflow snapshot mismatch",
+                token)
+            return False
+        workflow["id"] = workflow_id
+
+        if "steps" not in workflow and "nodes" in workflow:
+            try:
+                workflow["steps"] = self._convert_nodes_to_steps(workflow)
+            except Exception as exc:  # noqa: BLE001 — reject before any effect
+                logger.warning(
+                    "reserved event execution %s: invalid workflow graph: %s",
+                    token, exc)
+                return False
+
+        # Preflight runs before the claim. A refused or failed preflight must
+        # leave the reservation untouched.
+        try:
+            approved = await dispatch_preflight(token, state, workflow)
+        except Exception as exc:  # noqa: BLE001 — fail closed before claim
+            logger.warning(
+                "reserved event execution %s: dispatch preflight failed: %s",
+                token, exc)
+            return False
+        if not approved:
+            logger.info(
+                "reserved event execution %s: dispatch preflight rejected",
+                token)
+            return False
+
+        try:
+            claimed = await self.state_manager.claim_event_execution(token)
+        except Exception as exc:  # noqa: BLE001 — claim failure is not a launch
+            logger.warning(
+                "reserved event execution %s: claim failed: %s", token, exc)
+            return False
+        if not claimed:
+            # Another caller already owns the single dispatch; emit nothing.
+            return False
+
+        # Only the claim winner reaches this point. Reuse the existing runner
+        # so task-profile binding and never-autonomous admission still run.
+        self._publish_orchestration_event(
+            "WORKFLOW_STARTED", workflow_id, token,
+            data={"step_count": len(workflow.get("steps", []))},
+        )
+        task = asyncio.create_task(self._run_execution(token, workflow))
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
         return True
