@@ -92,6 +92,9 @@ interface WorkflowNodeConnection {
   id: string;
   source: string;
   target: string;
+  // The backend treats this as an optional, opaque string. It is not parsed or
+  // converted into an event contract here.
+  condition?: string;
 }
 
 interface WorkflowNodeDefinition {
@@ -104,10 +107,22 @@ interface WorkflowNodeDefinition {
   connections?: WorkflowNodeConnection[];
 }
 
+// Persisted audit entries returned by the v1 workflow GET/PUT responses.
+// The backend owns these values; the UI only renders them.
+interface WorkflowCorrection {
+  who?: string;
+  when?: string;
+  reason?: string;
+  before_revision?: number | string;
+  after_revision?: number | string;
+}
+
 interface WorkflowDefinition {
   id: string;
   name: string;
   description: string;
+  version?: string;
+  revision?: number | string;
   created_from_template?: string;
   steps: WorkflowStep[];
   input_schema: any;
@@ -116,7 +131,245 @@ interface WorkflowDefinition {
   steps_count?: number;
   nodes?: WorkflowNodeDefinition[];
   connections?: WorkflowNodeConnection[];
+  // Persisted values are owned by the backend; keep them verbatim when an
+  // existing graph is reused. Triggers are a string array, not event objects.
+  triggers?: string[];
+  enabled?: boolean;
+  corrections?: WorkflowCorrection[];
 }
+
+const isRecord = (value: any): value is Record<string, any> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value);
+
+// Normalize only the fields the workflow audit contract declares. Missing
+// fields stay missing so the UI can show a neutral fallback instead of
+// inventing sample history.
+const normalizeWorkflowCorrections = (value: any): WorkflowCorrection[] => {
+  if (!Array.isArray(value)) return [];
+  return value.filter(isRecord).map((entry) => ({
+    who: typeof entry.who === 'string' ? entry.who : undefined,
+    when: typeof entry.when === 'string' ? entry.when : undefined,
+    reason: typeof entry.reason === 'string' ? entry.reason : undefined,
+    before_revision: entry.before_revision,
+    after_revision: entry.after_revision,
+  }));
+};
+
+// The contract field is `corrections`; accept the obvious history aliases so a
+// persisted audit payload is not silently dropped if the server names the
+// collection differently. An absent collection stays undefined so callers can
+// distinguish "not returned" from "returned empty".
+const getPersistedWorkflowCorrections = (
+  data: any
+): WorkflowCorrection[] | undefined => {
+  if (!isRecord(data)) return undefined;
+  const candidates = [
+    data.corrections,
+    data.correction_history,
+    data.change_history,
+  ];
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) {
+      return normalizeWorkflowCorrections(candidate);
+    }
+  }
+  return undefined;
+};
+
+const formatCorrectionValue = (
+  value: number | string | undefined
+): string =>
+  value === undefined || value === null || value === ''
+    ? 'Unknown'
+    : String(value);
+
+// Builder node data is intentionally flat (label/service/action plus the
+// action's parameter values), but older/other callers may also supply a nested
+// `parameters` bag and/or a `config` object edited by NodeConfigSidebar.
+const BUILDER_DATA_META_KEYS = new Set([
+  'id',
+  'label',
+  'description',
+  'service',
+  'serviceId',
+  'action',
+  'config',
+  'parameters',
+  '_workflowId',
+  '_analytics',
+]);
+
+// The execution engine reads these at the config root (not as action inputs),
+// so they must survive a builder round-trip without being folded into
+// `parameters`.
+const ROOT_CONFIG_META_KEYS = new Set([
+  'continue_on_error',
+  'timeout',
+  'input_schema',
+  'output_schema',
+]);
+
+const mergeParameterRecords = (
+  ...sources: Array<Record<string, any> | undefined>
+): Record<string, any> => {
+  const merged: Record<string, any> = {};
+  sources.forEach((source) => {
+    if (!isRecord(source)) return;
+    Object.keys(source).forEach((key) => {
+      if (source[key] !== undefined) merged[key] = source[key];
+    });
+  });
+  return merged;
+};
+
+const getBuilderNodeParameters = (data: any): Record<string, any> => {
+  if (!isRecord(data)) return {};
+
+  const flat: Record<string, any> = {};
+  Object.keys(data).forEach((key) => {
+    if (
+      !BUILDER_DATA_META_KEYS.has(key) &&
+      !ROOT_CONFIG_META_KEYS.has(key) &&
+      data[key] !== undefined
+    ) {
+      flat[key] = data[key];
+    }
+  });
+
+  const explicitParameters = isRecord(data.parameters) ? data.parameters : {};
+  const nestedConfig = isRecord(data.config) ? data.config : {};
+  const nestedParameters = isRecord(nestedConfig.parameters)
+    ? nestedConfig.parameters
+    : {};
+  const configFields: Record<string, any> = {};
+  Object.keys(nestedConfig).forEach((key) => {
+    if (
+      key !== 'parameters' &&
+      key !== 'service' &&
+      key !== 'action' &&
+      key !== 'description' &&
+      !ROOT_CONFIG_META_KEYS.has(key)
+    ) {
+      configFields[key] = nestedConfig[key];
+    }
+  });
+
+  // The nested config (edited most recently by the sidebar) wins over any
+  // stale flat copies left on the node.
+  return mergeParameterRecords(flat, explicitParameters, nestedParameters, configFields);
+};
+
+const getBuilderNodeService = (data: any): any =>
+  isRecord(data?.config) && data.config.service !== undefined
+    ? data.config.service
+    : data?.service;
+
+const getBuilderNodeAction = (data: any): any =>
+  isRecord(data?.config) && data.config.action !== undefined
+    ? data.config.action
+    : data?.action;
+
+const getBuilderNodeDescription = (data: any): string =>
+  data?.description ??
+  (isRecord(data?.config) ? data.config.description : undefined) ??
+  '';
+
+const getBuilderNodeRootConfig = (data: any): Record<string, any> => {
+  if (!isRecord(data)) return {};
+  const nestedConfig = isRecord(data.config) ? data.config : {};
+  const rootConfig: Record<string, any> = {};
+  ROOT_CONFIG_META_KEYS.forEach((key) => {
+    if (nestedConfig[key] !== undefined) {
+      rootConfig[key] = nestedConfig[key];
+    } else if (data[key] !== undefined) {
+      rootConfig[key] = data[key];
+    }
+  });
+  return rootConfig;
+};
+
+const builderNodeToSavedConfig = (data: any): Record<string, any> => {
+  const service = getBuilderNodeService(data);
+  const action = getBuilderNodeAction(data);
+  return {
+    ...(service !== undefined ? { service } : {}),
+    ...(action !== undefined ? { action } : {}),
+    ...getBuilderNodeRootConfig(data),
+    parameters: getBuilderNodeParameters(data),
+  };
+};
+
+const savedNodeToBuilderNode = (node: WorkflowNodeDefinition): any => {
+  const config = isRecord(node.config) ? node.config : {};
+  const nestedParameters = isRecord(config.parameters) ? config.parameters : {};
+  const flatParameters: Record<string, any> = {};
+  Object.keys(config).forEach((key) => {
+    if (key !== 'parameters' && key !== 'service' && key !== 'action' && key !== 'description') {
+      flatParameters[key] = config[key];
+    }
+  });
+
+  const service = config.service ?? nestedParameters.service;
+  const action = config.action ?? nestedParameters.action;
+  const description = node.description ?? config.description ?? '';
+
+  return {
+    id: node.id,
+    type: node.type,
+    position: node.position || { x: 250, y: 0 },
+    data: {
+      ...mergeParameterRecords(nestedParameters, flatParameters),
+      label: node.title ?? node.id,
+      description,
+      ...(service !== undefined ? { service } : {}),
+      ...(action !== undefined ? { action } : {}),
+    },
+  };
+};
+
+const savedConnectionToBuilderEdge = (connection: WorkflowNodeConnection): any => {
+  const edge: any = {
+    id: connection.id,
+    source: connection.source,
+    target: connection.target,
+    type: 'addStepEdge',
+  };
+
+  const originalData = isRecord((connection as any).data)
+    ? (connection as any).data
+    : undefined;
+  const condition =
+    typeof connection.condition === 'string'
+      ? connection.condition
+      : typeof originalData?.condition === 'string'
+        ? originalData.condition
+        : undefined;
+
+  if (originalData || condition !== undefined) {
+    edge.data = {
+      ...(originalData || {}),
+      ...(condition !== undefined ? { condition } : {}),
+    };
+  }
+  return edge;
+};
+
+const builderEdgeToSavedConnection = (edge: any): WorkflowNodeConnection => {
+  const connection: WorkflowNodeConnection = {
+    id: edge.id,
+    source: edge.source,
+    target: edge.target,
+  };
+  const condition =
+    typeof edge?.data?.condition === 'string'
+      ? edge.data.condition
+      : typeof edge?.condition === 'string'
+        ? edge.condition
+        : undefined;
+
+  if (condition !== undefined) connection.condition = condition;
+  return connection;
+};
 
 interface WorkflowExecution {
   execution_id: string;
@@ -170,6 +423,17 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
 
   const [builderInitialData, setBuilderInitialData] = useState<any>(null); // For AI generated workflows
   const [genPrompt, setGenPrompt] = useState("");
+  // Same-ID editing is explicit: a workflow opened with the card Edit action is
+  // updated in place, while fresh/AI/template/Run-to-builder paths stay creates.
+  const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null);
+  const [editingRevision, setEditingRevision] = useState<number | string | null>(null);
+  const [changeHistory, setChangeHistory] = useState<WorkflowCorrection[]>([]);
+  const [savingWorkflow, setSavingWorkflow] = useState(false);
+  const [builderSaveError, setBuilderSaveError] = useState<string | null>(null);
+  const [builderSaveConflict, setBuilderSaveConflict] = useState(false);
+  const [builderLoadKey, setBuilderLoadKey] = useState(0);
+  const saveInFlightRef = useRef(false);
+  const editSessionRef = useRef(0);
 
   // [Lesson 3] Time-Travel State
   const [isForkModalOpen, setIsForkModalOpen] = useState(false);
@@ -197,6 +461,12 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
         { id: 'e2-3', source: '2', target: '3' }
       ];
 
+      editSessionRef.current += 1;
+      setEditingWorkflowId(null);
+      setEditingRevision(null);
+      setChangeHistory([]);
+      setBuilderSaveError(null);
+      setBuilderSaveConflict(false);
       setBuilderInitialData({ nodes: generatedNodes, edges: generatedEdges });
       setViewMode("builder");
       toast({ title: "Workflow Generated", description: "AI created a draft workflow based on your prompt." });
@@ -296,6 +566,12 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
 
   useEffect(() => {
     if (triggerNew && triggerNew > 0) {
+      editSessionRef.current += 1;
+      setEditingWorkflowId(null);
+      setEditingRevision(null);
+      setChangeHistory([]);
+      setBuilderSaveError(null);
+      setBuilderSaveConflict(false);
       setBuilderInitialData(null);
       setSelectedWorkflow(null);
       setViewMode('builder');
@@ -306,6 +582,12 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
     if (draft) {
       try {
         const draftData = JSON.parse(draft as string);
+        editSessionRef.current += 1;
+        setEditingWorkflowId(null);
+        setEditingRevision(null);
+        setChangeHistory([]);
+        setBuilderSaveError(null);
+        setBuilderSaveConflict(false);
         setBuilderInitialData(draftData);
         setViewMode("builder");
         toast({ title: "Draft Loaded", description: "Loaded workflow from chat." });
@@ -334,66 +616,165 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
     }
   }, [activeExecution, executions]);
 
-  const handleBuilderSave = async (builderData: { nodes: any[]; edges: any[] }) => {
+  const handleBuilderSave = async (
+    builderData: { nodes: any[]; edges: any[] },
+    saveOptions?: { reason?: string } | string
+  ) => {
+    // A pending save must not be duplicated by a second click or a second
+    // callback from the canvas.
+    if (saveInFlightRef.current) return;
+    saveInFlightRef.current = true;
+
+    const editSession = editSessionRef.current;
+    const isSameIdEdit = Boolean(editingWorkflowId);
+    const requestId = editingWorkflowId;
+    const requestRevision = editingRevision;
+    const reason =
+      (typeof saveOptions === 'string'
+        ? saveOptions
+        : saveOptions?.reason || ''
+      ).trim() || 'Updated via Visual Builder';
+
     try {
-      setLoading(true);
+      setSavingWorkflow(true);
+      setBuilderSaveError(null);
+      setBuilderSaveConflict(false);
       const generatedName = `Visual Workflow ${new Date().toLocaleTimeString()}`;
 
-      // Persist to the REAL workflow store (POST /api/v1/workflows/workflows →
-      // save_workflows, durable JSON). The v1 create endpoint accepts the
-      // node-based WorkflowDefinition shape ({nodes, connections}), which maps
-      // directly from the builder output — and "My Workflows" (same store) will
-      // show it. Previously this wrote to the in-memory MOCK_WORKFLOWS, so saved
-      // workflows never appeared in the list and were lost on restart/worker.
+      // Persist to the REAL workflow store. Existing visual workflows loaded
+      // from the card Edit action are updated in place with PUT on that exact
+      // resource (optimistic revision); fresh/AI/template/Run-to-builder paths
+      // keep using the create endpoint.
       const token = localStorage.getItem('auth_token');
       const nodes = (builderData.nodes || []).map((n: any) => ({
         id: n.id,
         type: n.type,
         title: n.data?.label || n.id,
-        description: n.data?.description || "",
+        description: getBuilderNodeDescription(n.data),
         position: n.position || { x: 0, y: 0 },
-        config: {
-          service: n.data?.service,
-          action: n.data?.action,
-          ...(n.data?.parameters || {}),
-        },
+        config: builderNodeToSavedConfig(n.data),
         connections: [] as WorkflowNodeConnection[],
       }));
-      const connections = (builderData.edges || []).map((e: any) => ({
-        id: e.id,
-        source: e.source,
-        target: e.target,
-      }));
+      const connections = (builderData.edges || []).map(builderEdgeToSavedConnection);
 
-      const response = await fetch("/api/v1/workflows/workflows", {
-        method: "POST",
+      // A reused graph is passed through `initialData` from `selectedWorkflow`
+      // (without a separate draft). In that case preserve the persisted
+      // workflow settings exactly; a fresh canvas keeps the safe defaults.
+      const reusingSavedGraph = Boolean(selectedWorkflow) && !builderInitialData;
+      const savedTriggers =
+        reusingSavedGraph && Array.isArray(selectedWorkflow?.triggers)
+          ? selectedWorkflow!.triggers
+          : [];
+      const savedEnabled =
+        reusingSavedGraph && typeof selectedWorkflow?.enabled === 'boolean'
+          ? selectedWorkflow!.enabled
+          : true;
+      const savedName = isSameIdEdit
+        ? selectedWorkflow?.name || generatedName
+        : generatedName;
+      const savedDescription = isSameIdEdit
+        ? selectedWorkflow?.description || ''
+        : "Created via Visual Builder";
+      const savedVersion = isSameIdEdit
+        ? selectedWorkflow?.version || "1.0"
+        : "1.0";
+
+      const payload: Record<string, any> = {
+        ...(isSameIdEdit
+          ? { revision: requestRevision, reason }
+          : {}),
+        name: savedName,
+        description: savedDescription,
+        version: savedVersion,
+        nodes,
+        connections,
+        triggers: savedTriggers,
+        enabled: savedEnabled,
+      };
+
+      const url = isSameIdEdit
+        ? `/api/v1/workflows/workflows/${encodeURIComponent(requestId!)}`
+        : "/api/v1/workflows/workflows";
+      const response = await fetch(url, {
+        method: isSameIdEdit ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          name: generatedName,
-          description: "Created via Visual Builder",
-          version: "1.0",
-          nodes,
-          connections,
-          triggers: [],
-          enabled: true,
-        }),
+        body: JSON.stringify(payload),
       });
-      const data = await response.json();
-      if (data.id) {
-        toast({
-          title: "Workflow Saved",
-          description: "Your visual workflow has been saved to the database.",
-        });
-        await fetchWorkflowData(); // Refresh list — now includes the new workflow
+      const data = await response.json().catch(() => ({}));
 
-        // Update current selected workflow so builder has the ID
+      // Do not let a late response from an older edit session replace the
+      // workflow the user is currently editing.
+      if (isSameIdEdit && editSession !== editSessionRef.current) return;
+
+      if (isSameIdEdit && response.status === 409) {
+        // Keep the builder and its unsaved local graph mounted; the user must
+        // explicitly reload the newer persisted revision before retrying.
+        setBuilderSaveError(
+          "This workflow changed elsewhere. Your local changes are still here."
+        );
+        setBuilderSaveConflict(true);
+        toast({
+          title: "Reload required",
+          description:
+            "This workflow changed elsewhere. Reload the latest version before saving again.",
+          variant: "error",
+        });
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error(extractApiErrorMessage(data, "Failed to save", response.status));
+      }
+
+      const savedId = isSameIdEdit ? data.id || requestId : data.id;
+      if (savedId) {
+        const nextRevision =
+          data.revision !== undefined ? data.revision : requestRevision;
+        const responseCorrections = getPersistedWorkflowCorrections(data);
+        const persistedCorrections =
+          responseCorrections ?? selectedWorkflow?.corrections;
+        if (isSameIdEdit) {
+          setEditingWorkflowId(savedId);
+          setEditingRevision(nextRevision);
+        }
+        // The PUT response carries the authoritative persisted corrections.
+        // Only replace the visible history when the server actually returned
+        // them; a missing field must not erase real audit data.
+        if (responseCorrections !== undefined) {
+          setChangeHistory(responseCorrections);
+        }
+
+        toast({
+          title: isSameIdEdit ? "Workflow Updated" : "Workflow Saved",
+          description: isSameIdEdit
+            ? "Your workflow changes have been saved."
+            : "Your visual workflow has been saved to the database.",
+        });
+
+        if (isSameIdEdit) {
+          // Refresh the list without unmounting the builder. The local save is
+          // already authoritative, so it does not need to wait for the list.
+          void fetchWorkflows();
+        } else {
+          await fetchWorkflowData(); // Refresh list — now includes the new workflow
+        }
+
+        // Update current selected workflow so builder has the ID, revision and
+        // graph/settings needed for a subsequent round-trip save.
+        const responseNodes = Array.isArray(data.nodes) ? data.nodes : nodes;
+        const responseConnections = Array.isArray(data.connections)
+          ? data.connections
+          : connections;
         const newWorkflow = {
-          id: data.id,
-          name: generatedName,
-          description: "Created via Visual Builder",
+          ...(selectedWorkflow || {}),
+          id: savedId,
+          name: data.name || savedName,
+          description: data.description || savedDescription,
+          version: data.version || savedVersion,
+          revision: isSameIdEdit ? nextRevision : data.revision,
           steps: nodes.map((n: any) => ({
             id: n.id,
             name: n.title,
@@ -402,12 +783,19 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
             action: n.config?.action,
             parameters: n.config,
           })),
-          input_schema: {},
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          input_schema: selectedWorkflow?.input_schema || {},
+          created_at: selectedWorkflow?.created_at || new Date().toISOString(),
+          updated_at: data.updated_at || new Date().toISOString(),
+          nodes: responseNodes,
+          connections: responseConnections,
+          // The values we just sent are the persisted values; only accept a
+          // response field when it is actually present.
+          triggers: Array.isArray(data.triggers) ? data.triggers : savedTriggers,
+          enabled:
+            typeof data.enabled === 'boolean' ? data.enabled : savedEnabled,
+          corrections: persistedCorrections,
         };
         setSelectedWorkflow(newWorkflow as WorkflowDefinition);
-
       } else {
         throw new Error(extractApiErrorMessage(data, "Failed to save"));
       }
@@ -415,7 +803,8 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
       console.error("Save error", e);
       toast({ title: "Error", description: "Failed to save workflow", variant: "error" });
     } finally {
-      setLoading(false);
+      saveInFlightRef.current = false;
+      setSavingWorkflow(false);
     }
   };
 
@@ -425,7 +814,112 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
     setIsTemplateModalOpen(true);
   };
 
+  const loadWorkflowForEditing = async (
+    workflow: WorkflowDefinition
+  ): Promise<WorkflowDefinition> => {
+    const token = localStorage.getItem('auth_token');
+    const response = await fetch(
+      `/api/v1/workflows/workflows/${encodeURIComponent(workflow.id)}`,
+      {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      }
+    );
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(
+        extractApiErrorMessage(data, "Failed to load workflow", response.status)
+      );
+    }
+
+    const persistedCorrections = getPersistedWorkflowCorrections(data);
+    const loadedCorrections =
+      persistedCorrections ??
+      normalizeWorkflowCorrections(workflow.corrections);
+    const loaded: WorkflowDefinition = {
+      ...workflow,
+      ...data,
+      id: data.id || workflow.id,
+      revision: data.revision ?? workflow.revision,
+      corrections: loadedCorrections,
+    };
+    editSessionRef.current += 1;
+    setBuilderInitialData(null);
+    setSelectedWorkflow(loaded);
+    setEditingWorkflowId(loaded.id);
+    setEditingRevision(loaded.revision ?? null);
+    setChangeHistory(loadedCorrections);
+    setBuilderSaveError(null);
+    setBuilderSaveConflict(false);
+    setBuilderLoadKey((key) => key + 1);
+    setViewMode("builder");
+    return loaded;
+  };
+
+  const handleWorkflowEdit = async (workflow: WorkflowDefinition) => {
+    // Step-based / template-derived workflows keep the canonical route editor.
+    // Ordinary node-based (visual) workflows edit in place with the same ID.
+    if (!Array.isArray(workflow.nodes) || workflow.created_from_template) {
+      router.push(`/workflows/editor/${workflow.created_from_template || workflow.id}`);
+      return;
+    }
+
+    // Invalidate any save still in flight for a previous edit session.
+    editSessionRef.current += 1;
+    try {
+      setLoading(true);
+      await loadWorkflowForEditing(workflow);
+    } catch (error) {
+      console.error("Failed to load workflow for editing", error);
+      toast({
+        title: "Error",
+        description: "Failed to load workflow",
+        variant: "error",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReloadWorkflowEdit = async () => {
+    if (!editingWorkflowId) return;
+    // Invalidate any save still in flight before replacing the local graph.
+    editSessionRef.current += 1;
+    const base =
+      selectedWorkflow ||
+      ({
+        id: editingWorkflowId,
+        name: "",
+        description: "",
+        steps: [],
+        input_schema: {},
+        created_at: "",
+        updated_at: "",
+      } as WorkflowDefinition);
+
+    try {
+      setSavingWorkflow(true);
+      await loadWorkflowForEditing(base);
+    } catch (error) {
+      console.error("Failed to reload workflow", error);
+      toast({
+        title: "Error",
+        description: "Failed to reload workflow",
+        variant: "error",
+      });
+    } finally {
+      setSavingWorkflow(false);
+    }
+  };
+
   const handleWorkflowSelect = (workflow: WorkflowDefinition) => {
+    editSessionRef.current += 1;
+    setEditingWorkflowId(null);
+    setEditingRevision(null);
+    setChangeHistory([]);
+    setBuilderSaveError(null);
+    setBuilderSaveConflict(false);
     setSelectedWorkflow(workflow);
     setFormData({});
     setIsCreateModalOpen(true);
@@ -869,6 +1363,12 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
               // (fresh canvas). Previously it opened the Execute-Workflow modal
               // with selectedWorkflow=null, rendering "Execute Workflow:
               // undefined" with a dead Execute button.
+              editSessionRef.current += 1;
+              setEditingWorkflowId(null);
+              setEditingRevision(null);
+              setChangeHistory([]);
+              setBuilderSaveError(null);
+              setBuilderSaveConflict(false);
               setBuilderInitialData(null);
               setSelectedWorkflow(null);
               setViewMode('builder');
@@ -881,51 +1381,130 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
       </div>
 
       {viewMode === "builder" ? (
-        <WorkflowBuilder
-          initialData={builderInitialData || (selectedWorkflow ? {
-            // Node-based (graph) workflows persist `nodes`/`connections`; pass
-            // them straight through so the original graph/positions survive.
-            // Step-based workflows are linearized into builder nodes/edges.
-            nodes: selectedWorkflow.nodes?.length
-              ? selectedWorkflow.nodes.map((n) => ({
-                  id: n.id,
-                  type: n.type,
-                  position: n.position || { x: 250, y: 0 },
-                  data: {
-                    label: n.title,
-                    ...(n.config?.parameters || {}),
-                    service: n.config?.service,
-                    action: n.config?.action,
-                  },
-                }))
-              : (selectedWorkflow.steps || []).map((s, i) => ({
-                  id: s.id,
-                  type: s.type === 'trigger' ? 'trigger' : 'action',
-                  position: { x: 250, y: i * 200 + 50 },
-                  data: {
-                    label: s.name,
-                    service: s.service || 'system',
-                    action: s.action || 'execute',
-                    ...s.parameters
-                  }
-                })),
-            edges: selectedWorkflow.nodes?.length
-              ? (selectedWorkflow.connections || []).map((c) => ({
-                  id: c.id,
-                  source: c.source,
-                  target: c.target,
-                  type: 'addStepEdge'
-                }))
-              : (selectedWorkflow.steps || []).slice(0, -1).map((s, i) => ({
-                  id: `e${s.id}-${selectedWorkflow.steps[i + 1].id}`,
-                  source: s.id,
-                  target: selectedWorkflow.steps[i + 1].id,
-                  type: 'addStepEdge'
-                }))
-          } : undefined)}
-          workflowId={selectedWorkflow?.id || selectedTemplate?.id}
-          onSave={handleBuilderSave}
-        />
+        <div className="space-y-4">
+          {builderSaveError && (
+            <Alert variant="destructive" data-testid="builder-save-error">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Reload required</AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+                <span>{builderSaveError}</span>
+                {builderSaveConflict && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleReloadWorkflowEdit}
+                    disabled={savingWorkflow}
+                  >
+                    Reload latest
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+          <WorkflowBuilder
+            key={editingWorkflowId ? `${editingWorkflowId}:${builderLoadKey}` : undefined}
+            initialData={builderInitialData || (selectedWorkflow ? {
+              // Node-based (graph) workflows persist `nodes`/`connections`; pass
+              // them straight through so the original graph, positions, node
+              // config/description and connection condition survive. Both flat
+              // and nested (`config.parameters`) config forms are accepted.
+              // Step-based workflows are linearized into builder nodes/edges.
+              nodes: selectedWorkflow.nodes?.length
+                ? selectedWorkflow.nodes.map(savedNodeToBuilderNode)
+                : (selectedWorkflow.steps || []).map((s, i) => ({
+                    id: s.id,
+                    type: s.type === 'trigger' ? 'trigger' : 'action',
+                    position: { x: 250, y: i * 200 + 50 },
+                    data: {
+                      label: s.name,
+                      service: s.service || 'system',
+                      action: s.action || 'execute',
+                      ...s.parameters
+                    }
+                  })),
+              edges: selectedWorkflow.nodes?.length
+                ? (selectedWorkflow.connections || []).map(savedConnectionToBuilderEdge)
+                : (selectedWorkflow.steps || []).slice(0, -1).map((s, i) => ({
+                    id: `e${s.id}-${selectedWorkflow.steps[i + 1].id}`,
+                    source: s.id,
+                    target: selectedWorkflow.steps[i + 1].id,
+                    type: 'addStepEdge'
+                  }))
+            } : undefined)}
+            workflowId={selectedWorkflow?.id || selectedTemplate?.id}
+            saving={savingWorkflow}
+            onSave={handleBuilderSave}
+          />
+          {editingWorkflowId && (
+            <details
+              data-testid="workflow-change-history"
+              className="rounded-lg border bg-white p-4 dark:bg-gray-900"
+            >
+              <summary
+                aria-label="Change history"
+                className="cursor-pointer text-sm font-semibold"
+              >
+                <span>Change history</span>
+              </summary>
+              <div className="mt-4 space-y-4">
+                {changeHistory.length === 0 ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    No saved changes recorded for this workflow yet.
+                  </p>
+                ) : (
+                  changeHistory.map((correction, index) => (
+                    <div
+                      key={`${String(correction.after_revision ?? 'revision')}-${index}`}
+                      className="border-t pt-3 first:border-t-0 first:pt-0"
+                    >
+                      <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-[7rem_1fr]">
+                        <dt className="font-medium text-gray-500 dark:text-gray-400">
+                          Reason
+                        </dt>
+                        <dd>{correction.reason || 'No reason provided'}</dd>
+
+                        <dt className="font-medium text-gray-500 dark:text-gray-400">
+                          Actor
+                        </dt>
+                        <dd>{correction.who || 'Unknown actor'}</dd>
+
+                        <dt className="font-medium text-gray-500 dark:text-gray-400">
+                          Time
+                        </dt>
+                        <dd>
+                          {correction.when ? (
+                            <time dateTime={correction.when}>
+                              {correction.when}
+                            </time>
+                          ) : (
+                            'Unknown time'
+                          )}
+                        </dd>
+
+                        <dt className="font-medium text-gray-500 dark:text-gray-400">
+                          Revisions
+                        </dt>
+                        <dd>
+                          <span className="sr-only">
+                            Before revision{' '}
+                            {formatCorrectionValue(correction.before_revision)},
+                            after revision{' '}
+                            {formatCorrectionValue(correction.after_revision)}.
+                          </span>
+                          <span aria-hidden="true">
+                            {formatCorrectionValue(correction.before_revision)}{' '}
+                            &rarr;{' '}
+                            {formatCorrectionValue(correction.after_revision)}
+                          </span>
+                        </dd>
+                      </dl>
+                    </div>
+                  ))
+                )}
+              </div>
+            </details>
+          )}
+        </div>
       ) : (
         /* Main Content */
         <>
@@ -1037,7 +1616,9 @@ const WorkflowAutomation: React.FC<{ triggerNew?: number }> = ({ triggerNew }) =
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => router.push(`/workflows/editor/${workflow.created_from_template || workflow.id}`)}
+                          aria-label="Edit workflow"
+                          title={`Edit ${workflow.name}`}
+                          onClick={() => handleWorkflowEdit(workflow)}
                         >
                           <Edit className="w-4 h-4" />
                         </Button>

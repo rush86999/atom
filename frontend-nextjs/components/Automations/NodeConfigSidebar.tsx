@@ -42,6 +42,54 @@ interface NodeConfigSidebarProps {
     onUpdateNode: (nodeId: string, data: any) => void;
 }
 
+const isRecord = (value: any): value is Record<string, any> =>
+    value !== null && typeof value === 'object' && !Array.isArray(value);
+
+const NODE_DATA_META_KEYS = new Set([
+    'id',
+    'label',
+    'description',
+    'service',
+    'serviceId',
+    'action',
+    'config',
+    'parameters',
+    '_workflowId',
+    '_analytics',
+]);
+
+// Builder nodes keep action parameters flat on `data`, while this sidebar
+// edits them inside `data.config`. Also accept a nested `parameters` bag so a
+// node loaded from either persisted shape shows its current values.
+const getEditableConfig = (node: any): Record<string, any> => {
+    const data = node?.data;
+    if (!isRecord(data)) return {};
+
+    const flatFields: Record<string, any> = {};
+    Object.keys(data).forEach((key) => {
+        if (!NODE_DATA_META_KEYS.has(key) && data[key] !== undefined) {
+            flatFields[key] = data[key];
+        }
+    });
+
+    const explicitParameters = isRecord(data.parameters) ? data.parameters : {};
+    const nestedConfig = isRecord(data.config) ? data.config : {};
+    const nestedParameters = isRecord(nestedConfig.parameters)
+        ? nestedConfig.parameters
+        : {};
+
+    return {
+        ...flatFields,
+        ...explicitParameters,
+        ...nestedParameters,
+        // The sidebar's own config is the most recent edit and wins over any
+        // stale flat copies left on the node data.
+        ...Object.fromEntries(
+            Object.entries(nestedConfig).filter(([key]) => key !== 'parameters')
+        ),
+    };
+};
+
 const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
     selectedNode,
     allNodes,
@@ -50,7 +98,7 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
 }) => {
     const [loading, setLoading] = useState(false);
     const [metadata, setMetadata] = useState<any>(null);
-    const [config, setConfig] = useState<any>(selectedNode?.data?.config || {});
+    const [config, setConfig] = useState<any>(() => getEditableConfig(selectedNode));
     const [activeTab, setActiveTab] = useState<'config' | 'test'>('config');
     const [dynamicOptions, setDynamicOptions] = useState<Record<string, { options: any[], loading: boolean }>>({});
     const [connections, setConnections] = useState<any[]>([]);
@@ -71,8 +119,9 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
         if (selectedNode?.data?.serviceId) {
             fetchMetadata(selectedNode.data.serviceId);
         }
-        setConfig(selectedNode?.data?.config || {});
-        setSelectedConnection(selectedNode?.data?.config?.connectionId || null);
+        const nextConfig = getEditableConfig(selectedNode);
+        setConfig(nextConfig);
+        setSelectedConnection(nextConfig.connectionId || null);
     }, [selectedNode]);
 
     // Fetch user connections for this piece

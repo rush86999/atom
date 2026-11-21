@@ -128,7 +128,14 @@ export const ActionNode = memo(function ActionNode({ data, isConnectable }: any)
         'OpenAI': { color: 'border-l-[#412991]', bgColor: 'bg-purple-50' },
         'Google Gemini': { color: 'border-l-[#8E75B2]', bgColor: 'bg-purple-50' },
     };
-    const branding = serviceBranding[data.service] || { color: 'border-l-green-500', bgColor: '' };
+    // A node can arrive with its action config flat on `data` (builder shape)
+    // or nested under `data.config` (sidebar shape). Display either form.
+    const nodeConfig = data.config && typeof data.config === 'object' ? data.config : {};
+    const serviceName = data.service || nodeConfig.service || 'Action';
+    const actionName = data.action || nodeConfig.action || data.label || 'Execute';
+    const description = data.description || nodeConfig.description;
+
+    const branding = serviceBranding[serviceName] || { color: 'border-l-green-500', bgColor: '' };
 
     return (
         <Card className={`min-w-[220px] border-l-4 ${branding.color} ${branding.bgColor} shadow-sm relative overflow-visible`}>
@@ -143,7 +150,7 @@ export const ActionNode = memo(function ActionNode({ data, isConnectable }: any)
                 <div className="flex items-center justify-between space-x-2">
                     <div className="flex items-center space-x-2">
                         <Play className="w-4 h-4 text-green-500" />
-                        <CardTitle className="text-sm font-bold">{data.service || 'Action'}</CardTitle>
+                        <CardTitle className="text-sm font-bold">{serviceName}</CardTitle>
                     </div>
                     {/* Connection Status Indicator */}
                     {isConnected !== null && (
@@ -164,9 +171,9 @@ export const ActionNode = memo(function ActionNode({ data, isConnectable }: any)
                 </div>
             </CardHeader>
             <CardContent className="p-3 text-xs">
-                <p className="font-medium text-gray-700 dark:text-gray-300">{data.action || data.label || 'Execute'}</p>
-                {data.description && (
-                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate">{data.description}</p>
+                <p className="font-medium text-gray-700 dark:text-gray-300">{actionName}</p>
+                {description && (
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1 truncate">{description}</p>
                 )}
 
                 {/* Show Required Inputs if Paused */}

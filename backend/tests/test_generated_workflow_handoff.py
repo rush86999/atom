@@ -898,6 +898,245 @@ def test_paused_legacy_edit_refuses_stale_same_row(harness, monkeypatch):
         "legacy-edit-1", generated["workflow_id"]}
 
 
+def _create_visual_target(harness, workflow_id="visual-save-1"):
+    payload = {
+        "id": workflow_id,
+        "name": "Visual target",
+        "description": "before",
+        "version": "1.0",
+        "nodes": [],
+        "connections": [],
+        "triggers": ["manual"],
+        "enabled": True,
+        "createdAt": "2025-02-03T04:05:06",
+        "metadata": {"owner": "visual", "tags": ["keep-me"]},
+    }
+    response = harness.client.post(
+        "/api/v1/workflows/workflows", json=payload)
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+def test_structured_save_preserves_unowned_fields_and_records_correction(
+        harness):
+    workflow_id = "visual-save-1"
+    created = _create_visual_target(harness, workflow_id)
+    assert created["metadata"] == {"owner": "visual", "tags": ["keep-me"]}
+    before = harness.client.get(
+        f"/api/v1/workflows/workflows/{workflow_id}").json()
+    assert before["revision"]
+
+    edited_node = {
+        "id": "node-visual", "type": "action", "title": "Visual action",
+        "description": "edited node", "position": {"x": 10, "y": 20},
+        "config": {"service": "slack", "action": "send",
+                   "parameters": {"channel": "#scratch"}},
+        "connections": [],
+    }
+    saved = harness.client.put(
+        f"/api/v1/workflows/workflows/{workflow_id}",
+        json={
+            "name": "Visual target edited",
+            "description": "after",
+            "version": "2.0",
+            "nodes": [edited_node],
+            "connections": [],
+            "triggers": ["manual"],
+            "enabled": True,
+            "revision": before["revision"],
+            "reason": "scratch visual save",
+            # Attempts to rewrite unowned fields must be ignored.
+            "createdAt": "1999-01-01T00:00:00",
+            "metadata": {"owner": "not-the-editor"},
+            "deployment": {"tenant_id": "forged"},
+        })
+    assert saved.status_code == 200, saved.text
+    body = saved.json()
+    assert body["id"] == workflow_id
+    assert body["name"] == "Visual target edited"
+    assert body["createdAt"] == "2025-02-03T04:05:06"
+    assert body["metadata"] == {"owner": "visual", "tags": ["keep-me"]}
+    assert body.get("deployment") is None
+    assert body["revision"] != before["revision"]
+    assert body["steps"][0]["name"] == "Visual action"
+    correction = body["corrections"][-1]
+    assert set(correction) == {
+        "who", "when", "reason", "before_revision", "after_revision"}
+    assert correction["who"] == USER_A
+    assert correction["when"]
+    assert correction["reason"] == "scratch visual save"
+    assert correction["before_revision"] == before["revision"]
+    assert correction["after_revision"] == body["revision"]
+
+    row = _catalog_rows(harness)[0]
+    assert row["id"] == workflow_id
+    assert row["createdAt"] == "2025-02-03T04:05:06"
+    assert row["metadata"] == {"owner": "visual", "tags": ["keep-me"]}
+    assert row["revision"] == body["revision"]
+    assert row["corrections"][-1] == correction
+    assert "steps" not in row
+
+    reloaded = harness.client.get(
+        f"/api/v1/workflows/workflows/{workflow_id}").json()
+    assert reloaded["revision"] == body["revision"]
+    assert reloaded["corrections"] == body["corrections"]
+    assert reloaded["steps"][0]["name"] == "Visual action"
+
+
+def test_legacy_same_id_post_preserves_stored_audit_history(harness):
+    workflow_id = "visual-save-1"
+    _create_visual_target(harness, workflow_id)
+    before = harness.client.get(
+        f"/api/v1/workflows/workflows/{workflow_id}").json()
+
+    saved = harness.client.put(
+        f"/api/v1/workflows/workflows/{workflow_id}",
+        json={
+            "name": "Visual target edited",
+            "description": "after", "version": "2.0", "nodes": [],
+            "connections": [], "triggers": ["manual"], "enabled": True,
+            "revision": before["revision"], "reason": "keep my history",
+        })
+    assert saved.status_code == 200, saved.text
+    committed = saved.json()
+    stored_corrections = committed["corrections"]
+    assert stored_corrections
+
+    # An ordinary same-ID legacy POST still replaces the editor material, but
+    # must retain the stored corrections and omitted metadata. Supplied audit
+    # data is request input and must be ignored.
+    forged = [{"who": "forged", "reason": "forged"}]
+    response = harness.client.post(
+        "/api/v1/workflows/workflows",
+        json={
+            "id": workflow_id, "name": "Legacy complete definition",
+            "description": "posted the same id", "version": "1.0",
+            "nodes": [], "connections": [], "triggers": [], "enabled": True,
+            "corrections": forged,
+        })
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["corrections"] == stored_corrections
+    assert body["metadata"] == {"owner": "visual", "tags": ["keep-me"]}
+    assert body["revision"] == harness.client.get(
+        f"/api/v1/workflows/workflows/{workflow_id}").json()["revision"]
+
+    row = next(row for row in _catalog_rows(harness)
+               if row["id"] == workflow_id)
+    assert row["corrections"] == stored_corrections
+    assert row["metadata"] == {"owner": "visual", "tags": ["keep-me"]}
+
+    reloaded = harness.client.get(
+        f"/api/v1/workflows/workflows/{workflow_id}").json()
+    assert reloaded["corrections"] == stored_corrections
+    assert reloaded["metadata"] == {"owner": "visual", "tags": ["keep-me"]}
+
+
+def test_structured_save_stale_revision_refuses_without_write(harness):
+    import core.workflow_endpoints as endpoints_module
+
+    workflow_id = "visual-save-1"
+    _create_visual_target(harness, workflow_id)
+    before = harness.client.get(
+        f"/api/v1/workflows/workflows/{workflow_id}").json()
+
+    def concurrent_winner(rows):
+        for row in rows:
+            if row.get("id") == workflow_id:
+                row["description"] = "concurrent winner"
+                return True, None
+        return False, None
+
+    endpoints_module.mutate_workflows(concurrent_winner)
+
+    refused = harness.client.put(
+        f"/api/v1/workflows/workflows/{workflow_id}",
+        json={
+            "name": "must not win",
+            "revision": before["revision"],
+            "reason": "stale scratch save",
+        })
+    assert refused.status_code == 409, refused.text
+    detail = refused.json()["detail"]
+    assert detail["error"] == "workflow_revision_conflict"
+    assert detail["possible_effect"] is False
+    assert detail["current_revision"] != before["revision"]
+
+    row = _catalog_rows(harness)[0]
+    assert row["description"] == "concurrent winner"
+    assert row["name"] == "Visual target"
+    assert "corrections" not in row
+
+
+def test_structured_step_save_keeps_step_caller_contract(harness):
+    workflow_id = "visual-steps-1"
+    payload = {
+        "id": workflow_id, "name": "Step target", "description": "",
+        "version": "1.0", "nodes": [], "connections": [],
+        "triggers": [], "enabled": True,
+        "steps": [{
+            "id": "step-1", "type": "action", "name": "Old step",
+            "sequence_order": 1, "service": "default", "action": "default",
+            "parameters": {},
+        }],
+    }
+    response = harness.client.post(
+        "/api/v1/workflows/workflows", json=payload)
+    assert response.status_code == 200, response.text
+    before = harness.client.get(
+        f"/api/v1/workflows/workflows/{workflow_id}").json()
+
+    # A small name-only save must keep the omitted step list and the stored
+    # graph fields; omitted fields are not edits.
+    renamed = harness.client.put(
+        f"/api/v1/workflows/workflows/{workflow_id}",
+        json={"name": "Step target renamed",
+              "revision": before["revision"], "reason": "name only"})
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["steps"][0]["name"] == "Old step"
+    assert _catalog_rows(harness)[0]["steps"][0]["name"] == "Old step"
+    before = renamed.json()
+
+    saved = harness.client.put(
+        f"/api/v1/workflows/workflows/{workflow_id}",
+        json={
+            "steps": [{
+                "id": "step-1", "type": "action", "name": "New step",
+                "sequence_order": 1, "service": "default",
+                "action": "default", "parameters": {"value": 7},
+            }],
+            "revision": before["revision"],
+            "reason": "step caller save",
+        })
+    assert saved.status_code == 200, saved.text
+    body = saved.json()
+    assert body["steps"][0]["name"] == "New step"
+    assert body["steps"][0]["parameters"] == {"value": 7}
+    assert _catalog_rows(harness)[0]["steps"][0]["name"] == "New step"
+
+
+def test_structured_save_refuses_generated_canonical_owner(harness):
+    harness.drafts["draft"] = _draft_trigger()
+    generated = _generate(harness, agent_id=AGENT_AUTO)
+    workflow_id = generated["workflow_id"]
+    digest = generated["definition_digest"]
+    assert _deploy(harness, workflow_id, digest,
+                   agent_id=AGENT_AUTO).json()["status"] == "deployed"
+    before = harness.client.get(
+        f"/api/v1/workflows/workflows/{workflow_id}").json()
+    original = _catalog_rows(harness)[0]
+
+    refused = harness.client.put(
+        f"/api/v1/workflows/workflows/{workflow_id}",
+        json={
+            "name": "must not replace canonical",
+            "revision": before["revision"], "reason": "wrong owner",
+        })
+    assert refused.status_code == 409, refused.text
+    assert refused.json()["detail"]["error"] == "canonical_workflow"
+    assert _catalog_rows(harness)[0] == original
+
+
 def test_actor_demoted_before_commit_refuses_without_write(harness, monkeypatch):
     import core.workflow_endpoints as endpoints_module
 
