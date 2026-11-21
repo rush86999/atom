@@ -708,14 +708,15 @@ async def run_agent(
                 })
                 if durable.get("wait_receipt") is not None:
                     data["wait_receipt"] = durable["wait_receipt"]
+                    if _wait_is_action_approval(durable):
+                        data["pending_action_approval"] = True
                 if durable["job_status"] in _JOB_WAITING_STATUSES:
                     return JSONResponse(
                         status_code=202,
                         content=router.success_response(
                             data=data,
-                            message=(
-                                "Agent run is waiting for required "
-                                "information"),
+                            message=_public_waiting_message(
+                                durable, label="Agent run"),
                         ),
                     )
         return router.success_response(
@@ -795,13 +796,13 @@ async def run_agent(
             # continuation owner when authorized input arrives.
             execution_data["wait_receipt"] = job_outcome.get(
                 "wait_receipt")
+            if _wait_is_action_approval(job_outcome):
+                execution_data["pending_action_approval"] = True
             return JSONResponse(
                 status_code=202,
                 content=router.success_response(
                     data=execution_data,
-                    message=(
-                        "Agent execution is waiting for required "
-                        "information"),
+                    message=_public_waiting_message(job_outcome),
                 ),
             )
         if job_outcome["job_status"] == AgentJobStatus.SUCCESS.value:
@@ -1625,6 +1626,63 @@ from core.information_wait import (  # noqa: E402 — shared wait vocabulary
     waiting_age_seconds as _waiting_age_seconds,
 )
 
+
+def _wait_receipt_is_action_approval(wait_receipt: Any) -> bool:
+    """Whether the receipt itself is a verified non-information approval."""
+    if not isinstance(wait_receipt, dict):
+        return False
+    if wait_receipt.get("verified") is not True:
+        return False
+    kind = str(wait_receipt.get("kind") or "")
+    action_type = str(wait_receipt.get("action_type") or "")
+    if (
+        kind == "information_request"
+        or action_type in _INFORMATION_WAIT_ACTIONS
+    ):
+        return False
+    return kind == "hitl_review" or bool(action_type)
+
+
+def _wait_is_action_approval(outcome: Any) -> bool:
+    """Classify an action-approval wait from the explicit producer outcome.
+
+    Approval waiting requires BOTH the producer's explicit
+    ``awaiting_approval`` outcome AND a verified non-information HITL receipt.
+    A legacy raw ``waiting`` status (even with a review receipt) keeps the
+    established information-wait continuation instead of being relabelled as
+    an approval.
+    """
+    if not isinstance(outcome, dict):
+        return False
+    if _safe_outcome_token(outcome.get("outcome"), default="") != (
+            "awaiting_approval"):
+        return False
+    return _wait_receipt_is_action_approval(outcome.get("wait_receipt"))
+
+
+def _wait_receipt_next_action(
+    wait_receipt: Any, *, outcome: Any = None,
+) -> str:
+    """Name the exact continuation for the durable wait kind."""
+    return (
+        "await_approval"
+        if _wait_is_action_approval({
+            "outcome": outcome,
+            "wait_receipt": wait_receipt,
+        })
+        else "await_information"
+    )
+
+
+def _public_waiting_message(
+    outcome: Dict[str, Any], *, label: str = "Agent execution",
+) -> str:
+    """Public message for a durable wait, preserving its exact kind."""
+    if _wait_is_action_approval(outcome):
+        return f"{label} is waiting for action approval"
+    return f"{label} is waiting for required information"
+
+
 # Namespace keys the admission owns. Business parameters keep every other
 # key, but these can never be supplied (or overridden) by the request body.
 _TRUSTED_CONTEXT_KEYS = (
@@ -1927,7 +1985,8 @@ def _execution_outcome(
                 "job_status": "waiting",
                 "outcome": raw,
                 "reason": "execution_waiting",
-                "next_action": "await_information",
+                "next_action": _wait_receipt_next_action(
+                    receipt, outcome=raw),
                 "requires_reconciliation": False,
                 "wait_receipt": receipt,
             }
@@ -1961,6 +2020,10 @@ def _public_outcome_message(outcome: Dict[str, Any]) -> str:
     if reason == "execution_cancelled":
         return "The agent run was cancelled. No retry was started."
     if reason == "execution_waiting":
+        if _wait_is_action_approval(outcome):
+            return (
+                "The agent run is waiting for human action approval; the "
+                "same task continues only if the approval is accepted.")
         return (
             "The agent run is waiting for required information; the same "
             "task continues when the authorized input arrives.")
@@ -2513,12 +2576,14 @@ def _job_outcome_projection(job_id: str, bind) -> Optional[Dict[str, Any]]:
                 projection["execution_id"] = (
                     None if not execution_id else str(execution_id))
                 return projection
+            outcome_token = _safe_outcome_token(
+                payload.get("outcome"), default="waiting")
             projection = {
                 "job_status": status,
-                "outcome": _safe_outcome_token(
-                    payload.get("outcome"), default="waiting"),
+                "outcome": outcome_token,
                 "reason": "execution_waiting",
-                "next_action": "await_information",
+                "next_action": _wait_receipt_next_action(
+                    wait_receipt, outcome=outcome_token),
                 "requires_reconciliation": False,
                 "wait_receipt": wait_receipt,
             }
@@ -2652,13 +2717,15 @@ def _has_pending_action_approval(
     execution_id: str,
     namespace: Dict[str, Any],
     actor_id: str,
+    action_id: Optional[str] = None,
 ) -> bool:
-    """Return whether this running job has one verified pending approval.
+    """Return whether this job has one verified pending approval.
 
     Only a durable ``HITLAction`` scoped to the exact job, execution, agent,
     persisted actor and admitted tenant/workspace, in a pending state and not
-    an information request, is reported. No row material is read: the scoped
-    query returns an existence scalar only.
+    an information request, is reported. A waiting job also names its exact
+    receipt action, so a different pending row cannot certify this wait. No
+    row material is read: the scoped query returns an existence scalar only.
     """
     if not bind or not str(execution_id or "").strip() or not str(
             actor_id or "").strip():
@@ -2687,6 +2754,8 @@ def _has_pending_action_approval(
         snapshot["job_id"].as_string() == str(job_id),
         snapshot["execution_id"].as_string() == str(execution_id),
     ]
+    if action_id:
+        conditions.append(HITLAction.id == str(action_id))
     session = Session(bind=bind)
     try:
         found = (
@@ -5215,15 +5284,41 @@ async def read_agent_job(
             execution_id=execution_id,
             namespace=namespace,
         )
-        if wait is None:
-            # A waiting status without a re-verifiable current wait is not a
-            # question we may show. Keep the durable status truthful (do not
-            # invent a terminal failure) and send the caller to review.
+        action_approval_wait = _wait_is_action_approval(projection)
+        if wait is not None:
+            data["wait"] = wait
+        if action_approval_wait:
+            if _has_pending_action_approval(
+                bind=bind,
+                job_id=str(job_id),
+                agent_id=str(agent_id),
+                execution_id=execution_id,
+                namespace=namespace,
+                actor_id=actor_id,
+                action_id=_wait_receipt_action_id(payload) or None,
+            ):
+                # A durable action approval is not a question. It keeps the
+                # same waiting lifecycle and is reviewed through the existing
+                # Approvals surface; no answer form is exposed for it.
+                data["pending_action_approval"] = True
+                data["can_review_pending_action_approval"] = (
+                    RBACService.check_permission(
+                        persisted, Permission.AGENT_MANAGE))
+                data["next_action"] = "await_approval"
+            else:
+                # A stale/settled/foreign approval is not an open question.
+                data["next_action"] = "review_execution"
+                data["wait_unavailable"] = True
+        elif wait is not None:
+            data["next_action"] = "await_information"
+        else:
+            # A legacy verified wait without the explicit producer
+            # ``awaiting_approval`` outcome is not an action approval. When
+            # the information question is missing or cannot be verified,
+            # keep the durable status truthful, do not expose a question,
+            # and fall back to reviewing the execution.
             data["next_action"] = "review_execution"
             data["wait_unavailable"] = True
-        else:
-            data["wait"] = wait
-            data["next_action"] = "await_information"
     elif job_status == AgentJobStatus.SUCCESS.value:
         result = _durable_public_result(
             bind,

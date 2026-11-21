@@ -522,6 +522,27 @@ describe("AgentJobWaitPanel", () => {
     expect(postCalls(fetchMock)).toHaveLength(0);
   });
 
+  test.each([true, false])(
+    "a durable waiting job offers the action review affordance (can review %s)",
+    async (canReview) => {
+      fetchMock.mockResolvedValue(jsonResponse({
+        ...pendingApprovalJob(),
+        job_status: "waiting",
+        outcome: "awaiting_approval",
+        can_review_pending_action_approval: canReview,
+      }));
+      render(<AgentJobWaitPanel agentId="a1" jobId="job-1" />);
+      expect(await screen.findByTestId("agent-job-pending-approval"))
+        .toHaveTextContent(/waiting for approval/i);
+      const affordance = canReview ? "agent-job-approvals-link" : "agent-job-approvals-help";
+      expect(screen.getByTestId(affordance)).toBeInTheDocument();
+      expect(screen.queryByTestId("agent-job-question")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("agent-job-answer-input")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("agent-job-wait-unavailable")).not.toBeInTheDocument();
+      expect(postCalls(fetchMock)).toHaveLength(0);
+    },
+  );
+
   test("an information wait is not presented as an action approval", async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(waitingJob("wait-1", "What title?", "corr-1")),
