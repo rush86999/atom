@@ -34,6 +34,10 @@ services:
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
+      # The backend requires SECRET_KEY in production. Keep JWT_SECRET_KEY as
+      # the documented compatibility fallback for deployments that still use
+      # the legacy variable name.
+      - SECRET_KEY=${SECRET_KEY:-${JWT_SECRET_KEY}}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - ENVIRONMENT=production
       - LOG_LEVEL=INFO

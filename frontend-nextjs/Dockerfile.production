@@ -37,22 +37,24 @@ RUN npm run build
 # Production stage
 FROM node:22-alpine AS runner
 
-# Set environment variables
+# Set environment variables. The standalone server reads HOSTNAME/PORT.
 ENV NODE_ENV=production \
-    PORT=3000
+    PORT=3000 \
+    HOSTNAME=0.0.0.0
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
+RUN addgroup -g 1001 -S nodejs \
+    && adduser -S nextjs -u 1001
 
 # Set working directory
 WORKDIR /app
 
-# Copy built application from builder stage
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
+# Copy the standalone server and only the assets that Next.js does not embed
+# in it. The server's traced dependencies are already inside .next/standalone;
+# the full build-time node_modules tree is not needed at runtime.
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Switch to non-root user
 USER nextjs
@@ -60,9 +62,10 @@ USER nextjs
 # Expose port
 EXPOSE 3000
 
-# Health check
+# Native Node probe: verify this HTTP service directly without curl or a
+# dependency on backend/auth/provider availability. /api/health is public.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3000 || exit 1
+    CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
 
-# Start the application
-CMD ["npm", "start"]
+# Run the standalone Next.js server entrypoint directly.
+CMD ["node", "server.js"]
