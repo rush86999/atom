@@ -27,7 +27,11 @@ from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
 from core.auth import get_current_user, User
-from core.custom_components_service import ComponentSecurityError, CustomComponentsService
+from core.custom_components_service import (
+    ComponentSecurityError,
+    ComponentVersionConflictError,
+    CustomComponentsService,
+)
 from core.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -337,6 +341,20 @@ async def update_component(
             message="Operation completed successfully"
         )
 
+    except ComponentVersionConflictError as e:
+        raise router.conflict_error(
+            message=(
+                "Component version conflict: the component was modified concurrently. "
+                "Reload the latest component version and retry the update."
+            ),
+            conflicting_resource=component_id,
+            details={
+                "reason": str(e),
+                "reload_required": True,
+                "retry_allowed": True,
+            },
+        )
+
     except ComponentSecurityError as e:
         raise router.permission_denied_error(
             action="component_operation",
@@ -449,11 +467,26 @@ async def rollback_component(
         Rollback result with new version number
     """
     service = CustomComponentsService(db)
-    result = service.rollback_component(
-        component_id=component_id,
-        target_version=request.target_version,
-        user_id=user_id
-    )
+
+    try:
+        result = service.rollback_component(
+            component_id=component_id,
+            target_version=request.target_version,
+            user_id=user_id
+        )
+    except ComponentVersionConflictError as e:
+        raise router.conflict_error(
+            message=(
+                "Component version conflict: the component was modified concurrently. "
+                "Reload the latest component version and retry the rollback."
+            ),
+            conflicting_resource=component_id,
+            details={
+                "reason": str(e),
+                "reload_required": True,
+                "retry_allowed": True,
+            },
+        )
 
     if "error" in result:
         raise router.validation_error(

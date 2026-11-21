@@ -49,6 +49,10 @@ class ComponentSecurityError(Exception):
         return msg
 
 
+class ComponentVersionConflictError(ValueError):
+    """Raised when a concurrent writer advanced a component revision first."""
+
+
 class CustomComponentsService:
     """
     Service for managing custom canvas components.
@@ -56,6 +60,10 @@ class CustomComponentsService:
     Provides secure CRUD operations for custom components with
     governance integration and audit logging.
     """
+
+    # Number of times a compare-and-swap revision write is retried before the
+    # caller is told the component changed concurrently.
+    MAX_VERSION_RETRIES = 5
 
     # Allowed HTML tags (sanitization)
     ALLOWED_HTML_TAGS = {
@@ -206,24 +214,28 @@ class CustomComponentsService:
             is_active=True
         )
 
-        self.db.add(component)
-        self.db.commit()
+        # Persist the component and its initial history entry in a single
+        # transaction. Committing the parent first previously allowed a
+        # history-write failure to leave a revision with no version row.
+        try:
+            self.db.add(component)
+            version = ComponentVersion(
+                id=str(uuid.uuid4()),
+                component_id=component.id,
+                version_number=1,
+                html_content=html_sanitized,
+                css_content=css_sanitized,
+                js_content=js_sanitized,
+                change_summary=f"Initial version created by {user_id}",
+                created_by=user_id
+            )
+            self.db.add(version)
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
+
         self.db.refresh(component)
-
-        # Create initial version
-        version = ComponentVersion(
-            id=str(uuid.uuid4()),
-            component_id=component.id,
-            version_number=1,
-            html_content=html_sanitized,
-            css_content=css_sanitized,
-            js_content=js_sanitized,
-            change_summary=f"Initial version created by {user_id}",
-            created_by=user_id
-        )
-
-        self.db.add(version)
-        self.db.commit()
 
         logger.info(
             f"Created custom component '{name}' (ID: {component.id}, slug: {slug}) "
@@ -392,93 +404,116 @@ class CustomComponentsService:
         Returns:
             Updated component data
         """
-        component = self.db.query(CustomComponent).filter(
-            CustomComponent.id == component_id
-        ).first()
-
-        if not component:
-            return {"error": "Component not found"}
-
-        # Check ownership
-        if component.created_by != user_id:
-            return {"error": "Access denied: Not component owner"}
-
-        # Reject rename to an existing name (CustomComponent.name is unique).
-        # Mirrors the duplicate check in create_component; without it a rename
-        # collision would leak a raw IntegrityError (HTTP 500).
-        if name and name != component.name:
-            existing = self.db.query(CustomComponent).filter(
-                CustomComponent.name == name
+        # Optimistic compare-and-swap on current_version. A conditional UPDATE
+        # works on both PostgreSQL and SQLite (no SELECT ... FOR UPDATE needed),
+        # so two concurrent writers cannot both claim the same next revision.
+        for _ in range(self.MAX_VERSION_RETRIES):
+            component = self.db.query(CustomComponent).filter(
+                CustomComponent.id == component_id
             ).first()
-            if existing:
-                raise ValueError(f"Component '{name}' already exists")
 
-        # Security checks for JS
-        if js_content is not None and js_content != component.js_content:
-            self._check_governance_for_js(agent_id)
+            if not component:
+                return {"error": "Component not found"}
 
-        # Update fields
-        if name:
-            component.name = name
+            # Check ownership
+            if component.created_by != user_id:
+                return {"error": "Access denied: Not component owner"}
 
-        if html_content is not None:
-            component.html_content = self._sanitize_html(html_content)
+            # Reject rename to an existing name (CustomComponent.name is unique).
+            # Mirrors the duplicate check in create_component; without it a rename
+            # collision would leak a raw IntegrityError (HTTP 500).
+            if name and name != component.name:
+                existing = self.db.query(CustomComponent).filter(
+                    CustomComponent.name == name
+                ).first()
+                if existing:
+                    raise ValueError(f"Component '{name}' already exists")
 
-        if css_content is not None:
-            component.css_content = self._sanitize_css(css_content)
+            # Security checks for JS
+            if js_content is not None and js_content != component.js_content:
+                self._check_governance_for_js(agent_id)
 
-        if js_content is not None:
-            component.js_content = self._validate_js(js_content)
+            # Validate and sanitize every proposed change before touching the
+            # row, so a validation failure cannot leave a half-applied revision.
+            changes: Dict[str, Any] = {}
+            if name:
+                changes["name"] = name
+            if html_content is not None:
+                changes["html_content"] = self._sanitize_html(html_content)
+            if css_content is not None:
+                changes["css_content"] = self._sanitize_css(css_content)
+            if js_content is not None:
+                changes["js_content"] = self._validate_js(js_content)
+            if description is not None:
+                changes["description"] = description
+            if props_schema is not None:
+                changes["props_schema"] = props_schema
+            if default_props is not None:
+                changes["default_props"] = default_props
+            if dependencies is not None:
+                self._validate_dependencies(dependencies)
+            if is_public is not None:
+                changes["is_public"] = is_public
 
-        if description is not None:
-            component.description = description
+            expected_version = component.current_version
+            new_version = expected_version + 1
 
-        if props_schema is not None:
-            component.props_schema = props_schema
+            update_values = dict(changes)
+            update_values["current_version"] = new_version
+            update_values["updated_at"] = datetime.now()
 
-        if default_props is not None:
-            component.default_props = default_props
+            updated_rows = self.db.query(CustomComponent).filter(
+                CustomComponent.id == component_id,
+                CustomComponent.current_version == expected_version
+            ).update(update_values, synchronize_session=False)
 
-        if dependencies is not None:
-            self._validate_dependencies(dependencies)
+            if not updated_rows:
+                # Another writer won the race; retry from fresh state.
+                self.db.rollback()
+                continue
 
-        if is_public is not None:
-            component.is_public = is_public
+            # Keep the instance in sync with the values written by the bulk
+            # UPDATE (bulk updates bypass the identity map).
+            for field, value in update_values.items():
+                setattr(component, field, value)
 
-        # Increment version
-        component.current_version += 1
-        component.updated_at = datetime.now()
+            # Create the history row in the SAME transaction as the parent
+            # update: one commit covers both, or neither is persisted.
+            try:
+                version = ComponentVersion(
+                    id=str(uuid.uuid4()),
+                    component_id=component.id,
+                    version_number=new_version,
+                    html_content=component.html_content,
+                    css_content=component.css_content,
+                    js_content=component.js_content,
+                    change_summary=change_description or f"Updated to version {new_version}",
+                    created_by=user_id
+                )
+                self.db.add(version)
+                self.db.commit()
+            except Exception:
+                self.db.rollback()
+                raise
 
-        self.db.commit()
+            self.db.refresh(component)
 
-        # Create version record
-        version = ComponentVersion(
-            id=str(uuid.uuid4()),
-            component_id=component.id,
-            version_number=component.current_version,
-            html_content=component.html_content,
-            css_content=component.css_content,
-            js_content=component.js_content,
-            change_summary=change_description or f"Updated to version {component.current_version}",
-            created_by=user_id
+            logger.info(
+                f"Updated component '{component.name}' to version {new_version} "
+                f"(ID: {component.id})"
+            )
+
+            return {
+                "component_id": component.id,
+                "name": component.name,
+                "slug": component.slug,
+                "version": new_version,
+                "updated_at": component.updated_at.isoformat()
+            }
+
+        raise ComponentVersionConflictError(
+            f"Component '{component_id}' was modified concurrently; please retry"
         )
-
-        self.db.add(version)
-        self.db.commit()
-        self.db.refresh(component)
-
-        logger.info(
-            f"Updated component '{component.name}' to version {component.current_version} "
-            f"(ID: {component.id})"
-        )
-
-        return {
-            "component_id": component.id,
-            "name": component.name,
-            "slug": component.slug,
-            "version": component.current_version,
-            "updated_at": component.updated_at.isoformat()
-        }
 
     def delete_component(
         self,
@@ -580,62 +615,88 @@ class CustomComponentsService:
         Returns:
             Rollback result
         """
-        component = self.db.query(CustomComponent).filter(
-            CustomComponent.id == component_id
-        ).first()
+        # Use the same compare-and-swap as update_component so concurrent
+        # rollbacks cannot claim the same revision, and write the parent state
+        # plus its history row in a single commit.
+        for _ in range(self.MAX_VERSION_RETRIES):
+            component = self.db.query(CustomComponent).filter(
+                CustomComponent.id == component_id
+            ).first()
 
-        if not component:
-            return {"error": "Component not found"}
+            if not component:
+                return {"error": "Component not found"}
 
-        if component.created_by != user_id:
-            return {"error": "Access denied: Not component owner"}
+            if component.created_by != user_id:
+                return {"error": "Access denied: Not component owner"}
 
-        # Get target version
-        target = self.db.query(ComponentVersion).filter(
-            and_(
-                ComponentVersion.component_id == component_id,
-                ComponentVersion.version_number == target_version
+            # Get target version
+            target = self.db.query(ComponentVersion).filter(
+                and_(
+                    ComponentVersion.component_id == component_id,
+                    ComponentVersion.version_number == target_version
+                )
+            ).first()
+
+            if not target:
+                return {"error": "Target version not found"}
+
+            expected_version = component.current_version
+            new_version = expected_version + 1
+
+            update_values = {
+                "html_content": target.html_content,
+                "css_content": target.css_content,
+                "js_content": target.js_content,
+                "current_version": new_version,
+                "updated_at": datetime.now(),
+            }
+
+            updated_rows = self.db.query(CustomComponent).filter(
+                CustomComponent.id == component_id,
+                CustomComponent.current_version == expected_version
+            ).update(update_values, synchronize_session=False)
+
+            if not updated_rows:
+                # Another writer won the race; retry from fresh state.
+                self.db.rollback()
+                continue
+
+            for field, value in update_values.items():
+                setattr(component, field, value)
+
+            # Create rollback version record in the same transaction.
+            try:
+                rollback_version = ComponentVersion(
+                    id=str(uuid.uuid4()),
+                    component_id=component_id,
+                    version_number=new_version,
+                    html_content=target.html_content,
+                    css_content=target.css_content,
+                    js_content=target.js_content,
+                    change_summary=f"Rollback to version {target_version}",
+                    created_by=user_id
+                )
+                self.db.add(rollback_version)
+                self.db.commit()
+            except Exception:
+                self.db.rollback()
+                raise
+
+            logger.info(
+                f"Rolled back component '{component.name}' from version {target_version} "
+                f"to new version {new_version}"
             )
-        ).first()
 
-        if not target:
-            return {"error": "Target version not found"}
+            return {
+                "component_id": component_id,
+                "previous_version": target_version,
+                "new_version": new_version,
+                "status": "rolled_back"
+            }
 
-        # Restore content from target version
-        component.html_content = target.html_content
-        component.css_content = target.css_content
-        component.js_content = target.js_content
-        component.current_version += 1
-        component.updated_at = datetime.now()
-
-        self.db.commit()
-
-        # Create rollback version record
-        rollback_version = ComponentVersion(
-            id=str(uuid.uuid4()),
-            component_id=component_id,
-            version_number=component.current_version,
-            html_content=target.html_content,
-            css_content=target.css_content,
-            js_content=target.js_content,
-            change_summary=f"Rollback to version {target_version}",
-            created_by=user_id
+        raise ComponentVersionConflictError(
+            f"Component '{component_id}' was modified concurrently; please retry"
         )
-
-        self.db.add(rollback_version)
-        self.db.commit()
-
-        logger.info(
-            f"Rolled back component '{component.name}' from version {target_version} "
-            f"to new version {component.current_version}"
-        )
-
-        return {
-            "component_id": component_id,
-            "previous_version": target_version,
-            "new_version": component.current_version,
-            "status": "rolled_back"
-        }
 
     # ========================================================================
     # Component Usage
