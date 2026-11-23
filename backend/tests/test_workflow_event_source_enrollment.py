@@ -43,6 +43,7 @@ def enrollment_world(source_world, monkeypatch):
         if mismatch == 'state': record['clientState'] = 'different-state'
         elif mismatch == 'callback': record['notificationUrl'] = 'https://example.invalid/other'
         elif mismatch == 'expiry': record['expirationDateTime'] = '2000-01-01T00:00:00Z'
+        elif mismatch == 'moved_expiry': record['expirationDateTime'] = '2099-01-01T00:00:00Z'
         elif mismatch == 'identity': record['id'] = 'different-subscription'
         elif mismatch: record['resource'] = 'different-resource'
         return {'status': 'success', 'data': record}
@@ -104,7 +105,7 @@ def test_confirmed_refusal_reports_no_effect_without_another_provider_attempt(en
         assert db.query(TaskOperationRecord).one().status == operations.FAILED_BEFORE_EFFECT
 
 
-@pytest.mark.parametrize('mismatch', ['resource', 'state', 'callback', 'expiry', 'identity'])
+@pytest.mark.parametrize('mismatch', ['resource', 'state', 'callback', 'expiry', 'moved_expiry', 'identity'])
 def test_readback_mismatch_recovers_from_original_receipt_without_enrolling(enrollment_world, mismatch):
     factory, params, args, provider = enrollment_world
     provider['wrong_read'] = mismatch

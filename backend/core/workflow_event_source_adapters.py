@@ -59,7 +59,9 @@ class OutlookMailSourceAdapter:
             return False
         try:
             expiry = datetime.fromisoformat(str(observed.get('expirationDateTime', '')).replace('Z', '+00:00'))
-            if expiry.tzinfo is None or expiry <= datetime.now(timezone.utc):
+            expected_expiry = datetime.fromisoformat(plan['expires_at'].replace('Z', '+00:00'))
+            if (expiry.tzinfo is None or expiry <= datetime.now(timezone.utc)
+                    or expiry != expected_expiry):
                 return False
         except ValueError:
             return False
