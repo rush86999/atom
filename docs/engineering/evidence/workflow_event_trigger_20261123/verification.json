@@ -1,0 +1,22 @@
+{
+  "source": "84ad1a3691489ad6df927ae32c035f6ec21dc6ff",
+  "source_sha256": {
+    "backend/core/workflow_engine.py": "27e0f0568695c3ae5aa2b1e36cb9dd7cb048bb6c5719d1ce8c43528482dbfd7d",
+    "backend/tests/test_workflow_event_trigger_dispatch.py": "c8a52d549ff8059e7857e604baddbe04126cb69acc24320a739d1c193ba34e93",
+    ".github/workflows/ci.yml": "9e0fd0d1bb5ba83a0e77b707cfcbe12524da292dc7f1453ef56909e503a7ba08",
+    "backend/tests/fixtures/ci_backend_additions.json": "7a39c89e6e3a32d370936b47b63c6858ee50cd3c6678913c0f37a6f0fcb9e0da"
+  },
+  "python311": {
+    "passed": 154,
+    "subtests_passed": 18,
+    "deselected_unchanged_shell_matrix": 625,
+    "selection": "Eight event admission/registration/worker/trigger files plus CI lane contract, excluding real_gate_shell"
+  },
+  "real_runner_twin": "Real scratch SQLite reservation, claim, graph traversal and output persistence; final synthetic action transport doubled; only selected action runs once; original receipt snapshot unchanged",
+  "scope_limits": [
+    "No live provider/browser run",
+    "No source intake qualification",
+    "No Python3.14 repository qualification",
+    "No merge or deployment"
+  ]
+}
