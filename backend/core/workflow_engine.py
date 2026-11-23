@@ -860,6 +860,8 @@ class WorkflowEngine:
                 step["action"] = config.get("action", "manual_trigger")
             else:
                 step["type"] = "action"
+            if "event_subscription" in config:
+                step["event_subscription"] = copy.deepcopy(config["event_subscription"])
                 
             steps.append(step)
             
@@ -998,6 +1000,8 @@ class WorkflowEngine:
                         "workflow_id": workflow.get("id", "unknown"),
                         "connection_id": config.get("connectionId"),
                     }
+                    if "event_subscription" in config:
+                        step["event_subscription"] = copy.deepcopy(config["event_subscription"])
                     _attach_step_identity_context(
                         step,
                         execution_id=execution_id,
@@ -1040,7 +1044,7 @@ class WorkflowEngine:
                         # Execute step
                         try:
                             start_step_time = datetime.now(timezone.utc)
-                            output = await self._execute_step(step, resolved_params)
+                            output = await self._execute_dispatched_step(step, resolved_params, current_state)
                             duration_ms = int((datetime.now(timezone.utc) - start_step_time).total_seconds() * 1000)
                             self._validate_output_schema(step, output)
                             
@@ -1671,6 +1675,7 @@ class WorkflowEngine:
             try:
                 event_owner = self._reserved_event_policy_owner(
                     execution_id, workflow, policy_state)
+                workflow = await self._project_admitted_event_graph(workflow, policy_state)
             except (ValueError, TypeError):
                 await self.state_manager.update_execution_status(
                     execution_id, "FAILED", error="Reserved event policy owner is unavailable")
@@ -1788,7 +1793,9 @@ class WorkflowEngine:
                 return
 
             # Decide execution mode based on conditional connections
-            if self._has_conditional_connections(workflow):
+            if self._has_conditional_connections(workflow) or any(
+                    "event_subscription" in (node.get("config") or {})
+                    for node in workflow.get("nodes", [])):
                 # Use graph execution with branching
                 await self._execute_workflow_graph(execution_id, workflow, state, ws_manager, user_id, start_time)
                 # The graph execution will update execution status internally
@@ -2120,7 +2127,7 @@ class WorkflowEngine:
                     logger.error(f"Failed to create step execution record: {e}")
                 
                 try:
-                    output = await self._execute_step(step, resolved_params)
+                    output = await self._execute_dispatched_step(step, resolved_params, state)
                     # BUG-067: _execute_step can return {"status": "error", ...}
                     # instead of raising. Previously this was treated as success
                     # (step marked COMPLETED, workflow continued). Now check the
@@ -2564,6 +2571,76 @@ class WorkflowEngine:
             )
 
     @async_retry_with_backoff(max_retries=3, retry_if=_retry_step_failure)
+    async def _project_admitted_event_graph(self, workflow, state):
+        """Only the admitted root and its descendants run; keep receipt graph frozen."""
+        registered = [n for n in workflow.get("nodes", [])
+                      if "event_subscription" in (n.get("config") or {})]
+        if not registered:
+            return workflow
+        admission = (state.get("context") or {}).get("_atom_event_admission") or {}
+        selected = [n for n in registered if n.get("id") == admission.get("subscription_id")]
+        if len(selected) != 1:
+            raise ValueError("Admitted event trigger is absent from saved graph")
+        root = selected[0]
+        await self._execute_dispatched_step({
+            "id": root["id"], "type": root.get("type"),
+            "event_subscription": (root.get("config") or {})["event_subscription"]}, {}, state)
+        connections = workflow.get("connections") or []
+        if any(c.get("target") == root["id"] for c in connections):
+            raise ValueError("Registered event trigger must be a graph root")
+        reachable = {root["id"]}
+        while True:
+            expanded = reachable | {c.get("target") for c in connections if c.get("source") in reachable}
+            if expanded == reachable:
+                break
+            reachable = expanded
+        if any(n["id"] in reachable and n["id"] != root["id"] for n in registered):
+            raise ValueError("An event trigger cannot dispatch another event trigger")
+        projected = copy.deepcopy(workflow)
+        projected["nodes"] = [n for n in projected["nodes"] if n["id"] in reachable]
+        projected["connections"] = [c for c in projected.get("connections", [])
+                                    if c.get("source") in reachable and c.get("target") in reachable]
+        projected["steps"] = self._convert_nodes_to_steps(projected)
+        return projected
+
+    async def _execute_dispatched_step(self, step, params, state):
+        """Registered event triggers consume durable admission, never a connector call."""
+        if "event_subscription" not in step:
+            return await self._execute_step(step, params)
+        from core.workflow_event_admission import payload_digest
+
+        binding = step["event_subscription"]
+        admission = (state.get("context") or {}).get("_atom_event_admission") or {}
+        snapshot = admission.get("workflow_snapshot") or {}
+        event = (state.get("input_data") or {}).get("event")
+        execution_id = state.get("execution_id")
+        if (step.get("type") != "trigger" or not isinstance(binding, dict)
+                or not isinstance(event, dict) or not str(execution_id).startswith("evt_")):
+            raise ValueError("Registered event trigger requires durable event admission")
+        self._reserved_event_policy_owner(execution_id, snapshot, state)
+        identity = frozen_execution_identity(state.get("input_data"))
+        if any(admission.get(receipt_key) != identity.get(identity_key)
+               for receipt_key, identity_key in (("owner_id", "user_id"),
+                                                  ("tenant_id", "tenant_id"),
+                                                  ("workspace_id", "workspace_id"))):
+            raise ValueError("Registered event identity differs from durable execution owner")
+        selected = [node for node in snapshot.get("nodes", [])
+                    if node.get("id") == step.get("id") and node.get("type") == "trigger"]
+        if (len(selected) != 1 or admission.get("subscription_id") != step.get("id")
+                or (selected[0].get("config") or {}).get("event_subscription") != binding
+                or binding.get("enabled") is not True):
+            raise ValueError("Registered event trigger differs from admitted material")
+        for key in ("connection_id", "source", "event_type"):
+            if not binding.get(key) or binding[key] != admission.get(key) or binding[key] != event.get(key):
+                raise ValueError("Registered event source differs from admitted material")
+        for key in ("tenant_id", "workspace_id", "owner_id", "provider_event_id"):
+            if not admission.get(key) or admission[key] != event.get(key):
+                raise ValueError("Registered event identity differs from admitted material")
+        if payload_digest(event.get("payload")) != admission.get("payload_digest"):
+            raise ValueError("Registered event payload differs from admitted material")
+        return {"status": "success", "result": copy.deepcopy(event),
+                "execution_method": "durable_event_admission"}
+
     async def _execute_step(self, step: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute a single step.
