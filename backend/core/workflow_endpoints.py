@@ -274,6 +274,13 @@ class WorkflowDefinition(BaseModel):
     nodes: List[WorkflowNode]
     connections: List[WorkflowConnection]
     triggers: List[str]
+    # Kept readable for legacy rows; writes validate against the existing
+    # typed EventSubscription contract and current connection metadata.
+    event_subscriptions: Optional[List[Dict[str, Any]]] = None
+    tenant_id: Optional[str] = None
+    workspace_id: Optional[str] = None
+    created_by: Optional[str] = None
+    event_binding_version: Optional[int] = None
     enabled: bool
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
@@ -324,6 +331,7 @@ class WorkflowSaveRequest(BaseModel):
     nodes: Optional[List[WorkflowNode]] = None
     connections: Optional[List[WorkflowConnection]] = None
     triggers: Optional[List[str]] = None
+    event_subscriptions: Optional[List[Dict[str, Any]]] = None
     enabled: Optional[bool] = None
     steps: Optional[List[Dict[str, Any]]] = None
 
@@ -581,6 +589,12 @@ def _is_visible_to_user(workflow: Dict[str, Any], user: User) -> bool:
     it stays visible (A7), and its global catalog limitation is not certified
     or silently rewritten.
     """
+    if workflow.get("event_binding_version") == 1:
+        scope = _caller_scope(user)
+        if (workflow.get("created_by") != scope["user_id"]
+                or workflow.get("tenant_id") != scope["tenant_id"]
+                or workflow.get("workspace_id") != scope["workspace_id"]):
+            return False
     deployment = workflow.get("deployment")
     if not isinstance(deployment, dict) or not deployment.get("tenant_id"):
         return True
@@ -1392,8 +1406,42 @@ async def get_workflow(
     response.headers["ETag"] = f'"{enriched["revision"]}"'
     return enriched
 
+def _bind_event_subscriptions(material, subscriptions, user, db):
+    """Bind saved trigger material to the current owner and exact source."""
+    from dataclasses import asdict
+    from core.connection_service import ConnectionService
+    from core.workflow_event_admission import _subscription
+
+    normalized = []
+    seen_ids = set()
+    seen_bindings = set()
+    for raw in subscriptions:
+        subscription = _subscription(raw)
+        if (subscription is None or type(raw.get("enabled")) is not bool
+                or any(not isinstance(raw.get(k), str) for k in (
+                    "id", "connection_id", "source", "event_type"))):
+            raise HTTPException(status_code=400, detail="Invalid event subscription")
+        binding = (subscription.connection_id, subscription.source, subscription.event_type)
+        if subscription.id in seen_ids or binding in seen_bindings:
+            raise HTTPException(status_code=400, detail="Duplicate or ambiguous event subscription")
+        metadata = ConnectionService.get_scoped_connection_metadata(
+            db, user_id=str(user.id), tenant_id=getattr(user, "tenant_id", None),
+            workspace_id=getattr(user, "workspace_id", None),
+            connection_id=subscription.connection_id, integration_id=subscription.source)
+        if metadata is None:
+            raise HTTPException(status_code=400, detail="Event source connection is unavailable in this scope")
+        seen_ids.add(subscription.id)
+        seen_bindings.add(binding)
+        normalized.append(asdict(subscription))
+    material["event_subscriptions"] = normalized
+    if normalized:
+        scope = _caller_scope(user)
+        material.update(tenant_id=scope["tenant_id"], workspace_id=scope["workspace_id"],
+                        created_by=scope["user_id"], event_binding_version=1)
+
+
 @router.post("/workflows", response_model=WorkflowDefinition)
-async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(require_permission(Permission.WORKFLOW_MANAGE))):
+async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(require_permission(Permission.WORKFLOW_MANAGE)), db: Session = Depends(get_db)):
     # R81: reject cyclic graphs at composition time (the engine would otherwise
     # execute them in arbitrary insertion order).
     _validate_workflow_dag(workflow.dict())
@@ -1406,6 +1454,14 @@ async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(req
     workflow.updatedAt = datetime.now().isoformat()
 
     workflow_dict = workflow.dict()
+    for identity_field in ("tenant_id", "workspace_id", "created_by", "event_binding_version"):
+        workflow_dict.pop(identity_field, None)
+    subscriptions_provided = ("event_subscriptions" in workflow.model_fields_set
+                              and workflow.event_subscriptions is not None)
+    if subscriptions_provided:
+        _bind_event_subscriptions(workflow_dict, workflow.event_subscriptions or [], user, db)
+    else:
+        workflow_dict.pop("event_subscriptions", None)
     # Deployment metadata is server-owned. A public create/update must never
     # grant scope, digest, agent or approval binding.
     workflow_dict.pop("deployment", None)
@@ -1424,6 +1480,14 @@ async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(req
              or w.get('workflow_id') == workflow.id), -1)
         if existing_index >= 0:
             prior = workflows[existing_index]
+            if not _is_visible_to_user(prior, user):
+                raise HTTPException(status_code=404, detail="Workflow not found")
+            if subscriptions_provided or prior.get("event_binding_version") == 1:
+                raise HTTPException(status_code=409, detail="Use the revision-bound workflow save to change event workflows")
+            if not subscriptions_provided:
+                for field in ("event_subscriptions", "tenant_id", "workspace_id", "created_by", "event_binding_version"):
+                    if field in prior:
+                        workflow_dict[field] = copy.deepcopy(prior[field])
             if isinstance(prior.get("deployment"), dict):
                 workflow_dict["deployment"] = prior["deployment"]
             # A retained same-ID legacy write replaces the editor material but
@@ -1500,7 +1564,7 @@ async def delete_workflow(workflow_id: str, user: User = Depends(require_permiss
 # copied from the current row and cannot be changed by a structured save.
 _EDITOR_OWNED_FIELDS = (
     "name", "description", "version", "nodes", "connections", "triggers",
-    "enabled", "steps",
+    "enabled", "steps", "event_subscriptions",
 )
 
 
@@ -1603,6 +1667,7 @@ async def save_structured_workflow(
     response: Response,
     body: WorkflowSaveRequest = Body(...),
     user: User = Depends(require_permission(Permission.WORKFLOW_MANAGE)),
+    db: Session = Depends(get_db),
 ):
     """Save a visual-editor definition onto its existing same-ID ordinary row.
 
@@ -1664,6 +1729,8 @@ async def save_structured_workflow(
     for field in _EDITOR_OWNED_FIELDS:
         if field in provided:
             modified[field] = copy.deepcopy(provided[field])
+    if "event_subscriptions" in provided:
+        _bind_event_subscriptions(modified, provided["event_subscriptions"], user, db)
     # A graph save clears the cached/derived step projection unless the caller
     # changed steps too, so GET re-linearizes the new nodes instead of
     # returning a stale step list. Step-based rows also carry ``nodes: []`` in

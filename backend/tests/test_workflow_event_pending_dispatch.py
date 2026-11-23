@@ -2,7 +2,7 @@
 import asyncio
 import pytest
 from core.execution_state_manager import ExecutionStateManager
-from test_workflow_event_reservation import IDENTITY, event_db
+from tests.test_workflow_event_reservation import IDENTITY, event_db
 
 
 async def reserve(manager, name):

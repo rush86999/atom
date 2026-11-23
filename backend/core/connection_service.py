@@ -219,6 +219,33 @@ class ConnectionService:
         """Return True only for a usable, non-blank string identifier."""
         return isinstance(value, str) and bool(value.strip())
 
+    @staticmethod
+    def get_scoped_connection_metadata(
+        db, *, user_id, tenant_id, workspace_id, connection_id, integration_id,
+    ):
+        """Read exact active connection identity without reading credentials.
+
+        Raw tenant/workspace values are compared exactly, including SQL NULL.
+        This is metadata authority for saved event bindings, not proof that a
+        provider is reachable or that a credential can be refreshed.
+        """
+        if not all(isinstance(v, str) and v.strip() for v in (
+                user_id, connection_id, integration_id)):
+            return None
+        row = db.query(
+            UserConnection.id, UserConnection.user_id, UserConnection.tenant_id,
+            UserConnection.workspace_id, UserConnection.integration_id,
+            UserConnection.status,
+        ).filter(
+            UserConnection.id == connection_id,
+            UserConnection.user_id == user_id,
+            UserConnection.tenant_id == tenant_id,
+            UserConnection.workspace_id == workspace_id,
+            UserConnection.integration_id == integration_id,
+            UserConnection.status == "active",
+        ).first()
+        return dict(row._mapping) if row is not None else None
+
     def get_scoped_connection_credentials(
         self,
         user_id: str,

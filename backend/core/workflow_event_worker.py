@@ -158,6 +158,12 @@ async def dispatch_preflight(execution_id, state, workflow):
             raise _PermanentRefusal("scope_mismatch")
         if not _actor_has_run_permission(actor):
             raise _PermanentRefusal(FAILURE_AUTHORIZATION_REVOKED)
+        from core.connection_service import ConnectionService
+        if ConnectionService.get_scoped_connection_metadata(
+                db, user_id=identity["user_id"], tenant_id=getattr(actor, "tenant_id", None),
+                workspace_id=getattr(actor, "workspace_id", None),
+                connection_id=admission.get("connection_id"), integration_id=admission.get("source")) is None:
+            raise _PermanentRefusal("source_connection_unavailable")
         current = _load_current_workflow(db, state["workflow_id"], actor)
         if current is None:
             raise _PermanentRefusal(FAILURE_WORKFLOW_NOT_FOUND)

@@ -5,7 +5,7 @@ import pytest
 from core import workflow_event_worker as worker
 from core.execution_state_manager import ExecutionStateManager
 from core.workflow_engine import WorkflowEngine
-from test_workflow_event_reservation import IDENTITY, event_db
+from tests.test_workflow_event_reservation import IDENTITY, event_db
 
 
 async def reserved(manager, name):
@@ -15,7 +15,8 @@ async def reserved(manager, name):
         "workflow", {}, execution_id=name, identity=IDENTITY,
         admission={"execution_id": name, "workflow_id": "workflow",
                    "owner_id": IDENTITY["user_id"], "tenant_id": IDENTITY["tenant_id"],
-                   "workspace_id": IDENTITY["workspace_id"], "workflow_snapshot": workflow})
+                   "workspace_id": IDENTITY["workspace_id"], "workflow_snapshot": workflow,
+                   "connection_id": "connection-one", "source": "synthetic-mail"})
     assert created
     return state
 
@@ -122,22 +123,27 @@ def test_worker_owns_one_task_and_awaits_stop(monkeypatch):
     asyncio.run(check())
 
 
-@pytest.mark.parametrize("case", ["valid", "inactive", "moved_scope", "definition_changed", "missing_definition", "critical_member", "catalog_unavailable"])
+@pytest.mark.parametrize("case", ["valid", "inactive", "moved_scope", "definition_changed", "missing_definition", "critical_member", "catalog_unavailable", "revoked_connection"])
 def test_default_preflight_reads_current_owner_and_definition(event_db, monkeypatch, tmp_path, case):
     import copy
     from contextlib import contextmanager
     from sqlalchemy import create_engine
     from sqlalchemy.orm import Session
-    from core.models import User
+    from core.models import User, UserConnection
     from core import workflow_endpoints
     db_engine = create_engine(f"sqlite:///{tmp_path / 'owner.db'}")
     User.__table__.create(db_engine)
+    UserConnection.__table__.create(db_engine)
     with Session(db_engine) as db:
         db.add(User(id=IDENTITY["user_id"], email="synthetic@example.invalid",
                     first_name="Synthetic", last_name="Owner", role="member",
                     status="active", is_active=case != "inactive",
                     tenant_id=IDENTITY["tenant_id"], workspace_id=(
                         "moved" if case == "moved_scope" else IDENTITY["workspace_id"])))
+        db.add(UserConnection(id="connection-one", user_id=IDENTITY["user_id"],
+                             tenant_id=IDENTITY["tenant_id"], workspace_id=IDENTITY["workspace_id"],
+                             integration_id="synthetic-mail", connection_name="Synthetic source", credentials={},
+                             status="revoked" if case == "revoked_connection" else "active"))
         db.commit()
     @contextmanager
     def open_db():

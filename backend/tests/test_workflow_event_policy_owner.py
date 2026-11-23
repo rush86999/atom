@@ -13,7 +13,7 @@ from core.workflow_engine import WorkflowEngine
 from core.workflow_event_admission import (
     EventAdmissionReceipt, ReservationResult, WorkflowEvent, WorkflowEventAdmissionCoordinator,
 )
-from test_workflow_event_reservation import event_db
+from tests.test_workflow_event_reservation import event_db
 
 
 @pytest.mark.parametrize("legacy_author", [None, "synthetic-former-author", "user-a"])
@@ -34,13 +34,17 @@ def test_event_owner_saved_rule_pauses_before_any_action(event_db, monkeypatch, 
         return result
     monkeypatch.setattr("core.task_classification.build_workflow_task_profile", classify)
     if through_worker:
-        from core.models import User
+        from core.models import User, UserConnection
         from core import workflow_event_worker
         User.__table__.create(db_engine)
+        UserConnection.__table__.create(db_engine)
         with Session(db_engine) as db:
             db.add(User(id="user-a", email="synthetic@example.invalid", first_name="Synthetic",
                         last_name="Owner", role="member", status="active", is_active=True,
                         tenant_id="tenant-a", workspace_id="workspace-a"))
+            db.add(UserConnection(id="synthetic-connection", user_id="user-a", tenant_id="tenant-a",
+                                 workspace_id="workspace-a", integration_id="mail", connection_name="Synthetic mail",
+                                 credentials={}, status="active"))
             db.commit()
         monkeypatch.setattr(workflow_event_worker, "_open_db", lambda: Session(db_engine))
     approval = Mock(return_value="synthetic-review")
