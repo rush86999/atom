@@ -609,9 +609,56 @@ class ExecutionStateManager:
             rowcount = getattr(result, "rowcount", 0)
             return bool(rowcount and rowcount > 0)
 
+    async def refuse_pending_event_execution(
+        self,
+        execution_id: str,
+        *,
+        expected_version: int,
+        failure_code: str,
+    ) -> bool:
+        """Refuse only the observed PENDING event, preserving peer winners.
+
+        A durable admission receipt and exact observed version are required.
+        Temporary preflight failures must not call this method. No RUNNING,
+        cancelled or newer row can be changed by a stale refusal.
+        """
+        if (not is_event_execution_id(execution_id)
+                or type(expected_version) is not int or expected_version < 1
+                or not isinstance(failure_code, str) or not failure_code.strip()):
+            return False
+        async with get_async_db_session() as db:
+            result = await db.execute(select(
+                WorkflowExecution.context, WorkflowExecution.version,
+            ).where(WorkflowExecution.execution_id == execution_id))
+            row = result.first()
+            if row is None:
+                return False
+            context, version = row
+            if version != expected_version or not event_admission_matches(context, execution_id):
+                return False
+            conditions = [
+                WorkflowExecution.execution_id == execution_id,
+                func.upper(WorkflowExecution.status) == "PENDING",
+                WorkflowExecution.version == expected_version,
+            ]
+            if context is None:
+                conditions.append(WorkflowExecution.context.is_(None))
+            elif not isinstance(context, (dict, list)):
+                conditions.append(WorkflowExecution.context == context)
+            timestamp = datetime.now(timezone.utc)
+            updated = await db.execute(update(WorkflowExecution).where(*conditions).values(
+                status="FAILED", error=failure_code,
+                version=WorkflowExecution.version + 1,
+                updated_at=timestamp, completed_at=timestamp,
+            ))
+            await db.commit()
+            return bool(getattr(updated, "rowcount", 0))
+
     async def list_admitted_event_executions(
         self,
         limit: int = 100,
+        *,
+        after_execution_id: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Return admitted, unclaimed event runs using bounded keyset paging.
 
@@ -635,6 +682,12 @@ class ExecutionStateManager:
         full of invalid receipts cannot stall the scan.  The requested limit is
         capped, and each SQL page is independently bounded.
 
+        ``after_execution_id`` continues a bounded scan after the last
+        returned opaque id. A polling consumer can preserve this cursor across
+        ticks and wrap after exhaustion, so temporarily deferred first pages
+        do not permanently hide later runnable events. Omission retains the
+        existing first-page behavior.
+
         This method only looks; it never claims, requeues or replays anything.
         A separate dispatcher is responsible for calling
         :meth:`claim_event_execution` for each returned id.
@@ -649,7 +702,7 @@ class ExecutionStateManager:
         batch_size = min(max(limit, 1), _EVENT_LIST_BATCH_SIZE)
 
         runs: List[Dict[str, Any]] = []
-        cursor_id: Optional[str] = None
+        cursor_id: Optional[str] = after_execution_id
 
         async with get_async_db_session() as db:
             while len(runs) < limit:
