@@ -1,0 +1,48 @@
+{
+  "source": "6a07eed56cdc8555a61fb46d558005b36b9e4d2d",
+  "combined_gate_source": "f375b2798d69afa30e1cf4f45d474b971f303790",
+  "source_sha256": {
+    "backend/core/workflow_event_source_registration.py": "0d410aed39effd977c10e03fab1a0cb6d90097244df1ceecf59fb39eb7bde2a9",
+    "backend/core/workflow_event_source_enrollment.py": "801a1528b281ebb4d65a656adfb56d27dbf7f8743068c18bbffaa072bada4554",
+    "backend/core/workflow_event_source_adapters.py": "a1a6b4f4ceae4e0ca32a4db45f9102286a8ec3315ee434bdb2ca8aa6b88b7360",
+    "backend/integrations/microsoft365_service.py": "0e73d1b9d6c1987d0f643418bbafedea7e8216fe74bfccb4482f82c4d103b6f2",
+    "backend/tests/test_workflow_event_source_enrollment.py": "bf5392702934193ab684a33dee2e041656a56c6489095def772e089984db1d6e",
+    "backend/tests/test_workflow_event_source_registration.py": "2017fbfb529419cdde540246320d12ab9dd41150bc13659adcccacc73b86ceea",
+    "backend/tests/test_outlook_subscription_receiver_state.py": "6fbb0a637c18f1ffc15d1d47a85fb1c92f010d204d9a4bd44224cdcbecf1af20",
+    ".github/workflows/ci.yml": "669854c41ae60b7c0517f3c3c971fcb853cd9351c1faf8ca821eab75ed653f27",
+    "backend/tests/fixtures/ci_backend_additions.json": "daa75203e6cfa58915ff0e0c10638ae516ebe289c236e962a01d6fbc8adf1471"
+  },
+  "python311": {
+    "combined_gate_at_f375b2798": {
+      "passed": 107,
+      "unchanged_shell_matrix_deselected": 625
+    },
+    "final_expiry_successor_native_enrollment_gate": {
+      "passed": 15
+    }
+  },
+  "provider_transport": "Existing Microsoft365Service request builder and actual encrypted scoped connection reads; Graph HTTP transport doubled",
+  "verified": [
+    "one native provider create under replay and competing callers",
+    "confirmed provider refusal has effect none",
+    "lost confirmation or receipt persistence never resends",
+    "fresh readback mismatch remains committed_unverified",
+    "local activation failure replays original provider receipt without creation",
+    "activation target and audit commit atomically",
+    "current authority change before transport refuses with zero provider calls",
+    "changed adapter material and receipt shape do not certify replay",
+    "readback binds provider id, resource, callback, change type and requested expiry",
+    "provider error logs exclude echoed private state while legacy response shape remains"
+  ],
+  "limits": [
+    "No public enrollment route or callback yet",
+    "No verified-event recovery from uncertain enrollment yet",
+    "No renewal, token refresh/backfill or days-long source qualification",
+    "No source-selection UI/browser journey",
+    "No application live-provider campaign, PostgreSQL/soak, merge or deployment"
+  ],
+  "references": [
+    "https://learn.microsoft.com/en-us/graph/change-notifications-delivery-webhooks",
+    "https://learn.microsoft.com/en-us/graph/api/resources/subscription?view=graph-rest-1.0"
+  ]
+}
