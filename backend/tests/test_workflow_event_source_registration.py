@@ -158,15 +158,18 @@ def test_audit_write_failure_rolls_back_preparation_and_returns_safe_error(sourc
         assert db.get(UserConnection, 'connection').status == 'active'
 
 
-@pytest.mark.parametrize('field', ['identity', 'operation_id', 'receiver_state_ciphertext', 'enabled'])
+@pytest.mark.parametrize('field', ['identity', 'operation_id', 'receiver_state_ciphertext', 'enabled', 'audit_action'])
 def test_corrupted_prepared_material_is_not_recertified_by_its_request_digest(source_world, field):
     factory, params = source_world
     service.prepare_source_registration(**params)
     with factory() as db:
         row = db.query(TenantSetting).one()
         material = json.loads(row.setting_value)
-        material[field] = {'user_id': 'other'} if field == 'identity' else (True if field == 'enabled' else 'changed')
-        row.setting_value = json.dumps(material)
+        if field == 'audit_action':
+            db.query(AuditLog).one().action = 'different-action'
+        else:
+            material[field] = {'user_id': 'other'} if field == 'identity' else (True if field == 'enabled' else 'changed')
+            row.setting_value = json.dumps(material)
         db.commit()
     with pytest.raises(service.SourceRegistrationError, match='SOURCE_REGISTRATION_UNVERIFIED'):
         service.prepare_source_registration(**params)

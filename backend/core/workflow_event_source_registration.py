@@ -10,6 +10,7 @@ import hashlib
 import json
 import secrets
 import uuid
+from datetime import datetime, timezone
 from urllib.parse import urlencode, urlsplit, urlunsplit, parse_qsl
 from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
@@ -82,11 +83,15 @@ def _verified_replay(db, row, request_digest, identity, connection_id, source):
                     request_digest=request_digest, result_digest=_digest(document))
     matches = 0
     for audit in db.query(AuditLog).filter(
-            AuditLog.event_type == 'workflow_event_source_prepared',
+            AuditLog.event_type.in_(['workflow_event_source_prepared', 'workflow_event_source_activated']),
             AuditLog.user_id == identity['user_id'], AuditLog.tenant_id == identity['tenant_id'],
             AuditLog.workspace_id == identity['workspace_id'], AuditLog.resource == connection_id,
             AuditLog.success.is_(True)).all():
         try:
+            expected_action = ('prepare_workflow_event_source' if audit.event_type ==
+                               'workflow_event_source_prepared' else 'activate_workflow_event_source')
+            if audit.action != expected_action:
+                continue
             if json.loads(audit.metadata_json) == expected:
                 matches += 1
         except (ValueError, TypeError):
@@ -149,6 +154,7 @@ def prepare_source_registration(*, actor_id, connection_id, source, event_types,
             query = parse_qsl(url.query) + [('registration', operation_id)]
             callback_url = urlunsplit((url.scheme, url.netloc, url.path, urlencode(query), ''))
             document = dict(schema='workflow.event_source.v1', phase='prepared', enabled=False,
+                            prepared_at=datetime.now(timezone.utc).isoformat(),
                             operation_id=operation_id, source=source, connection_id=connection_id,
                             identity=identity, request_digest=request_digest,
                             event_types=sorted(event_types), callback_url=callback_url,
@@ -194,3 +200,55 @@ def public_registration(document):
     """No receiver secret, commitment, raw authority, or operation digest leaves the service."""
     return {key: document.get(key) for key in (
         'operation_id', 'source', 'connection_id', 'event_types', 'phase', 'enabled')}
+
+
+def activate_source_registration(document, receipt, *, db_factory=None):
+    """CAS the observed registration and its activation audit in one transaction."""
+    if db_factory is None:
+        from core.database import get_db_session
+        db_factory = get_db_session
+    identity = document['identity']
+    with db_factory() as db:
+        try:
+            actor, current_identity, connection = _authority(
+                db, identity['user_id'], document['connection_id'], document['source'])
+            if current_identity != identity:
+                raise SourceRegistrationError('SOURCE_AUTHORITY_CHANGED')
+            _claim(db, actor, connection)
+            row = db.query(TenantSetting).filter(
+                TenantSetting.tenant_id == identity['tenant_id'],
+                TenantSetting.setting_key == _key(document['connection_id'], document['source'])).first()
+            if row is None:
+                raise SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
+            current = _verified_replay(db, row, document['request_digest'], identity,
+                                       document['connection_id'], document['source'])
+            if current != document:
+                raise SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
+            if document.get('phase') == 'registered':
+                if document.get('provider_subscription_id') != receipt['subscription_id']:
+                    raise SourceRegistrationError('SOURCE_REGISTRATION_CONFLICT')
+                db.commit()
+                return current
+            activated = dict(document, phase='registered', enabled=True,
+                             provider_subscription_id=receipt['subscription_id'],
+                             provider_receipt_digest=_digest(receipt))
+            changed = db.execute(update(TenantSetting).where(
+                TenantSetting.id == row.id, TenantSetting.setting_value == row.setting_value,
+            ).values(setting_value=_json(activated)).execution_options(synchronize_session=False))
+            if changed.rowcount != 1:
+                raise SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
+            db.add(AuditLog(event_type='workflow_event_source_activated', security_level='INFO',
+                threat_level='NONE', user_id=identity['user_id'], tenant_id=identity['tenant_id'],
+                workspace_id=identity['workspace_id'], resource=document['connection_id'],
+                action='activate_workflow_event_source', description='Workflow event source activated',
+                success=True, metadata_json=_json({'operation_id': document['operation_id'],
+                    'source': document['source'], 'request_digest': document['request_digest'],
+                    'result_digest': _digest(activated)})))
+            db.commit()
+            return activated
+        except SourceRegistrationError:
+            db.rollback()
+            raise
+        except Exception:
+            db.rollback()
+            raise SourceRegistrationError('SOURCE_ACTIVATION_UNAVAILABLE') from None

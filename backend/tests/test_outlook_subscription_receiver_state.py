@@ -47,3 +47,38 @@ def test_realtime_enrollment_and_receiver_share_the_exact_state(monkeypatch):
     assert receiver.verify_client_state(emitted) is True
     assert receiver.verify_client_state('different-state') is False
     assert receiver._state['user_id'] == 'synthetic-owner'
+
+
+def test_subscription_exception_logs_only_error_class(monkeypatch, caplog):
+    import secrets
+    service = Microsoft365Service(config={})
+    private = secrets.token_urlsafe(24)
+    service._make_graph_request = AsyncMock(side_effect=RuntimeError(private))
+    result = asyncio.run(service.create_subscription(
+        'synthetic', '/me/messages', 'created', 'https://example.invalid/callback',
+        '2026-11-25T00:00:00Z', client_state=private))
+    assert result['status'] == 'error'
+    assert private not in caplog.text
+    assert 'RuntimeError' in caplog.text
+
+
+def test_graph_error_body_is_not_logged_but_legacy_response_shape_remains(monkeypatch, caplog):
+    import secrets
+    import aiohttp
+    private = secrets.token_urlsafe(24)
+    class Response:
+        status = 400
+        async def text(self): return private
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return None
+    class Transport:
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return None
+        def request(self, *args, **kwargs): return Response()
+    monkeypatch.setattr(aiohttp, 'ClientSession', Transport)
+    service = Microsoft365Service(config={})
+    response = asyncio.run(service._make_graph_request('POST', service.base_url + '/subscriptions',
+        'synthetic', {'clientState': private}))
+    assert response == {'status': 'error', 'code': 400, 'message': private}
+    assert private not in caplog.text
+    assert 'status=400' in caplog.text

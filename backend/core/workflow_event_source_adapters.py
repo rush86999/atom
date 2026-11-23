@@ -1,0 +1,79 @@
+"""Native connector adapters for the shared source enrollment lifecycle.
+
+Only connector-specific API/resource translation lives here; ownership,
+reservations, retries and local activation remain in the general services.
+"""
+from datetime import datetime, timedelta, timezone
+import hashlib
+from urllib.parse import quote
+from core.workflow_event_source_enrollment import EnrollmentRefused
+
+
+class OutlookMailSourceAdapter:
+    event_types = ('message.created',)
+
+    def __init__(self, source='outlook', service=None):
+        if source not in ('outlook', 'microsoft365'):
+            raise ValueError('Unsupported native mail source')
+        self.source = source
+        if service is None:
+            from integrations.microsoft365_service import Microsoft365Service
+            service = Microsoft365Service(config={})
+        self.service = service
+
+    def material(self, document):
+        prepared = datetime.fromisoformat(document['prepared_at'])
+        if prepared.tzinfo is None:
+            raise ValueError('Source preparation time has no timezone')
+        return {'resource': "/me/mailFolders('Inbox')/messages", 'change_type': 'created,deleted',
+                'callback_url': document['callback_url'],
+                'expires_at': (prepared + timedelta(hours=71)).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}
+
+    async def create(self, document, credentials, client_state):
+        plan = self.material(document)
+        response = await self.service.create_subscription(credentials['access_token'],
+            plan['resource'], plan['change_type'], plan['callback_url'], plan['expires_at'],
+            client_state=client_state)
+        if response.get('status') != 'success':
+            code = response.get('code')
+            if type(code) is int and code in (400, 401, 403, 404, 409, 422):
+                raise EnrollmentRefused('Provider refused source enrollment')
+            raise ValueError('Provider enrollment outcome is unavailable')
+        data = response.get('data')
+        return {'subscription_id': data.get('id') if isinstance(data, dict) else None}
+
+    async def read(self, subscription_id, credentials):
+        token = credentials.get('access_token')
+        if not isinstance(token, str) or not token:
+            return None
+        response = await self.service._make_graph_request('GET',
+            self.service.base_url + '/subscriptions/' + quote(subscription_id, safe=''), token)
+        return response.get('data') if response.get('status') == 'success' else None
+
+    def verify(self, document, receipt, observed):
+        if not isinstance(observed, dict) or observed.get('id') != receipt['subscription_id']:
+            return False
+        plan = self.material(document)
+        if any(observed.get(k) != plan[v] for k, v in (
+                ('resource', 'resource'), ('changeType', 'change_type'), ('notificationUrl', 'callback_url'))):
+            return False
+        try:
+            expiry = datetime.fromisoformat(str(observed.get('expirationDateTime', '')).replace('Z', '+00:00'))
+            if expiry.tzinfo is None or expiry <= datetime.now(timezone.utc):
+                return False
+        except ValueError:
+            return False
+        # Graph documents clientState as write-only/null on reads. Do not
+        # invent a returned value; the actual callback must prove delivery.
+        returned_state = observed.get('clientState')
+        if returned_state is not None:
+            if (not isinstance(returned_state, str)
+                    or hashlib.sha256(returned_state.encode()).hexdigest() != document['receiver_state_digest']):
+                return False
+        return True
+
+
+def source_adapter(source):
+    if source in ('outlook', 'microsoft365'):
+        return OutlookMailSourceAdapter(source)
+    raise ValueError('Source enrollment is not supported by a registered adapter')

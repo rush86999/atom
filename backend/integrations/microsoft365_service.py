@@ -290,7 +290,7 @@ class Microsoft365Service(IntegrationService):
             async with session.request(method, url, headers=headers, json=json_data) as response:
                 if response.status >= 400:
                     text = await response.text()
-                    logger.error(f"Graph API Error ({response.status}): {text}")
+                    logger.error("Graph API request failed: status=%s", response.status)
                     return {"status": "error", "code": response.status, "message": text}
                 
                 if response.status == 204:
@@ -936,7 +936,7 @@ class Microsoft365Service(IntegrationService):
             }
             return await self._make_graph_request("POST", url, token, payload)
         except Exception as e:
-            logger.error(f"Create subscription failed: {e}")
+            logger.error("Create subscription failed: error_class=%s", type(e).__name__)
             return {"status": "error", "message": "Create subscription failed"}
 
     async def renew_subscription(self, token: str, subscription_id: str, expiration_datetime: str) -> Dict[str, Any]:
