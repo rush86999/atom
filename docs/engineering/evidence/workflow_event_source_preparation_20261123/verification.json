@@ -1,0 +1,35 @@
+{
+  "source": "15118646380f4d302dea0f69f550fcd1b9c6a3cf",
+  "source_sha256": {
+    "backend/core/workflow_event_source_registration.py": "bd42d0f4f229555b323940f7236a070547fe69695598a6144f8c0976efb1be95",
+    "backend/tests/test_workflow_event_source_registration.py": "2b9145595bb98a327a3b1bf13042215888bbe40af7219e3b72e439a6adb86d21",
+    ".github/workflows/ci.yml": "089cf436bf3b0c698e13c2e8e647fd2f0e32c7f22f73da70bdcd4db0cec033ac",
+    "backend/tests/fixtures/ci_backend_additions.json": "23154bd5eb7c9bf71bed2fbac4a5d018a51c2cf650a575cf7c3dcce02b9c8b1e"
+  },
+  "python311": {
+    "passed": 84,
+    "unchanged_shell_matrix_deselected": 625,
+    "selection": "17 source-preparation controls plus 67 affected CI preservation controls"
+  },
+  "failure_first": {
+    "corrupted_prepared_material_before": 4,
+    "corrupted_prepared_material_after": 0
+  },
+  "storage": "Existing TenantSetting and AuditLog; existing ConnectionService encryption. No new table or migration.",
+  "verified": [
+    "current manage authority and exact active connection claim",
+    "one operation and encrypted receiver state across fresh-session retries",
+    "real competing SQLite preparations preserve one registration/audit",
+    "changed setup material refuses without overwrite",
+    "authority change between read and write preserves peer and commits nothing",
+    "audit write failure rolls back registration",
+    "complete stored result digest verified on replay",
+    "public projection excludes nonce ciphertext and commitment"
+  ],
+  "limits": [
+    "Preparation only: no provider enrollment or callback yet",
+    "No live provider/credential operation",
+    "No PostgreSQL, soak or multi-worker qualification",
+    "No merge/deployment"
+  ]
+}
