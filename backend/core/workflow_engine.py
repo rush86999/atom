@@ -1469,6 +1469,23 @@ class WorkflowEngine:
         await ws_manager.notify_workflow_status("default", execution_id, "CANCELLED")
         return True
 
+    @staticmethod
+    def _reserved_event_policy_owner(execution_id, workflow, state):
+        """Read event ownership from its durable receipt, never the author."""
+        if not str(execution_id).startswith("evt_"):
+            return None
+        context = state.get("context") if isinstance(state, dict) else None
+        if isinstance(context, str):
+            context = json.loads(context)
+        admission = context.get("_atom_event_admission") if isinstance(context, dict) else None
+        identity = frozen_execution_identity(state.get("input_data")) if isinstance(state, dict) else {}
+        if (not isinstance(admission, dict)
+                or admission.get("execution_id") != execution_id
+                or admission.get("workflow_id") != workflow.get("id")
+                or any(not identity.get(key) for key in ("user_id", "tenant_id", "workspace_id"))):
+            raise ValueError("Reserved event has no complete durable policy owner")
+        return identity["user_id"]
+
     async def _admit_never_autonomous_task(
         self,
         execution_id: str,
@@ -1509,7 +1526,8 @@ class WorkflowEngine:
         # The admitted workflow actor is the policy owner. Never let a stale
         # ancestor profile choose a different owner than the run's creator.
         owner_user_id = (
-            workflow.get("created_by")
+            self._reserved_event_policy_owner(execution_id, workflow, state)
+            or workflow.get("created_by")
             or workflow.get("user_id")
             or user_id
             or (profile.owner_user_id if profile is not None else None))
@@ -1647,6 +1665,19 @@ class WorkflowEngine:
         """
         token = None
         boundary = None
+        profile_workflow = workflow
+        if str(execution_id).startswith("evt_"):
+            policy_state = await self.state_manager.get_execution_state(execution_id)
+            try:
+                event_owner = self._reserved_event_policy_owner(
+                    execution_id, workflow, policy_state)
+            except (ValueError, TypeError):
+                await self.state_manager.update_execution_status(
+                    execution_id, "FAILED", error="Reserved event policy owner is unavailable")
+                return
+            # Classification gets a run-local view; never rewrite the stored
+            # definition or its receipt-bound workflow snapshot.
+            profile_workflow = dict(workflow, created_by=event_owner)
         try:
             from core.task_classification import (
                 begin_task_profile_boundary,
@@ -1662,7 +1693,7 @@ class WorkflowEngine:
             # profile if both this build and the unknown fallback fail.
             boundary = begin_task_profile_boundary(None)
             try:
-                profile = build_workflow_task_profile(workflow)
+                profile = build_workflow_task_profile(profile_workflow)
             except Exception as _classify_err:  # noqa: BLE001
                 # Bind the canonical unknown profile rather than letting the
                 # run skip task admission entirely. Configured rules become
@@ -1673,8 +1704,8 @@ class WorkflowEngine:
                     execution_id, type(_classify_err).__name__)
                 profile = build_unknown_task_profile(
                     user_id=(
-                        workflow.get("created_by")
-                        or workflow.get("user_id")),
+                        profile_workflow.get("created_by")
+                        or profile_workflow.get("user_id")),
                     reason=type(_classify_err).__name__,
                 )
             token = bind_task_profile(None, profile)
@@ -1709,6 +1740,10 @@ class WorkflowEngine:
         analytics = get_analytics_engine()
         
         user_id = workflow.get("created_by", "default")
+        if str(execution_id).startswith("evt_"):
+            policy_state = await self.state_manager.get_execution_state(execution_id)
+            user_id = self._reserved_event_policy_owner(
+                execution_id, workflow, policy_state)
         start_time = datetime.now(timezone.utc)
         
         try:
