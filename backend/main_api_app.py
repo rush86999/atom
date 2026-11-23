@@ -772,6 +772,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001 — lifespan must not fail
         logger.error(f"Failed to start Canvas grading worker: {e}")
 
+    # Durable event dispatch follows the existing interrupted-run recovery.
+    # It drains PENDING reservations even in API-only processes; it is not a
+    # scheduled job and must not be hidden behind ENABLE_SCHEDULER.
+    try:
+        from core.workflow_event_worker import start_workflow_event_worker
+        if start_workflow_event_worker():
+            logger.info("Workflow event dispatch worker started")
+    except Exception as exc:
+        logger.error("Workflow event dispatch startup failed (%s)", type(exc).__name__)
+
     if os.getenv("ENABLE_SCHEDULER", "true").lower() == "true" and not is_test_mode:
         # Startup Coordinator: Ensure registration tasks run only once per day
         qstash_init_skip = False
@@ -1435,6 +1445,12 @@ async def lifespan(app: FastAPI):
         logger.info("✓ Canvas grading worker stopped")
     except Exception as e:
         logger.debug(f"Canvas grading worker shutdown: {e}")
+
+    try:
+        from core.workflow_event_worker import stop_workflow_event_worker
+        await stop_workflow_event_worker()
+    except Exception as exc:
+        logger.warning("Workflow event dispatch shutdown failed (%s)", type(exc).__name__)
 
     logger.info("Shutting down ATOM Platform...")
 
