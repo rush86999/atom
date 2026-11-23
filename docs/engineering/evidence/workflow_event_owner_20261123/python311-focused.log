@@ -1,0 +1,8 @@
+................                                       [100%]
+=============================== warnings summary ===============================
+../../../../private/tmp/atom-canvas-stripe.t5xKRj/backend/core/token_storage.py:17
+  /private/tmp/atom-canvas-stripe.t5xKRj/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+16 passed, 1 warning, 18 subtests passed in 6.76s
