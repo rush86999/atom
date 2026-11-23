@@ -203,6 +203,7 @@ const BUILDER_DATA_META_KEYS = new Set([
 // so they must survive a builder round-trip without being folded into
 // `parameters`.
 const ROOT_CONFIG_META_KEYS = new Set([
+  'event_subscription',
   'continue_on_error',
   'timeout',
   'input_schema',
