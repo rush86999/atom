@@ -157,3 +157,44 @@ print("REGISTRATION_READBACK:" + json.dumps({"subscriptions": result["event_subs
     lines = [s for s in result.stdout.splitlines() if s.startswith('REGISTRATION_READBACK:')]
     assert len(lines) == 1
     assert json.loads(lines[0].split(':', 1)[1]) == {'subscriptions': [sub], 'owner': actor.id}
+
+
+def test_graph_trigger_derives_registration_disable_and_removal(world):
+    client, catalog, actor, db, sub, payload = world
+    payload.pop('event_subscriptions')
+    binding = {key: value for key, value in sub.items() if key != 'id'}
+    payload['nodes'] = [{'id': sub['id'], 'type': 'trigger', 'title': 'New message',
+                         'description': 'Saved event source', 'connections': [],
+                         'position': {'x': 0, 'y': 0}, 'config': {'event_subscription': binding}}]
+    created = client.post('/workflows', json=payload)
+    assert created.status_code == 200, created.text
+    assert created.json()['event_subscriptions'] == [sub]
+    fresh = client.get('/workflows/workflow-one').json()
+    nodes = fresh['nodes']
+    nodes[0]['config']['event_subscription']['enabled'] = False
+    disabled = client.put('/workflows/workflow-one', json={
+        'revision': fresh['revision'], 'reason': 'Disable event trigger', 'nodes': nodes})
+    assert disabled.status_code == 200, disabled.text
+    assert disabled.json()['event_subscriptions'] == [dict(sub, enabled=False)]
+    removed = client.put('/workflows/workflow-one', json={
+        'revision': disabled.json()['revision'], 'reason': 'Remove event trigger', 'nodes': []})
+    assert removed.status_code == 200, removed.text
+    assert removed.json()['event_subscriptions'] == []
+    assert len(json.loads(catalog.read_text())[0]['corrections']) == 2
+
+
+@pytest.mark.parametrize('case', ['projection', 'node_identity', 'action_marker'])
+def test_graph_trigger_refuses_contradictory_material_before_write(world, case):
+    client, catalog, actor, db, sub, payload = world
+    binding = dict(sub)
+    if case == 'projection':
+        binding['enabled'] = False
+    elif case == 'node_identity':
+        binding['id'] = 'different-node'
+    payload['nodes'] = [{'id': sub['id'], 'type': 'action' if case == 'action_marker' else 'trigger',
+                         'title': 'Event', 'description': 'Saved event source', 'connections': [],
+                         'position': {'x': 0, 'y': 0},
+                         'config': {'event_subscription': binding}}]
+    result = client.post('/workflows', json=payload)
+    assert result.status_code == 400, result.text
+    assert not catalog.exists()

@@ -1406,6 +1406,36 @@ async def get_workflow(
     response.headers["ETag"] = f'"{enriched["revision"]}"'
     return enriched
 
+def _graph_event_subscriptions(material):
+    """Project registered trigger config; None preserves legacy graph semantics."""
+    subscriptions = []
+    for node in material.get("nodes") or []:
+        config = node.get("config") or {}
+        if "event_subscription" not in config:
+            continue
+        binding = config["event_subscription"]
+        node_id = node.get("id")
+        if (node.get("type") != "trigger" or not isinstance(binding, dict)
+                or not isinstance(node_id, str) or not node_id.strip()):
+            raise HTTPException(status_code=400, detail="Invalid registered event trigger")
+        if "id" in binding and binding["id"] != node_id:
+            raise HTTPException(status_code=400, detail="Event trigger identity differs from its node")
+        subscriptions.append(dict(binding, id=node_id))
+    return subscriptions if subscriptions else None
+
+
+def _reconcile_graph_event_subscriptions(material, provided, baseline=None):
+    """Graph registrations own their projection, including removing the last node."""
+    derived = _graph_event_subscriptions(material)
+    was_registered = baseline is not None and _graph_event_subscriptions(baseline) is not None
+    if derived is None and not was_registered:
+        return provided
+    derived = derived or []
+    if provided is not None and provided != derived:
+        raise HTTPException(status_code=400, detail="Event subscriptions differ from the saved trigger graph")
+    return derived
+
+
 def _bind_event_subscriptions(material, subscriptions, user, db):
     """Bind saved trigger material to the current owner and exact source."""
     from dataclasses import asdict
@@ -1458,8 +1488,11 @@ async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(req
         workflow_dict.pop(identity_field, None)
     subscriptions_provided = ("event_subscriptions" in workflow.model_fields_set
                               and workflow.event_subscriptions is not None)
+    subscriptions = _reconcile_graph_event_subscriptions(
+        workflow_dict, workflow.event_subscriptions if subscriptions_provided else None)
+    subscriptions_provided = subscriptions is not None
     if subscriptions_provided:
-        _bind_event_subscriptions(workflow_dict, workflow.event_subscriptions or [], user, db)
+        _bind_event_subscriptions(workflow_dict, subscriptions, user, db)
     else:
         workflow_dict.pop("event_subscriptions", None)
     # Deployment metadata is server-owned. A public create/update must never
@@ -1729,8 +1762,10 @@ async def save_structured_workflow(
     for field in _EDITOR_OWNED_FIELDS:
         if field in provided:
             modified[field] = copy.deepcopy(provided[field])
-    if "event_subscriptions" in provided:
-        _bind_event_subscriptions(modified, provided["event_subscriptions"], user, db)
+    subscriptions = _reconcile_graph_event_subscriptions(
+        modified, provided.get("event_subscriptions"), baseline)
+    if subscriptions is not None:
+        _bind_event_subscriptions(modified, subscriptions, user, db)
     # A graph save clears the cached/derived step projection unless the caller
     # changed steps too, so GET re-linearizes the new nodes instead of
     # returning a stale step list. Step-based rows also carry ``nodes: []`` in
