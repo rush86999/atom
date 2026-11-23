@@ -912,8 +912,15 @@ class Microsoft365Service(IntegrationService):
             logger.error(f"Delete item failed: {e}")
             return {"status": "error", "message": "Delete item failed"}
 
-    async def create_subscription(self, token: str, resource: str, change_type: str, notification_url: str, expiration_datetime: str) -> Dict[str, Any]:
-        """Create a webhook subscription."""
+    async def create_subscription(self, token: str, resource: str, change_type: str, notification_url: str, expiration_datetime: str, *, client_state: Optional[str] = None) -> Dict[str, Any]:
+        """Create a webhook subscription with an optional receiver-owned state.
+
+        Callers that own notification verification must supply the same state
+        they persist. The legacy public subscription caller retains its shape.
+        """
+        if client_state is not None and (not isinstance(client_state, str)
+                or not client_state.strip() or len(client_state) > 128):
+            return {"status": "error", "message": "Invalid subscription client state"}
         try:
             # Automatically append ',deleted' to guarantee we sync deletion events
             if "created" in change_type and "deleted" not in change_type:
@@ -925,7 +932,7 @@ class Microsoft365Service(IntegrationService):
                 "notificationUrl": notification_url,
                 "resource": resource,
                 "expirationDateTime": expiration_datetime,
-                "clientState": "secretClientState" # verifying incoming notifications
+                "clientState": client_state if client_state is not None else "secretClientState"
             }
             return await self._make_graph_request("POST", url, token, payload)
         except Exception as e:

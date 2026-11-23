@@ -120,6 +120,7 @@ class OutlookRealtimeManager:
             (datetime.now(timezone.utc) + timedelta(hours=SUBSCRIPTION_HOURS)).strftime(
                 "%Y-%m-%dT%H:%M:%SZ"
             ),
+            client_state=self.client_state,
         )
         data = result.get("data") or {}
         if result.get("status") != "success" or not data.get("id"):
