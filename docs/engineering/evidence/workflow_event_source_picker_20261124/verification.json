@@ -1,0 +1,26 @@
+{
+  "source": "00ae8bd5495918fbfab71a5747c15be67df7bf0b",
+  "editor_neighborhood": {
+    "suites": 6,
+    "passed": 123
+  },
+  "final_copy_twin": {
+    "passed": 7
+  },
+  "typescript": {
+    "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+    "exit_code": 0,
+    "scope": "complete frontend source tree, existing dependencies"
+  },
+  "logs": {
+    "event-source-editor-qualified.log": "a68a86f93c4c27889ab207d07001f627271b774e23b712d8dfe197abba1b6352",
+    "event-source-picker-final.log": "e2b39813f18f0660ba1a98d0ebcbcf89e2d5985af6b429913322f8f1a3e86719",
+    "event-source-typecheck-fulltree.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "not_qualified": [
+    "browser-to-server setup",
+    "live provider",
+    "subscription renewal/token maintenance",
+    "days-long operation"
+  ]
+}
