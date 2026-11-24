@@ -27,14 +27,15 @@ def _receipt_from_state(state):
 
 
 async def admit_verified_source_event(db, *, connection_id, source, event_type,
-                                      provider_event_id, payload):
+                                      provider_event_id, payload, expected_identity=None):
     """Reserve matching saved workflows under the authoritative connection owner.
 
     ``provider_event_id`` identifies a delivery/event, not a mutable resource.
     Retries reconcile the original receipt before current enablement checks.
     The current actor and connection are checked even on retries.
     """
-    from core.models import UserConnection
+    from core.models import User, UserConnection
+    from sqlalchemy import update
     from core.connection_service import ConnectionService
     from core import workflow_endpoints
     from core.workflow_event_worker import (
@@ -55,19 +56,38 @@ async def admit_verified_source_event(db, *, connection_id, source, event_type,
     actor = _load_current_actor(db, row.user_id)
     if actor is None or not _actor_is_active(actor) or not _actor_has_run_permission(actor):
         raise EventAdmissionError('Source owner is unavailable')
-    if ConnectionService.get_scoped_connection_metadata(
+    connection = ConnectionService.get_scoped_connection_metadata(
             db, user_id=str(actor.id), tenant_id=getattr(actor, 'tenant_id', None),
             workspace_id=getattr(actor, 'workspace_id', None),
-            connection_id=connection_id, integration_id=source) is None:
+            connection_id=connection_id, integration_id=source)
+    if connection is None:
         raise EventAdmissionError('Source connection owner scope has changed')
     identity = workflow_endpoints._caller_scope(actor)
+    if expected_identity is not None and expected_identity != identity:
+        raise EventScopeConflict('Verified source owner no longer matches the current connection')
+    authority = {name: getattr(actor, name) for name in
+                 ('id', 'role', 'status', 'is_active', 'tenant_id', 'workspace_id')}
+
+    async def claim_authority(session):
+        principal = await session.execute(update(User).where(*(
+            getattr(User, name) == value for name, value in authority.items()
+        )).values(status=User.status, updated_at=User.updated_at))
+        target = await session.execute(update(UserConnection).where(*(
+            getattr(UserConnection, name) == value for name, value in connection.items()
+        )).values(status=UserConnection.status, updated_at=UserConnection.updated_at))
+        if principal.rowcount != 1 or target.rowcount != 1:
+            raise EventScopeConflict('Verified source authority changed before reservation')
+
+    # This also covers receipt-only replay: stale ORM snapshots cannot certify
+    # current authority. New reservations repeat the claim in their insert TX.
+    manager = get_state_manager()
+    await manager.verify_event_authority(claim_authority)
     event = WorkflowEvent(tenant_id=identity['tenant_id'], workspace_id=identity['workspace_id'],
                           owner_id=identity['user_id'], connection_id=connection_id,
                           source=source, event_type=event_type,
                           provider_event_id=provider_event_id, payload=payload)
     # Corrupt/unavailable catalog must remain an error, never an empty success.
     workflows = workflow_endpoints.load_workflows_strict()
-    manager = get_state_manager()
 
     async def lookup(key):
         state = await manager.get_execution_state(key.event_id)
@@ -81,8 +101,12 @@ async def admit_verified_source_event(db, *, connection_id, source, event_type,
     async def reserve(candidate):
         state, created = await manager.reserve_event_execution(
             candidate.workflow_id, dict(candidate.input_data), execution_id=candidate.event_id,
-            identity=identity, admission=candidate.admission_context)
-        return ReservationResult(_receipt_from_state(state), created=created)
+            identity=identity, admission=candidate.admission_context,
+            reservation_guard=claim_authority)
+        winner = _receipt_from_state(state)
+        if winner.owner_id != identity['user_id']:
+            raise EventScopeConflict('Original event receipt belongs to a different owner')
+        return ReservationResult(winner, created=created)
 
     coordinator = WorkflowEventAdmissionCoordinator(lookup, reserve)
     admitted = []

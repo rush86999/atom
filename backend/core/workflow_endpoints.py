@@ -3630,3 +3630,7 @@ async def reload_scheduler_jobs(user: User = Depends(require_permission(Permissi
         logger.error(f"Failed to reload scheduler: {e}")
         raise HTTPException(status_code=500, detail="Internal error")
 
+
+# Same advertised workflow router; no parallel application or callback engine.
+from core.workflow_event_source_routes import router as workflow_event_source_router
+router.include_router(workflow_event_source_router)

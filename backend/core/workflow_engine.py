@@ -745,7 +745,7 @@ class WorkflowEngine:
         writer and never treated as identity.
         """
         # Convert graph to steps if needed
-        if "steps" not in workflow and "nodes" in workflow:
+        if not workflow.get("steps") and "nodes" in workflow:
             workflow["steps"] = self._convert_nodes_to_steps(workflow)
 
         # Some definitions carry only the alternate "workflow_id" key — normalize
@@ -777,7 +777,7 @@ class WorkflowEngine:
         # Phase 5: publish a WORKFLOW_STARTED event for the EventBus.
         self._publish_orchestration_event(
             "WORKFLOW_STARTED", workflow["id"], execution_id,
-            data={"step_count": len(workflow.get("steps", []))},
+            data={"step_count": len(workflow.get("steps") or [])},
         )
 
         # Run execution in background
@@ -1417,7 +1417,7 @@ class WorkflowEngine:
             return False
         workflow["id"] = workflow_id
 
-        if "steps" not in workflow and "nodes" in workflow:
+        if not workflow.get("steps") and "nodes" in workflow:
             try:
                 workflow["steps"] = self._convert_nodes_to_steps(workflow)
             except Exception as exc:  # noqa: BLE001 — reject before any effect
@@ -1455,7 +1455,7 @@ class WorkflowEngine:
         # so task-profile binding and never-autonomous admission still run.
         self._publish_orchestration_event(
             "WORKFLOW_STARTED", workflow_id, token,
-            data={"step_count": len(workflow.get("steps", []))},
+            data={"step_count": len(workflow.get("steps") or [])},
         )
         task = asyncio.create_task(self._run_execution(token, workflow))
         self._background_tasks.add(task)
@@ -4862,7 +4862,7 @@ Return your response in a clear, structured format."""
         # Normalize graph-format workflows (nodes/connections) to steps BEFORE
         # measuring parallelizability — start_workflow does the same conversion
         # later, so measuring the raw nodes dict would always report ratio 0.
-        if "steps" not in workflow and "nodes" in workflow:
+        if not workflow.get("steps") and "nodes" in workflow:
             workflow["steps"] = self._convert_nodes_to_steps(workflow)
 
         # Measure parallelizable nodes vs sequential nodes

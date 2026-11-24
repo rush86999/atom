@@ -50,6 +50,24 @@ class OutlookMailSourceAdapter:
             self.service.base_url + '/subscriptions/' + quote(subscription_id, safe=''), token)
         return response.get('data') if response.get('status') == 'success' else None
 
+    async def message_event(self, notification, credentials):
+        """Fetch real content; keep mutable read/flag metadata out of created-event identity."""
+        message_id = (notification.get('resourceData') or {}).get('id')
+        if not isinstance(message_id, str) or not message_id:
+            raise ValueError('Notification message identity is unavailable')
+        fields = ['id', 'subject', 'from', 'toRecipients', 'ccRecipients', 'body',
+                  'receivedDateTime', 'internetMessageId', 'hasAttachments']
+        response = await self.service._make_graph_request('GET', self.service.base_url +
+            '/me/messages/' + quote(message_id, safe='') + '?$select=' + ','.join(fields),
+            credentials['access_token'])
+        message = response.get('data') if response.get('status') == 'success' else None
+        if not isinstance(message, dict) or message.get('id') != message_id:
+            raise ValueError('Notification content is unavailable or mismatched')
+        payload = {key: message[key] for key in fields if key in message}
+        payload['message_id'] = message_id
+        return {'event_type': 'message.created', 'provider_event_id': 'message.created:' + message_id,
+                'payload': payload}
+
     def verify(self, document, receipt, observed):
         if not isinstance(observed, dict) or observed.get('id') != receipt['subscription_id']:
             return False
@@ -79,3 +97,8 @@ def source_adapter(source):
     if source in ('outlook', 'microsoft365'):
         return OutlookMailSourceAdapter(source)
     raise ValueError('Source enrollment is not supported by a registered adapter')
+
+
+def source_event_catalog():
+    return {source: [{'key': 'message.created', 'label': 'New email'}]
+            for source in ('outlook', 'microsoft365')}

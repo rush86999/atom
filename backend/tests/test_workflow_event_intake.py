@@ -90,3 +90,44 @@ def test_unavailable_source_refuses_before_reservation(intake_world, case):
         with pytest.raises(EventAdmissionError):
             asyncio.run(admit_verified_source_event(db, connection_id='connection', source='synthetic-source',
                 event_type='record.updated', provider_event_id='' if case == 'missing_event_id' else 'provider-event', payload={}))
+
+
+@pytest.mark.parametrize('case', ['actor', 'connection'])
+def test_authority_change_at_reservation_rolls_back_event_row(intake_world, monkeypatch, case):
+    from core.execution_state_manager import ExecutionStateManager
+    from core.models import WorkflowExecution
+    engine, catalog, workflow = intake_world
+    original = ExecutionStateManager.reserve_event_execution
+    async def changed(manager, *args, **kwargs):
+        assert kwargs.get('reservation_guard') is not None
+        with Session(engine) as peer:
+            if case == 'actor': peer.get(User, 'owner').is_active = False
+            else: peer.get(UserConnection, 'connection').workspace_id = 'peer-workspace'
+            peer.commit()
+        return await original(manager, *args, **kwargs)
+    monkeypatch.setattr(ExecutionStateManager, 'reserve_event_execution', changed)
+    with Session(engine) as db:
+        with pytest.raises(EventScopeConflict):
+            asyncio.run(admit_verified_source_event(db, connection_id='connection', source='synthetic-source',
+                event_type='record.updated', provider_event_id='provider-event', payload={},
+                expected_identity={'user_id': 'owner', 'tenant_id': 'tenant', 'workspace_id': 'workspace'}))
+    with Session(engine) as db:
+        assert db.query(WorkflowExecution).count() == 0
+        if case == 'actor': assert db.get(User, 'owner').is_active is False
+        else: assert db.get(UserConnection, 'connection').workspace_id == 'peer-workspace'
+
+
+def test_verified_source_identity_cannot_follow_a_transferred_connection(intake_world):
+    from core.models import WorkflowExecution
+    engine, catalog, workflow = intake_world
+    with Session(engine) as db:
+        db.add(User(id='new-owner', email='transferred@example.invalid', first_name='Synthetic',
+                    last_name='Owner', role='workspace_admin', status='active', is_active=True,
+                    tenant_id='tenant', workspace_id='workspace'))
+        db.get(UserConnection, 'connection').user_id = 'new-owner'
+        db.commit()
+        with pytest.raises(EventScopeConflict):
+            asyncio.run(admit_verified_source_event(db, connection_id='connection', source='synthetic-source',
+                event_type='record.updated', provider_event_id='provider-event', payload={},
+                expected_identity={'user_id': 'owner', 'tenant_id': 'tenant', 'workspace_id': 'workspace'}))
+        assert db.query(WorkflowExecution).count() == 0

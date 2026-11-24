@@ -324,6 +324,12 @@ class ExecutionStateManager:
         logger.debug(f"Created execution {execution_id} for workflow {workflow_id}")
         return execution_id
 
+    async def verify_event_authority(self, authority_guard) -> None:
+        """Recheck receipt-only source authority against this store's session factory."""
+        async with get_async_db_session() as db:
+            await authority_guard(db)
+            await db.commit()
+
     async def reserve_event_execution(
         self,
         workflow_id: str,
@@ -332,6 +338,7 @@ class ExecutionStateManager:
         execution_id: str,
         identity: Optional[Dict[str, Any]] = None,
         admission: Dict[str, Any],
+        reservation_guard=None,
     ) -> Tuple[Dict[str, Any], bool]:
         """Atomically reserve one durable execution row for an event receipt.
 
@@ -377,6 +384,10 @@ class ExecutionStateManager:
 
         try:
             async with get_async_db_session() as db:
+                # Trusted source adapters can claim their current authority in
+                # this same transaction, before a new reservation is written.
+                if reservation_guard is not None:
+                    await reservation_guard(db)
                 await db.execute(
                     insert(WorkflowExecution).values(
                         execution_id=execution_id,

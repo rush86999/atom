@@ -17,7 +17,7 @@ def _outcome(document, status, effect, **extra):
 
 
 async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
-                        db_factory=None):
+                        db_factory=None, observed_subscription_id=None):
     """No transport retry: a dispatching/uncertain claim needs reconciliation."""
     if db_factory is None:
         from core.database import get_db_session
@@ -41,8 +41,30 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
         operation_id=document['operation_id'], action='enroll_workflow_event_source',
         payload_hash=payload_hash, execution_id=document['operation_id'], db_factory=db_factory)
     status = claim.get('status')
+    recovered_readback = None
     if status in (operations.DISPATCHING, operations.UNCERTAIN_EFFECT):
-        return _outcome(document, 'effect_unknown', 'unknown')
+        # Only a verified connector callback supplies this observation. Prove
+        # the original target with a scoped read; never reissue creation.
+        if not isinstance(observed_subscription_id, str) or not observed_subscription_id:
+            return _outcome(document, 'effect_unknown', 'unknown')
+        candidate = dict(subscription_id=observed_subscription_id, operation_id=document['operation_id'],
+                         source=adapter.source, connection_id=connection_id,
+                         request_digest=document['request_digest'], plan_digest=registrations._digest(plan))
+        private = ConnectionService().get_scoped_connection_credentials(
+            user_id=actor_id, tenant_id=identity['tenant_id'], workspace_id=identity['workspace_id'],
+            connection_id=connection_id, integration_id=adapter.source)
+        try:
+            recovered_readback = await adapter.read(observed_subscription_id, private or {})
+            if adapter.verify(document, candidate, recovered_readback) is not True:
+                return _outcome(document, 'effect_unknown', 'unknown')
+            if not operations.mark_status(claim['record_id'], operations.SUCCEEDED,
+                    expected_status=status, expected_payload_sha256=payload_hash,
+                    result=candidate, db_factory=db_factory):
+                return _outcome(document, 'effect_unknown', 'unknown')
+            claim = dict(claim, status=operations.SUCCEEDED, result_json=candidate)
+            status = operations.SUCCEEDED
+        except Exception:
+            return _outcome(document, 'effect_unknown', 'unknown')
     if status == operations.FAILED_BEFORE_EFFECT:
         return _outcome(document, 'not_applied', 'none')
     if status not in (operations.CLAIMED, operations.SUCCEEDED) or not claim.get('record_id'):
@@ -126,7 +148,8 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
             or not isinstance(receipt.get('subscription_id'), str) or not receipt['subscription_id']):
         return _outcome(document, 'committed_unverified', 'committed')
     try:
-        observed = await adapter.read(receipt['subscription_id'], credentials)
+        observed = (recovered_readback if recovered_readback is not None
+                    else await adapter.read(receipt['subscription_id'], credentials))
         if adapter.verify(document, receipt, observed) is not True:
             return _outcome(document, 'committed_unverified', 'committed')
         activated = registrations.activate_source_registration(document, receipt, db_factory=db_factory)

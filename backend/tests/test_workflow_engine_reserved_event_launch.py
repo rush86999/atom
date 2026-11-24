@@ -96,6 +96,20 @@ class ReservedEventLaunchTests(unittest.IsolatedAsyncioTestCase):
         )
         engine._run_execution.assert_awaited_once_with("evt_one", snapshot)
 
+    async def test_nullable_saved_graph_steps_are_materialized_before_claim_and_publish(self):
+        workflow = {"id": "wf_one", "steps": None, "connections": [], "nodes": [
+            {"id": "source", "type": "trigger", "config": {"service": "synthetic", "action": "start"}}]}
+        state = _reserved_state(workflow=workflow)
+        engine = _new_engine([True])
+        preflight = AsyncMock(return_value=True)
+        assert await engine.launch_reserved_event_execution("evt_one", state, preflight)
+        await asyncio.sleep(0)
+        assert len(preflight.await_args.args[2]["steps"]) == 1
+        assert len(engine._run_execution.await_args.args[1]["steps"]) == 1
+        assert workflow["steps"] is None
+        engine._publish_orchestration_event.assert_called_once_with(
+            "WORKFLOW_STARTED", "wf_one", "evt_one", data={"step_count": 1})
+
     async def test_only_the_first_claim_wins(self):
         state = _reserved_state()
         engine = _new_engine([True, False])

@@ -57,10 +57,10 @@ def _authority(db, actor_id, connection_id, source):
 def _claim(db, actor, connection):
     principal = db.execute(update(User).where(*(
         getattr(User, k) == v for k, v in actor.items()
-    )).values(status=User.status).execution_options(synchronize_session=False))
+    )).values(status=User.status, updated_at=User.updated_at).execution_options(synchronize_session=False))
     target = db.execute(update(UserConnection).where(*(
         getattr(UserConnection, k) == v for k, v in connection.items()
-    )).values(status=UserConnection.status).execution_options(synchronize_session=False))
+    )).values(status=UserConnection.status, updated_at=UserConnection.updated_at).execution_options(synchronize_session=False))
     if principal.rowcount != 1 or target.rowcount != 1:
         raise SourceRegistrationError('SOURCE_AUTHORITY_CHANGED')
 
@@ -103,7 +103,7 @@ def _verified_replay(db, row, request_digest, identity, connection_id, source):
         TenantSetting.id == row.id, TenantSetting.tenant_id == identity['tenant_id'],
         TenantSetting.setting_key == row.setting_key,
         TenantSetting.setting_value == row.setting_value,
-    ).values(setting_value=TenantSetting.setting_value).execution_options(synchronize_session=False))
+    ).values(setting_value=TenantSetting.setting_value, updated_at=TenantSetting.updated_at).execution_options(synchronize_session=False))
     if result.rowcount != 1:
         raise SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
     return document
@@ -158,6 +158,7 @@ def prepare_source_registration(*, actor_id, connection_id, source, event_types,
                             operation_id=operation_id, source=source, connection_id=connection_id,
                             identity=identity, request_digest=request_digest,
                             event_types=sorted(event_types), callback_url=callback_url,
+                            callback_base_url=callback_base_url,
                             receiver_state_ciphertext=encrypted_state,
                             receiver_state_digest=hashlib.sha256(receiver_state.encode()).hexdigest())
             db.add(TenantSetting(tenant_id=identity['tenant_id'], setting_key=key,
@@ -252,3 +253,45 @@ def activate_source_registration(document, receipt, *, db_factory=None):
         except Exception:
             db.rollback()
             raise SourceRegistrationError('SOURCE_ACTIVATION_UNAVAILABLE') from None
+
+
+def read_delivery_registration(connection_id, registration_id, *, db_factory=None):
+    """Resolve current source owner from server rows; expose private state only internally."""
+    from core import outbound_operation_claim as operations
+    from core.workflow_endpoints import _caller_scope
+    from core.workflow_event_worker import _load_current_actor
+    if db_factory is None:
+        from core.database import get_db_session
+        db_factory = get_db_session
+    with db_factory() as db:
+        row = db.query(UserConnection.id, UserConnection.user_id,
+                       UserConnection.integration_id).filter(
+            UserConnection.id == connection_id, UserConnection.status == 'active').first()
+        if row is None:
+            raise SourceRegistrationError('SOURCE_CONNECTION_UNAVAILABLE')
+        actor = _load_current_actor(db, row.user_id)
+        if actor is None or not _actor_is_active(actor) or not _actor_has_run_permission(actor):
+            raise SourceRegistrationError('SOURCE_OWNER_UNAVAILABLE')
+        identity = _caller_scope(actor)
+        if ConnectionService.get_scoped_connection_metadata(db, user_id=str(actor.id),
+                tenant_id=actor.tenant_id, workspace_id=actor.workspace_id,
+                connection_id=connection_id, integration_id=row.integration_id) is None:
+            raise SourceRegistrationError('SOURCE_AUTHORITY_CHANGED')
+        setting = db.query(TenantSetting).filter(
+            TenantSetting.tenant_id == identity['tenant_id'],
+            TenantSetting.setting_key == _key(connection_id, row.integration_id)).first()
+        if setting is None:
+            raise SourceRegistrationError('SOURCE_REGISTRATION_UNAVAILABLE')
+        document = _read_document(setting)
+        if (document.get('operation_id') != registration_id or document.get('identity') != identity
+                or document.get('source') != row.integration_id or document.get('connection_id') != connection_id):
+            raise SourceRegistrationError('SOURCE_REGISTRATION_UNAVAILABLE')
+        document = _verified_replay(db, setting, document['request_digest'], identity,
+                                    connection_id, row.integration_id)
+        if document.get('phase') == 'registered':
+            claims = operations.generic_operations(identity['workspace_id'], registration_id,
+                                                   db_factory=db_factory, strict=True)
+            if (len(claims) != 1 or claims[0].get('status') != operations.SUCCEEDED
+                    or _digest(claims[0].get('result_json')) != document.get('provider_receipt_digest')):
+                raise SourceRegistrationError('SOURCE_REGISTRATION_UNVERIFIED')
+        return document
