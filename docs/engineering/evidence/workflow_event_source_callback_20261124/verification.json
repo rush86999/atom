@@ -1,0 +1,21 @@
+{
+  "source": "bb82b7aae0ca40774e364c53405379ffbd7b4745",
+  "python": "3.11",
+  "passed": 221,
+  "subtests_passed": 18,
+  "deselected": 625,
+  "deselection": "unchanged real_gate_shell matrix",
+  "provider_transport": "controlled synthetic Graph HTTP",
+  "authentication": "principal lookup doubled; actual permission checker and current User rows",
+  "database": "scratch SQLite",
+  "raw_log_sha256": "52ba6d3f3f820e7b844f8ef7d1fcafde796a23b9d9cee92783d0e011d0688786",
+  "not_qualified": [
+    "JWT/browser authentication",
+    "source setup UI",
+    "native forwarding",
+    "subscription renewal/token maintenance",
+    "days-long operation",
+    "PostgreSQL/multi-worker",
+    "live provider/model"
+  ]
+}

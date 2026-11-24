@@ -1,0 +1,22 @@
+{
+  "source": "bb82b7aae0ca40774e364c53405379ffbd7b4745",
+  "sources": {
+    ".github/workflows/ci.yml": "dab70b62badf65a1733c79470f4def9814b4d287d348f248dacb9672ae9605ef",
+    "backend/core/execution_state_manager.py": "a32707391b78b0cd4eaa1b9b0022a7be552d7dd173522a402fc79ee8111f23e2",
+    "backend/core/workflow_endpoints.py": "a8b31a2f0289db3331ec951e5301c389a8fc788aac95fe6761200d6a5e94e518",
+    "backend/core/workflow_engine.py": "a81a4642848ec7e26d768b3aae7131f123a2e05414590b0e1ff0821fb1356062",
+    "backend/core/workflow_event_intake.py": "f67d238fbe8608b89fdd956373f89099ada4962e0a2f0df67e79ab5649971ff2",
+    "backend/core/workflow_event_source_adapters.py": "ff3f33599075504512fd87a42cd4f3d4a26ad05b2a8d5efe543adb43b352e46b",
+    "backend/core/workflow_event_source_enrollment.py": "c40bcd6e7021ce0db221be901be13d5068372dca4ffb279d87d67dff142c11c4",
+    "backend/core/workflow_event_source_registration.py": "4ecbcf075e448634f6cdd524d06bab6fd7a39a2fcabbebee9168c2cf84f10ded",
+    "backend/core/workflow_event_source_routes.py": "34227c09df42478df6ee3ac0ed2882d8a38406848fac245c4bbd9415f3490aad",
+    "backend/tests/fixtures/ci_backend_additions.json": "fd2c7e423b78d7312fe30c4ba01ff41272d8b855fd04ffba0e5abf6f996d1b4c",
+    "backend/tests/test_workflow_engine_reserved_event_launch.py": "83d14091e699f0528dd8bc846d29d65611ad7795f82ac2655102eb45fc922031",
+    "backend/tests/test_workflow_event_intake.py": "3ca78e438c468a3be674c12397031e125c90252d8f93a63c7a22964158174e75",
+    "backend/tests/test_workflow_event_source_http.py": "3813b4247a4f9bd1dac2f16230ea7578041e7d20be846cc3b8b0e23859bec22b"
+  },
+  "artifacts": {
+    "README.md": "096c1bcb6355caf48726361b9bc6e58906277cbc4cf10208c379aac2766c6a6c",
+    "verification.json": "f5a3be12f86675bdd0321a6480898d3fb8624bd59d8372bb9081a1cb99b44e48"
+  }
+}
