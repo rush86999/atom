@@ -1877,7 +1877,7 @@ jobs:
         run: npm test -- --runInBand --watch=false --ci
 
       - name: Generated workflow parent-child and schedule controls
-        run: npx jest tests/pages/automations-page.test.tsx components/Automations/__tests__/test-agent-workflow-generator.test.tsx tests/automations/test-workflow-scheduler.test.tsx --runInBand --no-coverage --watchman=false
+        run: npx jest tests/pages/automations-page.test.tsx components/Automations/__tests__/test-agent-workflow-generator.test.tsx tests/automations/test-workflow-scheduler.test.tsx components/Automations/__tests__/EventSourcePicker.test.tsx components/Automations/__tests__/test-node-config-sidebar.test.tsx --runInBand --no-coverage --watchman=false
       - name: Native-chat learning selection and review controls
         run: npx jest tests/pages/learning.test.tsx components/learning/__tests__/ConversationLearningReview.test.tsx --runInBand --no-coverage --watchman=false
 

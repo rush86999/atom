@@ -48,6 +48,16 @@ export interface PieceTrigger {
 const PIECES: Piece[] = [
     // Core Pieces (built-in control flow)
     {
+        id: 'workflow_event',
+        name: 'Connected event',
+        icon: Zap,
+        color: '#7C3AED',
+        category: 'core',
+        actions: [],
+        triggers: [{ id: 'registered_event', name: 'Connected event',
+            description: 'Start when an enrolled connection delivers a supported event' }],
+    },
+    {
         id: 'loop',
         name: 'Loop',
         icon: Repeat,
@@ -698,7 +708,7 @@ const PiecesSidebar: React.FC<PiecesSidebarProps> = ({ onSelectPiece, className 
         const checkConnections = async () => {
             const connected = new Set<string>();
             // Only check local hardcoded pieces for health status for now
-            const piecesToCheck = PIECES.slice(0, 30);
+            const piecesToCheck = PIECES.filter(piece => piece.id !== 'workflow_event').slice(0, 30);
             await Promise.all(
                 piecesToCheck.map(async (piece) => {
                     try {
