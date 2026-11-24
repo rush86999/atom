@@ -28,7 +28,7 @@ def enrollment_world(source_world, monkeypatch):
     service = Microsoft365Service(config={})
     provider = {'calls': [], 'record': None, 'mode': 'normal', 'wrong_read': False}
     async def transport(method, url, token, data=None):
-        assert token == 'synthetic'
+        assert token == provider.get('expected_token', 'synthetic')
         provider['calls'].append((method, url, copy.deepcopy(data)))
         await asyncio.sleep(0.01)
         if method == 'POST':
@@ -204,3 +204,20 @@ def test_changed_receipt_shape_is_not_acknowledged_as_verified_replay(enrollment
     replay = asyncio.run(enroll_source(**args))
     assert replay['status'] == 'committed_unverified' and replay['effect'] == 'committed'
     assert sum(call[0] == 'POST' for call in provider['calls']) == 1
+
+
+@pytest.mark.parametrize('original', ['unknown', 'committed'])
+def test_missing_credentials_cannot_relabel_original_enrollment_effect(enrollment_world, original):
+    from datetime import datetime, timedelta, timezone
+    factory, params, args, provider = enrollment_world
+    if original == 'unknown': provider['mode'] = 'timeout'
+    first = asyncio.run(enroll_source(**args))
+    with factory() as db:
+        db.get(UserConnection, 'connection').expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        db.commit()
+    calls = len(provider['calls'])
+    again = asyncio.run(enroll_source(**args))
+    assert again['operation_id'] == first['operation_id']
+    assert again['effect'] == ('unknown' if original == 'unknown' else 'committed')
+    assert again['status'] == ('effect_unknown' if original == 'unknown' else 'committed_unverified')
+    assert again['do_not_repeat'] is True and len(provider['calls']) == calls

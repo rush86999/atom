@@ -74,6 +74,13 @@ class OAuthConfig:
         return True
 
 
+class OAuthRefreshRefused(HTTPException):
+    """A provider error response confirms no replacement grant was returned."""
+    def __init__(self, provider_status: int):
+        self.provider_status = provider_status
+        super().__init__(status_code=400, detail=f"Failed to refresh token (HTTP {provider_status})")
+
+
 class OAuthHandler:
     """Handles OAuth 2.0 flow for integrations"""
     
@@ -180,31 +187,39 @@ class OAuthHandler:
                 detail="Internal error"
             )
     
-    async def refresh_access_token(self, refresh_token: str) -> Dict:
+    async def refresh_access_token(self, refresh_token: str, *, authorized_material: Optional[Dict[str, str]] = None) -> Dict:
         """Refresh access token using refresh token"""
-        if not self.config.is_configured():
+        if authorized_material is None and not self.config.is_configured():
             raise HTTPException(
                 status_code=500,
                 detail="OAuth not configured. Please set environment variables."
             )
         
+        material = authorized_material if authorized_material is not None else {
+            'token_url': self.config.token_url, 'client_id': self.config.client_id,
+            'client_secret': self.config.client_secret}
+        if (not isinstance(material, dict) or set(material) != {'token_url', 'client_id', 'client_secret'}
+                or any(not isinstance(value, str) or not value for value in material.values())):
+            raise HTTPException(status_code=500, detail='OAuth refresh configuration unavailable')
         data = {
             "grant_type": "refresh_token",
             "refresh_token": refresh_token,
-            "client_id": self.config.client_id,
-            "client_secret": self.config.client_secret,
+            "client_id": material["client_id"],
+            "client_secret": material["client_secret"],
         }
         
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
-                    self.config.token_url,
+                    material["token_url"],
                     data=data,
                     headers={"Accept": "application/json"}
                 )
                 
                 if response.status_code != 200:
-                    logger.error(f"Token refresh failed: {response.text}")
+                    logger.error("Token refresh failed (HTTP %s)", response.status_code)
+                    if 400 <= response.status_code < 500 and response.status_code not in (408, 429):
+                        raise OAuthRefreshRefused(response.status_code)
                     # Bug 8 (refresh path): response.text may contain access
                     # tokens or internal provider details; do NOT leak it to
                     # the client. (The exchange_code_for_tokens path was already
@@ -217,7 +232,7 @@ class OAuthHandler:
                 return response.json()
         
         except httpx.RequestError as e:
-            logger.error(f"OAuth refresh request failed: {e}")
+            logger.error("OAuth refresh request failed (%s)", type(e).__name__)
             raise HTTPException(
                 status_code=500,
                 detail="Internal error"

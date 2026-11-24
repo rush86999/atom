@@ -71,3 +71,14 @@ it('does not substitute a peer for an unavailable saved connection', async () =>
     expect(change).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'Connect event delivery' })).not.toBeInTheDocument();
 });
+
+
+it('explains that missing credentials need a reconnect without repeating setup', async () => {
+    render(<EventSourcePicker binding={binding} onChange={jest.fn()} />);
+    await screen.findByRole('button', { name: 'Connect event delivery' });
+    wire.mockResolvedValueOnce(reply({ status: 'credentials_unavailable', do_not_repeat: true }, false));
+    fireEvent.click(screen.getByRole('button', { name: 'Connect event delivery' }));
+    await screen.findByText('Event delivery is waiting for connection credentials. Reconnect the account, then refresh source status.');
+    expect(screen.getByRole('button', { name: 'Connect event delivery' })).toBeDisabled();
+    expect(wire.mock.calls.filter(call => call[1]?.method === 'POST')).toHaveLength(1);
+});

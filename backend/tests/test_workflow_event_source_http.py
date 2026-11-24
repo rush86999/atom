@@ -47,6 +47,7 @@ def http_world(enrollment_world, monkeypatch, tmp_path):
     provider['content_unavailable'] = False
     provider['after_content'] = None
     async def wire(method, url, token, data=None):
+        assert token == provider.get('expected_token', 'synthetic')
         if '/me/messages/' in url:
             provider['calls'].append((method, url, None))
             if provider['after_content'] is not None:
@@ -246,3 +247,84 @@ def test_malformed_server_callback_configuration_is_unavailable(http_world, monk
     assert client.get('/api/v1/workflows/event-sources').json()['callback_configured'] is False
     assert client.post('/api/v1/workflows/event-sources/connection/enroll', json={}).status_code == 503
     assert provider['calls'] == []
+
+
+def test_expired_callback_grant_refreshes_once_then_admits_original_source(http_world, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    import httpx
+    from core.oauth_handler import OAuthConfig, PROVIDER_CONFIGS
+    from core.connection_service import ConnectionService
+    from core.models import TaskOperationRecord
+    client, factory, provider, principal, adapter = http_world
+    setup, callback, item = setup_source(client, provider)
+    save_rule(client)
+    for key in ('CLIENT_ID', 'CLIENT_SECRET', 'REDIRECT_URI'):
+        monkeypatch.setenv('TEST_SOURCE_REFRESH_' + key, 'synthetic-client-config')
+    config = OAuthConfig(client_id_env='TEST_SOURCE_REFRESH_CLIENT_ID', client_secret_env='TEST_SOURCE_REFRESH_CLIENT_SECRET',
+        redirect_uri_env='TEST_SOURCE_REFRESH_REDIRECT_URI', auth_url='https://provider.invalid/authorize',
+        token_url='https://provider.invalid/token', scopes=[])
+    monkeypatch.setitem(PROVIDER_CONFIGS, 'microsoft', config)
+    refreshes = []
+    async def post(wire, url, *, data, headers):
+        assert url == 'https://provider.invalid/token' and data['refresh_token'] == 'synthetic-original-refresh'
+        refreshes.append('refresh')
+        return httpx.Response(200, json={'access_token': 'synthetic-refreshed-access',
+            'refresh_token': 'synthetic-replacement-refresh', 'expires_in': 3600})
+    monkeypatch.setattr(httpx.AsyncClient, 'post', post)
+    with factory() as db:
+        row = db.get(UserConnection, 'connection')
+        row.credentials = ConnectionService()._encrypt({'access_token': 'synthetic', 'refresh_token': 'synthetic-original-refresh'})
+        row.expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        db.commit()
+    provider['expected_token'] = 'synthetic-refreshed-access'
+    first = client.post(callback, json={'value': [item]})
+    assert first.status_code == 200 and first.json()['admitted'] == 1, first.text
+    retry = client.post(callback, json={'value': [item]})
+    assert retry.status_code == 200 and retry.json()['duplicates'] == 1, retry.text
+    assert refreshes == ['refresh']
+    assert sum(call[0] == 'POST' for call in provider['calls']) == 1
+    with factory() as db:
+        assert db.query(WorkflowExecution).count() == 1
+        assert db.query(TaskOperationRecord).count() == 2
+        assert all(row.status == 'succeeded' for row in db.query(TaskOperationRecord).all())
+        assert ConnectionService()._decrypt(db.get(UserConnection, 'connection').credentials)['access_token'] == 'synthetic-refreshed-access'
+
+
+@pytest.mark.parametrize('missing', ['refresh', 'configuration'])
+def test_still_valid_grant_without_refresh_material_keeps_delivering(http_world, monkeypatch, missing):
+    from datetime import datetime, timedelta, timezone
+    client, factory, provider, principal, adapter = http_world
+    setup, callback, item = setup_source(client, provider)
+    save_rule(client)
+    with factory() as db:
+        row = db.get(UserConnection, 'connection')
+        row.expires_at = datetime.now(timezone.utc) + timedelta(minutes=4)
+        if missing == 'configuration':
+            from core.connection_service import ConnectionService
+            from core.oauth_handler import PROVIDER_CONFIGS
+            row.credentials = ConnectionService()._encrypt({'access_token': 'synthetic', 'refresh_token': 'synthetic-refresh'})
+            monkeypatch.setitem(PROVIDER_CONFIGS, 'microsoft', None)
+        db.commit()
+    response = client.post(callback, json={'value': [item]})
+    assert response.status_code == 200 and response.json()['admitted'] == 1, response.text
+
+
+@pytest.mark.parametrize('route', ['callback', 'replay'])
+def test_private_credential_read_failure_is_safe_unavailability(http_world, monkeypatch, caplog, route):
+    from core.connection_service import ConnectionService
+    client, factory, provider, principal, adapter = http_world
+    setup, callback, item = setup_source(client, provider)
+    save_rule(client)
+    async def unavailable(*args, **kwargs):
+        raise RuntimeError('synthetic-private-storage-detail')
+    monkeypatch.setattr(ConnectionService, 'ensure_scoped_connection_credentials', unavailable)
+    if route == 'callback':
+        response = client.post(callback, json={'value': [item]})
+    else:
+        response = client.post('/api/v1/workflows/event-sources/connection/enroll', json={})
+        assert response.json()['effect'] == 'committed'
+        assert response.json()['operation_id'] == setup['operation_id']
+    assert response.status_code == 503
+    assert 'synthetic-private-storage-detail' not in response.text + caplog.text
+    assert sum(call[0] == 'POST' for call in provider['calls']) == 1
+    with factory() as db: assert db.query(WorkflowExecution).count() == 0

@@ -16,6 +16,20 @@ def _outcome(document, status, effect, **extra):
                 effect=effect, do_not_repeat=effect in ('unknown', 'committed'), **extra)
 
 
+async def source_credentials(document, adapter, db_factory):
+    """Use the exact registered owner and existing durable credential refresh."""
+    identity = document['identity']
+    try:
+        return await ConnectionService().ensure_scoped_connection_credentials(
+            user_id=identity['user_id'], tenant_id=identity['tenant_id'], workspace_id=identity['workspace_id'],
+            connection_id=document['connection_id'], integration_id=adapter.source,
+            provider=adapter.oauth_provider, db_factory=db_factory)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning('Source credential read unavailable (%s)', type(exc).__name__)
+        return None
+
+
 async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
                         db_factory=None, observed_subscription_id=None):
     """No transport retry: a dispatching/uncertain claim needs reconciliation."""
@@ -50,9 +64,9 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
         candidate = dict(subscription_id=observed_subscription_id, operation_id=document['operation_id'],
                          source=adapter.source, connection_id=connection_id,
                          request_digest=document['request_digest'], plan_digest=registrations._digest(plan))
-        private = ConnectionService().get_scoped_connection_credentials(
-            user_id=actor_id, tenant_id=identity['tenant_id'], workspace_id=identity['workspace_id'],
-            connection_id=connection_id, integration_id=adapter.source)
+        private = await source_credentials(document, adapter, db_factory)
+        if not isinstance(private, dict) or not private.get('access_token'):
+            return _outcome(document, 'effect_unknown', 'unknown')
         try:
             recovered_readback = await adapter.read(observed_subscription_id, private or {})
             if adapter.verify(document, candidate, recovered_readback) is not True:
@@ -100,6 +114,8 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
                 raise
 
     if status == operations.CLAIMED:
+        if not await source_credentials(document, adapter, db_factory):
+            return _outcome(document, 'credentials_unavailable', 'unknown')
         if not operations.mark_status(record_id, operations.DISPATCHING,
                 expected_status=operations.CLAIMED, expected_payload_sha256=payload_hash,
                 db_factory=dispatch_factory):
@@ -135,9 +151,7 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
     else:
         receipt = claim.get('result_json')
         # Fresh scoped credentials for readback only; this path never creates.
-        private = ConnectionService().get_scoped_connection_credentials(
-            user_id=actor_id, tenant_id=identity['tenant_id'], workspace_id=identity['workspace_id'],
-            connection_id=connection_id, integration_id=adapter.source)
+        private = await source_credentials(document, adapter, db_factory)
         if isinstance(private, dict):
             credentials.update(private)
     expected = dict(operation_id=document['operation_id'], source=adapter.source,

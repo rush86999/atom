@@ -258,7 +258,8 @@ class ConnectionService:
 
         This is an opt-in, server-side verification read. It deliberately does
         no provider I/O, token refresh, last_used update, database writes, or
-        fallback lookup. It remains unpublished until its workflow is wired.
+        fallback lookup. Provider refresh is an explicit opt-in through
+        ensure_scoped_connection_credentials.
         """
         identifiers = (
             user_id,
@@ -305,6 +306,136 @@ class ConnectionService:
             except Exception as e:
                 logger.error(f"Error retrieving scoped connection credentials: {e}")
                 return None
+
+    async def ensure_scoped_connection_credentials(
+        self, *, user_id: str, tenant_id: str, workspace_id: str,
+        connection_id: str, integration_id: str, provider: str, db_factory=None,
+    ) -> Optional[Dict[str, Any]]:
+        """Refresh an exact current grant through the existing operation arbiter.
+
+        Opt-in only: the synchronous verification read remains read-only. The
+        server adapter supplies the registered OAuth provider, never a payload.
+        One observed encrypted credential version has one durable refresh
+        attempt. Unknown outcomes do not resend; a reconnect supplies a new
+        credential version. Tokens are stored encrypted with the success
+        receipt in one winning transition, never in operation metadata.
+        """
+        import hmac
+        from sqlalchemy import update
+        from core.models import User, TaskOperationRecord, AuditLog
+        from core import outbound_operation_claim as operations
+        from core.oauth_handler import OAuthHandler, OAuthRefreshRefused, PROVIDER_CONFIGS
+        factory = db_factory or get_db_session
+        identifiers = (user_id, tenant_id, workspace_id, connection_id, integration_id, provider)
+        if not all(self._has_nonempty_identifier(value) for value in identifiers):
+            return None
+        scope = dict(id=connection_id, user_id=user_id, tenant_id=tenant_id,
+                     workspace_id=workspace_id, integration_id=integration_id, status='active')
+        with factory() as db:
+            actor = db.query(User).filter(User.id == user_id, User.tenant_id == tenant_id,
+                User.workspace_id == workspace_id, User.is_active.is_(True), User.status == 'active').first()
+            row = db.query(UserConnection).filter(*(getattr(UserConnection, k) == v for k, v in scope.items())).first()
+            if actor is None or row is None:
+                return None
+            raw = row.credentials
+            if not isinstance(raw, str) or not raw or raw.lstrip().startswith('{'):
+                return None
+            credentials = self._decrypt(raw)
+            if not isinstance(credentials, dict) or not credentials:
+                return None
+            authority = {k: getattr(actor, k) for k in ('id', 'role', 'status', 'is_active', 'tenant_id', 'workspace_id')}
+            observed = dict(scope, credentials=raw, expires_at=row.expires_at, scope=row.scope)
+            expiry = self._ensure_aware_datetime(row.expires_at)
+            if expiry is None or expiry > datetime.now(timezone.utc) + timedelta(minutes=5):
+                return credentials
+        refresh = credentials.get('refresh_token')
+        config = PROVIDER_CONFIGS.get(provider)
+        if not isinstance(refresh, str) or not refresh or config is None or not config.is_configured():
+            # Proactive refresh must not discard a grant that is still valid.
+            return credentials if expiry is not None and expiry > datetime.now(timezone.utc) else None
+        authorized_material = {'token_url': config.token_url, 'client_id': config.client_id, 'client_secret': config.client_secret}
+        material_digest = hmac.new(self.security_config.secret_key.encode(),
+            json.dumps(authorized_material, sort_keys=True).encode(), hashlib.sha256).hexdigest()
+        # Only this keyed commitment leaves the private observed state.
+        version = hmac.new(self.security_config.secret_key.encode(),
+            json.dumps({'connection_id': connection_id, 'credentials': raw}, sort_keys=True).encode(), hashlib.sha256).hexdigest()
+        observed_digest = hmac.new(self.security_config.secret_key.encode(),
+            json.dumps(observed, sort_keys=True, default=str).encode(), hashlib.sha256).hexdigest()
+        operation_id = str(uuid.uuid5(uuid.NAMESPACE_URL, 'atom:connection-refresh:' + version))
+        payload_hash = operations.operation_payload_sha256(workspace_id=workspace_id, tenant_id=tenant_id,
+            actor_id=user_id, agent_id=None, execution_id=operation_id, action='refresh_connection_credentials',
+            actor_kind='user', execution_kind='connection_maintenance',
+            frozen_args={'version': version, 'observed': observed_digest, 'provider': provider, 'authority': authority, 'oauth_material': material_digest})
+        claim = operations.claim_generic_operation(workspace_id=workspace_id, tenant_id=tenant_id,
+            operation_id=operation_id, action='refresh_connection_credentials', payload_hash=payload_hash,
+            execution_id=operation_id, db_factory=factory)
+        if claim.get('status') != operations.CLAIMED or not claim.get('record_id'):
+            return None
+        record_id = claim['record_id']
+        def claim_current(db, values=None):
+            principal = db.execute(update(User).where(*(getattr(User, k) == v for k, v in authority.items()))
+                .values(status=User.status, updated_at=User.updated_at).execution_options(synchronize_session=False))
+            target = db.execute(update(UserConnection).where(*(getattr(UserConnection, k) == v for k, v in observed.items()))
+                .values(**(values or {'status': UserConnection.status, 'updated_at': UserConnection.updated_at}))
+                .execution_options(synchronize_session=False))
+            if principal.rowcount != 1 or target.rowcount != 1:
+                raise ValueError('connection authority or credential version changed')
+            prior = db.query(TaskOperationRecord).filter(TaskOperationRecord.operation_id == operation_id,
+                TaskOperationRecord.id != record_id, TaskOperationRecord.status != operations.CLAIMED).first()
+            if prior is not None:
+                raise ValueError('credential version already dispatched under another scope')
+        if not operations.mark_status(record_id, operations.DISPATCHING, expected_status=operations.CLAIMED,
+                expected_payload_sha256=payload_hash, transition_effect=claim_current, db_factory=factory):
+            return None
+        try:
+            grant = await OAuthHandler(config).refresh_access_token(refresh, authorized_material=authorized_material)
+            if (not isinstance(grant, dict) or not isinstance(grant.get('access_token'), str)
+                    or not grant['access_token'].strip()):
+                raise ValueError('refresh grant is unavailable')
+            if 'refresh_token' in grant and (not isinstance(grant['refresh_token'], str) or not grant['refresh_token']):
+                raise ValueError('refresh replacement is malformed')
+            seconds = grant.get('expires_in')
+            if isinstance(seconds, bool) or not isinstance(seconds, (int, str)):
+                raise ValueError('refresh lifetime is unavailable')
+            seconds = int(seconds)
+            if seconds <= 0:
+                raise ValueError('refresh lifetime is invalid')
+            expires_at = datetime.now(timezone.utc) + timedelta(seconds=seconds)
+            renewed = {**credentials, **grant}
+            encrypted = self._encrypt(renewed)
+            commitment = hmac.new(self.security_config.secret_key.encode(), encrypted.encode(), hashlib.sha256).hexdigest()
+            receipt = dict(connection_id=connection_id, result_digest=commitment, expires_at=expires_at.isoformat())
+            def store(db):
+                claim_current(db, {'credentials': encrypted, 'expires_at': expires_at,
+                    'last_refresh_at': datetime.now(timezone.utc), 'last_refresh_error': None,
+                    'refresh_failure_count': 0, 'updated_at': datetime.now(timezone.utc)})
+                db.add(AuditLog(event_type='connection_credential_refreshed', security_level='INFO',
+                    threat_level='NONE', user_id=user_id, tenant_id=tenant_id, workspace_id=workspace_id,
+                    resource=connection_id, action='refresh_connection_credentials', success=True,
+                    description='Scoped connection credential refreshed', metadata_json=json.dumps({
+                        'operation_id': operation_id, 'provider': provider, 'result_digest': commitment})))
+            if not operations.mark_status(record_id, operations.SUCCEEDED, expected_status=operations.DISPATCHING,
+                    expected_payload_sha256=payload_hash, result=receipt, transition_effect=store, db_factory=factory):
+                raise ValueError('refresh storage outcome is unavailable')
+            with factory() as db:
+                current = db.query(UserConnection).filter(*(getattr(UserConnection, k) == v for k, v in scope.items())).first()
+                principal = db.query(User).filter(*(getattr(User, k) == v for k, v in authority.items())).first()
+                operation = db.get(TaskOperationRecord, record_id)
+                if (current is None or principal is None or current.credentials != encrypted
+                        or self._ensure_aware_datetime(current.expires_at) != expires_at
+                        or operation is None or operation.status != operations.SUCCEEDED
+                        or operation.payload_sha256 != payload_hash or operation.result_json != receipt):
+                    return None
+            return renewed
+        except OAuthRefreshRefused:
+            operations.mark_status(record_id, operations.FAILED_BEFORE_EFFECT, expected_status=operations.DISPATCHING,
+                expected_payload_sha256=payload_hash, db_factory=factory)
+            return None
+        except Exception as exc:
+            logger.warning('Scoped credential refresh unavailable (%s)', type(exc).__name__)
+            operations.mark_status(record_id, operations.UNCERTAIN_EFFECT, expected_status=operations.DISPATCHING,
+                expected_payload_sha256=payload_hash, db_factory=factory)
+            return None
 
     def create_scoped_connection(
         self,

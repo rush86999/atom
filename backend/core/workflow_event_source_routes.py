@@ -13,7 +13,7 @@ from core.security_dependencies import require_permission
 from core.connection_service import ConnectionService
 from core import workflow_event_source_registration as registrations
 from core.workflow_event_source_adapters import source_adapter, source_event_catalog
-from core.workflow_event_source_enrollment import enroll_source
+from core.workflow_event_source_enrollment import enroll_source, source_credentials
 from core.workflow_event_intake import admit_verified_source_event
 from core.workflow_event_admission import EventPayloadConflict, EventScopeConflict
 from core.workflow_event_worker import _actor_is_active
@@ -166,9 +166,7 @@ async def receive_source_notification(connection_id: str, request: Request,
         if not isinstance(item.get('resourceData'), dict):
             raise HTTPException(400, detail={'code': 'INVALID_SOURCE_NOTIFICATION'})
         identity = document['identity']
-        private = ConnectionService().get_scoped_connection_credentials(user_id=identity['user_id'],
-            tenant_id=identity['tenant_id'], workspace_id=identity['workspace_id'],
-            connection_id=connection_id, integration_id=document['source'])
+        private = await source_credentials(document, adapter, factory)
         if not isinstance(private, dict) or not private.get('access_token'):
             raise HTTPException(503, detail={'code': 'SOURCE_CREDENTIALS_UNAVAILABLE'})
         try:

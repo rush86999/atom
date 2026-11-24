@@ -11,6 +11,7 @@ from core.workflow_event_source_enrollment import EnrollmentRefused
 
 class OutlookMailSourceAdapter:
     event_types = ('message.created',)
+    oauth_provider = 'microsoft'
 
     def __init__(self, source='outlook', service=None):
         if source not in ('outlook', 'microsoft365'):

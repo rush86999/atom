@@ -63,6 +63,9 @@ export default function EventSourcePicker({ binding, onChange }: {
             if (response.ok && ['registered', 'already_applied'].includes(result.status)) {
                 setMessage('Event delivery is registered. Save the workflow to apply your trigger.');
                 await load();
+            } else if (result.status === 'credentials_unavailable') {
+                setUncertain(previous => ({ ...previous, [id]: true }));
+                setMessage('Event delivery is waiting for connection credentials. Reconnect the account, then refresh source status.');
             } else if (result.do_not_repeat || ['effect_unknown', 'committed_unverified'].includes(result.status)) {
                 setUncertain(previous => ({ ...previous, [id]: true }));
                 setMessage('Provider confirmation is pending. Do not reconnect; a verified delivery can reconcile the original setup.');
