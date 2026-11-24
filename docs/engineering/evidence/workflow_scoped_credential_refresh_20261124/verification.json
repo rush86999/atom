@@ -1,0 +1,40 @@
+{
+  "source": "c018fc0008e54b1ca0a555cad9674b17b4add43e",
+  "python": "3.11",
+  "gates": {
+    "exact_committed_source": {
+      "passed": 282,
+      "deselected": 625,
+      "reason": "unchanged real_gate_shell matrix"
+    },
+    "existing_generic_mutation_consumers": {
+      "passed": 72
+    },
+    "picker_and_sidebar": {
+      "passed": 35
+    }
+  },
+  "transport": "real OAuthHandler; only HTTP doubled",
+  "stores": "real scratch SQLite, encrypted UserConnection, TaskOperationRecord, AuditLog",
+  "fresh_os_process_unknown_replay": {
+    "provider_calls": 0,
+    "retained_operations": 1
+  },
+  "not_qualified": [
+    "subscription renewal",
+    "proactive scheduled token maintenance",
+    "missed-event backfill",
+    "days-long operation",
+    "full main app/browser qualification",
+    "PostgreSQL or multi-worker soak",
+    "live provider/model"
+  ],
+  "log_hashes": {
+    "scoped-refresh-c018-exact.log": "b6c22d513abb654725bd85d51bf7b75aacc3e27d579780bc5d700244516c8ac2",
+    "scoped-refresh-generic-neighborhood.log": "e2cdb30ca1b3a5fd88d0800a47bfa9a142e8658389c20d378a8fcb53fda6de4c",
+    "scoped-refresh-picker.log": "3f5966c6c321d8045282ee575f8991681931ad6e71b7f4fc1e179b4d33eb2cbe",
+    "transition-effect-negative.log": "3ff404643fb1007b843f11bb686a3a6d4317dc8bbde89d4edc73adf283af3a53",
+    "transition-effect-orm-negative.log": "1306a3ca9f95df5f56d69b134749da1fc882381bd4b0308afd2f47101300dd3b",
+    "scoped-refresh-unexpired-negative.log": "4da6f44776819a1aaeb0e7911ef470baaa97c24dabcbc18d850d54be401156e7"
+  }
+}
