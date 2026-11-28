@@ -46,9 +46,9 @@ def http_world(enrollment_world, monkeypatch, tmp_path):
     provider['subject'] = 'invoice'
     provider['content_unavailable'] = False
     provider['after_content'] = None
-    async def wire(method, url, token, data=None):
+    async def wire(method, url, token, data=None, **request_options):
         assert token == provider.get('expected_token', 'synthetic')
-        if '/me/messages/' in url:
+        if '/me/messages/' in url or '/users/mailbox-one/messages/' in url:
             provider['calls'].append((method, url, None))
             if provider['after_content'] is not None:
                 provider['after_content']()
@@ -59,7 +59,7 @@ def http_world(enrollment_world, monkeypatch, tmp_path):
                 'body': {'contentType': 'text', 'content': 'Synthetic source text'},
                 'receivedDateTime': '2026-11-23T12:00:00Z',
                 'user_id': 'forged-recipient', 'workspace_id': 'foreign', 'isRead': False}}
-        return await original(method, url, token, data)
+        return await original(method, url, token, data, **request_options)
     service._make_graph_request.side_effect = wire
     principal = {'signed_in': True}
     def signed_in():

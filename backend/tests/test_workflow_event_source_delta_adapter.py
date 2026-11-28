@@ -42,7 +42,7 @@ def test_initial_and_empty_next_page():
     s, g = make(ids() + [{'status': 'success', 'data': {'value': [], '@odata.nextLink': N}}])
     assert page(s) == {'items': [], 'cursor': N, 'complete': False}
     assert g.calls[2][1] == T + '?changeType=created&$select=id,createdDateTime&$top=50'
-    assert g.calls[2][2:] == ('token', (), {})
+    assert g.calls[2][2:] == ('token', (), {'prefer_immutable_id': True})
 
 def test_odata_cursor_is_forwarded_and_unchanged_delta_is_done():
     s, g = make(ids() + [{'status': 'success', 'data': {'value': [], '@odata.deltaLink': O}}])

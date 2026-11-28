@@ -90,3 +90,45 @@ def test_legacy_document_keeps_original_plan_and_identity():
     assert 'message_id_type' not in adapter.material(document)
     asyncio.run(adapter.create(document, {'access_token':'synthetic'}, 'receiver-state'))
     assert service._make_graph_request.await_args.kwargs == {}
+
+
+def test_legacy_content_and_event_identity_remain_unchanged():
+    service = Microsoft365Service(config={})
+    service._make_graph_request = AsyncMock(return_value={'status':'success','data':{'id':'message-one'}})
+    adapter = OutlookMailSourceAdapter(service=service)
+    event = asyncio.run(adapter.message_event({'resourceData':{'id':'message-one'}}, {'access_token':'synthetic'}))
+    assert event['provider_event_id'] == 'message.created:message-one'
+    assert service._make_graph_request.await_args.args[1].startswith('https://graph.microsoft.com/v1.0/me/messages/')
+    assert service._make_graph_request.await_args.kwargs == {}
+
+
+@pytest.mark.parametrize('options', [None, {}, True, 'immutable',
+    {'message_id_type':True}, {'message_id_type':'mutable'},
+    {'message_id_type':'immutable','unexpected':'value'}])
+def test_malformed_frozen_mode_refuses_before_content_transport(options):
+    service = Microsoft365Service(config={})
+    service._make_graph_request = AsyncMock()
+    adapter = OutlookMailSourceAdapter(service=service)
+    document = native_document();document['source_options'] = options
+    with pytest.raises(ValueError):
+        asyncio.run(adapter.message_event({'resourceData':{'id':'message-one'}},
+            {'access_token':'synthetic'}, document=document))
+    service._make_graph_request.assert_not_awaited()
+
+
+def test_immutable_mode_requires_frozen_provider_binding():
+    adapter = OutlookMailSourceAdapter(service=object())
+    document=native_document();document.pop('provider_binding')
+    with pytest.raises(ValueError): adapter.material(document)
+    with pytest.raises(ValueError): adapter.event_identity('message-one', document=document)
+
+
+def test_changed_adapter_default_cannot_reinterpret_existing_source(binding_world, monkeypatch):
+    factory, params, args, provider = binding_world
+    first = asyncio.run(enroll_source(**args))
+    original = saved(factory)
+    monkeypatch.setattr(args['adapter'], 'registration_options', {'message_id_type':'future-unqualified-mode'})
+    result = asyncio.run(enroll_source(**args))
+    assert result['status'] == 'already_applied' and result['operation_id'] == first['operation_id']
+    assert saved(factory) == original
+    assert sum(c[0] == 'POST' for c in provider['calls']) == 1

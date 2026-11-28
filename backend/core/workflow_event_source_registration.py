@@ -138,7 +138,7 @@ def _verified_replay(db, row, request_digest, identity, connection_id, source):
 
 def prepare_source_registration(*, actor_id, connection_id, source, event_types,
                                 callback_base_url, db_factory=None, lifecycle_events=None,
-                                probe_only=False, provider_binding=None, credential_snapshot=None):
+                                probe_only=False, provider_binding=None, credential_snapshot=None, source_options=None):
     """Prepare once; changed enrollment material requires explicit correction.
 
     The caller supplies a server-generated callback URL and adapter-owned event
@@ -160,6 +160,13 @@ def prepare_source_registration(*, actor_id, connection_id, source, event_types,
     if provider_binding is not None and (not isinstance(provider_binding, dict) or not provider_binding
             or credential_snapshot is None):
         raise SourceRegistrationError('INVALID_SOURCE_PROVIDER_BINDING')
+    if source_options is not None:
+        if not isinstance(source_options, dict) or not source_options:
+            raise SourceRegistrationError('INVALID_SOURCE_OPTIONS')
+        try:
+            source_options = json.loads(_json(source_options))
+        except (ValueError, TypeError):
+            raise SourceRegistrationError('INVALID_SOURCE_OPTIONS') from None
     url = urlsplit(callback_base_url)
     if url.scheme != 'https' or not url.netloc or url.username or url.password or url.fragment:
         raise SourceRegistrationError('INVALID_SOURCE_CALLBACK')
@@ -204,6 +211,8 @@ def prepare_source_registration(*, actor_id, connection_id, source, event_types,
                 document['lifecycle_events'] = sorted(lifecycle_events)
             if provider_binding is not None:
                 document['provider_binding'] = json.loads(_json(provider_binding))
+            if source_options is not None:
+                document['source_options'] = source_options
             db.add(TenantSetting(tenant_id=identity['tenant_id'], setting_key=key,
                                  setting_value=_json(document)))
             db.add(AuditLog(event_type='workflow_event_source_prepared', security_level='INFO',

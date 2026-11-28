@@ -75,6 +75,7 @@ class OutlookMailSourceAdapter:
     event_types = ('message.created',)
     oauth_provider = 'microsoft'
     binds_provider_identity = True
+    registration_options = {'message_id_type': 'immutable'}
     lifecycle_events = ('reauthorizationRequired', 'missed', 'subscriptionRemoved')
 
     def __init__(self, source='outlook', service=None):
@@ -94,11 +95,12 @@ class OutlookMailSourceAdapter:
             raise ValueError('Delta credentials are unavailable')
         return token
 
-    async def _delta_request(self, token, url):
+    async def _delta_request(self, token, url, *, immutable_ids=False):
         # Opaque cursors and transport exceptions may contain credentials. Keep
         # them out of caller-visible errors; cancellation still propagates.
         try:
-            return await self.service._make_graph_request('GET', url, token)
+            return await self.service._make_graph_request('GET', url, token,
+                **({'prefer_immutable_id': True} if immutable_ids else {}))
         except Exception:
             raise ValueError('Delta transport is unavailable') from None
 
@@ -128,7 +130,7 @@ class OutlookMailSourceAdapter:
                    + '/messages/delta?changeType=created&$select=id,createdDateTime&$top=50')
         else:
             url = _cursor(cursor, user_id, folder_id)
-        response = await self._delta_request(token, url)
+        response = await self._delta_request(token, url, immutable_ids=True)
         if not isinstance(response, dict) or response.get('status') != 'success':
             if isinstance(response, dict) and (
                     (type(response.get('code')) is int and response['code'] == 410)
@@ -178,6 +180,25 @@ class OutlookMailSourceAdapter:
             raise ValueError('Native provider binding is invalid')
         return {name: _id(value[name]) for name in ('user_id', 'folder_id')}
 
+    @staticmethod
+    def _immutable_ids(document):
+        if document is None or 'source_options' not in document:
+            return False
+        if document['source_options'] != {'message_id_type': 'immutable'}:
+            raise ValueError('Native source identity mode is invalid')
+        OutlookMailSourceAdapter.provider_binding(document.get('provider_binding'))
+        return True
+
+    def event_identity(self, message_id, *, document=None):
+        message_id = _id(message_id)
+        if self._immutable_ids(document):
+            # Namespace by provider principal, not source generation, folder or
+            # mutable message content. Connection/source scope is in the
+            # existing event reservation key.
+            principal = self.provider_binding(document['provider_binding'])['user_id']
+            return 'message.created:' + hashlib.sha256(principal.encode()).hexdigest() + ':' + message_id
+        return 'message.created:' + message_id
+
     def material(self, document):
         prepared = datetime.fromisoformat(document['prepared_at'])
         if prepared.tzinfo is None:
@@ -191,6 +212,8 @@ class OutlookMailSourceAdapter:
                 + '/mailFolders/' + quote(binding['folder_id'], safe='') + '/messages')
         if document.get('lifecycle_events'):
             material['lifecycle_callback_url'] = document['callback_url']
+        if self._immutable_ids(document):
+            material['message_id_type'] = 'immutable'
         return material
 
     async def create(self, document, credentials, client_state):
@@ -198,6 +221,8 @@ class OutlookMailSourceAdapter:
         lifecycle_kwargs = {}
         if 'lifecycle_callback_url' in plan:
             lifecycle_kwargs['lifecycle_notification_url'] = plan['lifecycle_callback_url']
+        if plan.get('message_id_type') == 'immutable':
+            lifecycle_kwargs['immutable_ids'] = True
         response = await self.service.create_subscription(credentials['access_token'],
             plan['resource'], plan['change_type'], plan['callback_url'], plan['expires_at'],
             client_state=client_state, **lifecycle_kwargs)
@@ -277,22 +302,28 @@ class OutlookMailSourceAdapter:
             return False
         return self._verify_plan(document, receipt, observed, plan)
 
-    async def message_event(self, notification, credentials):
+    async def message_event(self, notification, credentials, *, document=None):
         """Fetch real content; keep mutable read/flag metadata out of created-event identity."""
         message_id = (notification.get('resourceData') or {}).get('id')
         if not isinstance(message_id, str) or not message_id:
             raise ValueError('Notification message identity is unavailable')
+        message_id = _id(message_id)
         fields = ['id', 'subject', 'from', 'toRecipients', 'ccRecipients', 'body',
                   'receivedDateTime', 'internetMessageId', 'hasAttachments']
+        immutable_ids = self._immutable_ids(document)
+        owner_path = '/me'
+        if immutable_ids:
+            binding = self.provider_binding(document['provider_binding'])
+            owner_path = '/users/' + quote(binding['user_id'], safe='')
         response = await self.service._make_graph_request('GET', self.service.base_url +
-            '/me/messages/' + quote(message_id, safe='') + '?$select=' + ','.join(fields),
-            credentials['access_token'])
+            owner_path + '/messages/' + quote(message_id, safe='') + '?$select=' + ','.join(fields),
+            credentials['access_token'], **({'prefer_immutable_id': True} if immutable_ids else {}))
         message = response.get('data') if response.get('status') == 'success' else None
         if not isinstance(message, dict) or message.get('id') != message_id:
             raise ValueError('Notification content is unavailable or mismatched')
         payload = {key: message[key] for key in fields if key in message}
         payload['message_id'] = message_id
-        return {'event_type': 'message.created', 'provider_event_id': 'message.created:' + message_id,
+        return {'event_type': 'message.created', 'provider_event_id': self.event_identity(message_id, document=document),
                 'payload': payload}
 
     def verify(self, document, receipt, observed):

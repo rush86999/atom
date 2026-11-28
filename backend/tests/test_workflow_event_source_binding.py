@@ -17,14 +17,14 @@ def binding_world(enrollment_world):
     factory, params, args, provider = enrollment_world
     original = args['adapter'].service._make_graph_request.side_effect
     provider.update(mailbox='mailbox-one', folder='inbox-one', after_binding=None)
-    async def wire(method, url, token, data=None):
+    async def wire(method, url, token, data=None, **request_options):
         if url.endswith('/me?$select=id') or url.endswith('/me/mailFolders/Inbox?$select=id'):
             provider['calls'].append((method, url, None))
             value = provider['mailbox'] if url.endswith('/me?$select=id') else provider['folder']
             if url.endswith('/me/mailFolders/Inbox?$select=id') and provider['after_binding']:
                 provider['after_binding']()
             return {'status':'success', 'data':{'id':value}}
-        return await original(method, url, token, data)
+        return await original(method, url, token, data, **request_options)
     args['adapter'].service._make_graph_request.side_effect = wire
     return factory, params, args, provider
 

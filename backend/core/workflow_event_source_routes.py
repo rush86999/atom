@@ -182,7 +182,7 @@ async def receive_source_notification(connection_id: str, request: Request,
             from core.workflow_event_source_enrollment import verify_source_subscription
             if verify_source_subscription(adapter, document, receipt, observed, factory) is not True:
                 raise ValueError('provider subscription is unverified')
-            event = await adapter.message_event(item, private)
+            event = await adapter.message_event(item, private, document=document)
             with factory() as db:
                 results = await admit_verified_source_event(db, connection_id=connection_id,
                     source=document['source'], expected_identity=identity, **event)

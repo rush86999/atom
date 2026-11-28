@@ -267,18 +267,28 @@ class Microsoft365Service(IntegrationService):
             logger.error(f"Microsoft 365 service status failed: {e}")
             return {"status": "error", "message": f"Failed to get service status"}
 
-    async def _make_graph_request(self, method: str, url: str, token: str, json_data: Any = None) -> Dict[str, Any]:
+    async def _make_graph_request(self, method: str, url: str, token: str,
+                                  json_data: Any = None, *, prefer_immutable_id: bool = False) -> Dict[str, Any]:
         """Make an authenticated request to Microsoft Graph API."""
+        if type(prefer_immutable_id) is not bool:
+            raise ValueError("prefer_immutable_id must be a bool")
         import aiohttp
         headers = {
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
-        
+        if prefer_immutable_id:
+            headers["Prefer"] = 'IdType="ImmutableId"'
+
         # Bypass for testing validation (ONLY in development)
         import os
         if token == "fake_token" and os.getenv("ATOM_ENV") == "development":
-             logger.info(f"MOCK BYPASS: {method} {url}")
+             from urllib.parse import urlsplit
+             try:
+                 logged_path = urlsplit(url).path
+             except ValueError:
+                 logged_path = "<invalid>"
+             logger.info("MOCK BYPASS: %s %s", method, logged_path)
              return {"status": "success", "data": {
                  "id": "mock_id_123",
                  "displayName": "Mock User",
@@ -912,7 +922,7 @@ class Microsoft365Service(IntegrationService):
             logger.error(f"Delete item failed: {e}")
             return {"status": "error", "message": "Delete item failed"}
 
-    async def create_subscription(self, token: str, resource: str, change_type: str, notification_url: str, expiration_datetime: str, *, client_state: Optional[str] = None, lifecycle_notification_url: Optional[str] = None) -> Dict[str, Any]:
+    async def create_subscription(self, token: str, resource: str, change_type: str, notification_url: str, expiration_datetime: str, *, client_state: Optional[str] = None, lifecycle_notification_url: Optional[str] = None, immutable_ids: bool = False) -> Dict[str, Any]:
         """Create a webhook subscription with an optional receiver-owned state.
 
         Callers that own notification verification must supply the same state
@@ -936,6 +946,8 @@ class Microsoft365Service(IntegrationService):
                 valid = False
             if not valid:
                 return {"status": "error", "message": "Invalid subscription lifecycle URL"}
+        if type(immutable_ids) is not bool:
+            return {"status": "error", "message": "Invalid subscription immutable IDs flag"}
         try:
             # Automatically append ',deleted' to guarantee we sync deletion events
             if "created" in change_type and "deleted" not in change_type:
@@ -951,6 +963,9 @@ class Microsoft365Service(IntegrationService):
             }
             if lifecycle_notification_url is not None:
                 payload["lifecycleNotificationUrl"] = lifecycle_notification_url
+            if immutable_ids:
+                return await self._make_graph_request("POST", url, token, payload,
+                                                      prefer_immutable_id=True)
             return await self._make_graph_request("POST", url, token, payload)
         except Exception as e:
             logger.error("Create subscription failed: error_class=%s", type(e).__name__)

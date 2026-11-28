@@ -20,8 +20,8 @@ def test_reconnect_during_confirmation_is_committed_unverified(binding_world, mo
             peer.commit()
         provider['mailbox'] = 'new-mailbox'
     original = args['adapter'].service._make_graph_request.side_effect
-    async def wire(method, url, token, data=None):
-        result = await original(method, url, token, data)
+    async def wire(method, url, token, data=None, **request_options):
+        result = await original(method, url, token, data, **request_options)
         if ((stage == 'after_post' and method == 'POST') or
                 (stage == 'after_read' and method == 'GET' and '/subscriptions/' in url)):
             reconnect()
@@ -47,8 +47,8 @@ def test_reconnect_during_confirmation_is_committed_unverified(binding_world, mo
 def test_fresh_grant_for_same_mailbox_can_verify_committed_creation(binding_world):
     factory, params, args, provider = binding_world
     original = args['adapter'].service._make_graph_request.side_effect
-    async def wire(method, url, token, data=None):
-        result = await original(method, url, token, data)
+    async def wire(method, url, token, data=None, **request_options):
+        result = await original(method, url, token, data, **request_options)
         if method == 'POST':
             with factory() as peer:
                 peer.get(UserConnection, 'connection').credentials = ConnectionService()._encrypt({'access_token':'same-mailbox-new-grant'})
@@ -65,8 +65,8 @@ def test_fresh_grant_for_same_mailbox_can_verify_committed_creation(binding_worl
 def test_restored_mailbox_reconciles_original_committed_receipt(binding_world):
     factory, params, args, provider = binding_world
     original = args['adapter'].service._make_graph_request.side_effect
-    async def moved(method, url, token, data=None):
-        result = await original(method, url, token, data)
+    async def moved(method, url, token, data=None, **request_options):
+        result = await original(method, url, token, data, **request_options)
         if method == 'POST':
             with factory() as peer:
                 peer.get(UserConnection, 'connection').credentials = ConnectionService()._encrypt({'access_token':'different-mailbox-grant'})

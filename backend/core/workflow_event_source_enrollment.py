@@ -59,6 +59,9 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
     lifecycle = getattr(adapter, 'lifecycle_events', ())
     if lifecycle:
         params['lifecycle_events'] = list(lifecycle)
+    source_options = getattr(adapter, 'registration_options', None)
+    if source_options is not None:
+        params['source_options'] = source_options
     if getattr(adapter, 'binds_provider_identity', False) is True:
         document = registrations.prepare_source_registration(**params, probe_only=True)
         if document is None:

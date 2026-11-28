@@ -27,9 +27,10 @@ def enrollment_world(source_world, monkeypatch):
     monkeypatch.setattr('core.connection_service.get_db_session', factory)
     service = Microsoft365Service(config={})
     provider = {'calls': [], 'record': None, 'mode': 'normal', 'wrong_read': False}
-    async def transport(method, url, token, data=None):
+    async def transport(method, url, token, data=None, *, prefer_immutable_id=False):
         assert token == provider.get('expected_token', 'synthetic')
         provider['calls'].append((method, url, copy.deepcopy(data)))
+        provider.setdefault('identity_preferences', []).append((method, url, prefer_immutable_id))
         await asyncio.sleep(0.01)
         if method == 'GET' and url.endswith('/me?$select=id'):
             return {'status': 'success', 'data': {'id': provider.get('mailbox', 'mailbox-one')}}
