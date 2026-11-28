@@ -51,6 +51,9 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
     params = dict(actor_id=actor_id, connection_id=connection_id, source=adapter.source,
                   event_types=list(adapter.event_types), callback_base_url=callback_base_url,
                   db_factory=db_factory)
+    lifecycle = getattr(adapter, 'lifecycle_events', ())
+    if lifecycle:
+        params['lifecycle_events'] = list(lifecycle)
     document = registrations.prepare_source_registration(**params)
     identity = document['identity']
     plan = operations.strict_json_roundtrip(adapter.material(document))

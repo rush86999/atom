@@ -12,6 +12,7 @@ from core.workflow_event_source_enrollment import EnrollmentRefused
 class OutlookMailSourceAdapter:
     event_types = ('message.created',)
     oauth_provider = 'microsoft'
+    lifecycle_events = ('reauthorizationRequired', 'missed', 'subscriptionRemoved')
 
     def __init__(self, source='outlook', service=None):
         if source not in ('outlook', 'microsoft365'):
@@ -26,15 +27,21 @@ class OutlookMailSourceAdapter:
         prepared = datetime.fromisoformat(document['prepared_at'])
         if prepared.tzinfo is None:
             raise ValueError('Source preparation time has no timezone')
-        return {'resource': "/me/mailFolders('Inbox')/messages", 'change_type': 'created,deleted',
+        material = {'resource': "/me/mailFolders('Inbox')/messages", 'change_type': 'created,deleted',
                 'callback_url': document['callback_url'],
                 'expires_at': (prepared + timedelta(hours=71)).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}
+        if document.get('lifecycle_events'):
+            material['lifecycle_callback_url'] = document['callback_url']
+        return material
 
     async def create(self, document, credentials, client_state):
         plan = self.material(document)
+        lifecycle_kwargs = {}
+        if 'lifecycle_callback_url' in plan:
+            lifecycle_kwargs['lifecycle_notification_url'] = plan['lifecycle_callback_url']
         response = await self.service.create_subscription(credentials['access_token'],
             plan['resource'], plan['change_type'], plan['callback_url'], plan['expires_at'],
-            client_state=client_state)
+            client_state=client_state, **lifecycle_kwargs)
         if response.get('status') != 'success':
             code = response.get('code')
             if type(code) is int and code in (400, 401, 403, 404, 409, 422):
@@ -137,6 +144,9 @@ class OutlookMailSourceAdapter:
             return False
         if any(observed.get(k) != plan[v] for k, v in (
                 ('resource', 'resource'), ('changeType', 'change_type'), ('notificationUrl', 'callback_url'))):
+            return False
+        if ('lifecycle_callback_url' in plan
+                and observed.get('lifecycleNotificationUrl') != plan['lifecycle_callback_url']):
             return False
         try:
             expiry = datetime.fromisoformat(str(observed.get('expirationDateTime', '')).replace('Z', '+00:00'))

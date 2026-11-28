@@ -7,6 +7,7 @@ restarts and retries.
 """
 from __future__ import annotations
 import hashlib
+import hmac
 import json
 import secrets
 import uuid
@@ -31,6 +32,12 @@ def _json(value):
 
 def _digest(value):
     return hashlib.sha256(_json(value).encode()).hexdigest()
+
+
+def receiver_state_matches(document, value):
+    expected = document.get('receiver_state_digest')
+    return (isinstance(value, str) and isinstance(expected, str)
+            and hmac.compare_digest(hashlib.sha256(value.encode()).hexdigest(), expected))
 
 
 def _key(connection_id, source):
@@ -84,7 +91,8 @@ def _verified_replay(db, row, request_digest, identity, connection_id, source):
     matches = 0
     for audit in db.query(AuditLog).filter(
             AuditLog.event_type.in_(['workflow_event_source_prepared', 'workflow_event_source_activated',
-                'workflow_event_source_renewal_prepared', 'workflow_event_source_renewed']),
+                'workflow_event_source_renewal_prepared', 'workflow_event_source_renewed',
+                'workflow_event_source_lifecycle_received']),
             AuditLog.user_id == identity['user_id'], AuditLog.tenant_id == identity['tenant_id'],
             AuditLog.workspace_id == identity['workspace_id'], AuditLog.resource == connection_id,
             AuditLog.success.is_(True)).all():
@@ -94,6 +102,7 @@ def _verified_replay(db, row, request_digest, identity, connection_id, source):
                 'workflow_event_source_activated': 'activate_workflow_event_source',
                 'workflow_event_source_renewal_prepared': 'prepare_workflow_event_source_renewal',
                 'workflow_event_source_renewed': 'renew_workflow_event_source',
+                'workflow_event_source_lifecycle_received': 'record_workflow_event_source_lifecycle',
             }[audit.event_type]
             if audit.action != expected_action:
                 continue
@@ -118,7 +127,7 @@ def _verified_replay(db, row, request_digest, identity, connection_id, source):
 
 
 def prepare_source_registration(*, actor_id, connection_id, source, event_types,
-                                callback_base_url, db_factory=None):
+                                callback_base_url, db_factory=None, lifecycle_events=None):
     """Prepare once; changed enrollment material requires explicit correction.
 
     The caller supplies a server-generated callback URL and adapter-owned event
@@ -131,6 +140,10 @@ def prepare_source_registration(*, actor_id, connection_id, source, event_types,
             or any(not isinstance(v, str) or not v.strip() for v in event_types)
             or len(set(event_types)) != len(event_types)):
         raise SourceRegistrationError('INVALID_SOURCE_EVENTS')
+    if lifecycle_events is not None and (not isinstance(lifecycle_events, list)
+            or any(not isinstance(v, str) or not v.strip() for v in lifecycle_events)
+            or len(set(lifecycle_events)) != len(lifecycle_events)):
+        raise SourceRegistrationError('INVALID_SOURCE_LIFECYCLE_EVENTS')
     url = urlsplit(callback_base_url)
     if url.scheme != 'https' or not url.netloc or url.username or url.password or url.fragment:
         raise SourceRegistrationError('INVALID_SOURCE_CALLBACK')
@@ -169,6 +182,8 @@ def prepare_source_registration(*, actor_id, connection_id, source, event_types,
                             callback_base_url=callback_base_url,
                             receiver_state_ciphertext=encrypted_state,
                             receiver_state_digest=hashlib.sha256(receiver_state.encode()).hexdigest())
+            if lifecycle_events:
+                document['lifecycle_events'] = sorted(lifecycle_events)
             db.add(TenantSetting(tenant_id=identity['tenant_id'], setting_key=key,
                                  setting_value=_json(document)))
             db.add(AuditLog(event_type='workflow_event_source_prepared', security_level='INFO',

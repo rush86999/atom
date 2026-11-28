@@ -912,7 +912,7 @@ class Microsoft365Service(IntegrationService):
             logger.error(f"Delete item failed: {e}")
             return {"status": "error", "message": "Delete item failed"}
 
-    async def create_subscription(self, token: str, resource: str, change_type: str, notification_url: str, expiration_datetime: str, *, client_state: Optional[str] = None) -> Dict[str, Any]:
+    async def create_subscription(self, token: str, resource: str, change_type: str, notification_url: str, expiration_datetime: str, *, client_state: Optional[str] = None, lifecycle_notification_url: Optional[str] = None) -> Dict[str, Any]:
         """Create a webhook subscription with an optional receiver-owned state.
 
         Callers that own notification verification must supply the same state
@@ -921,6 +921,21 @@ class Microsoft365Service(IntegrationService):
         if client_state is not None and (not isinstance(client_state, str)
                 or not client_state.strip() or len(client_state) > 128):
             return {"status": "error", "message": "Invalid subscription client state"}
+        if lifecycle_notification_url is not None:
+            from urllib.parse import urlsplit
+            if (not isinstance(lifecycle_notification_url, str) or not lifecycle_notification_url
+                    or any(c.isspace() for c in lifecycle_notification_url)):
+                return {"status": "error", "message": "Invalid subscription lifecycle URL"}
+            try:
+                parsed = urlsplit(lifecycle_notification_url)
+                _ = parsed.port  # Validate malformed or out-of-range ports.
+                valid = (parsed.scheme == 'https' and parsed.netloc and parsed.hostname
+                         and parsed.username is None and parsed.password is None
+                         and '#' not in lifecycle_notification_url)
+            except (TypeError, ValueError):
+                valid = False
+            if not valid:
+                return {"status": "error", "message": "Invalid subscription lifecycle URL"}
         try:
             # Automatically append ',deleted' to guarantee we sync deletion events
             if "created" in change_type and "deleted" not in change_type:
@@ -934,6 +949,8 @@ class Microsoft365Service(IntegrationService):
                 "expirationDateTime": expiration_datetime,
                 "clientState": client_state if client_state is not None else "secretClientState"
             }
+            if lifecycle_notification_url is not None:
+                payload["lifecycleNotificationUrl"] = lifecycle_notification_url
             return await self._make_graph_request("POST", url, token, payload)
         except Exception as e:
             logger.error("Create subscription failed: error_class=%s", type(e).__name__)

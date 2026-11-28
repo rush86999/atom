@@ -73,12 +73,15 @@ def verify_current_lease(db, document):
 def _verify_intent(document, intent):
     required = {'operation_id', 'requested_at', 'previous_plan', 'plan', 'authority',
                 'source_operation_id', 'subscription_id'}
-    if (not isinstance(intent, dict) or set(intent) != required
+    if (not isinstance(intent, dict) or set(intent) not in (required, required | {'lifecycle_request'})
             or not isinstance(intent['operation_id'], str) or not intent['operation_id']
             or intent['source_operation_id'] != document['operation_id']
             or intent['subscription_id'] != document['provider_subscription_id']
             or not isinstance(intent['authority'], dict)
             or set(intent['authority']) != {'actor', 'connection', 'credential_commitment'}):
+        raise registry.SourceRegistrationError('SOURCE_RENEWAL_UNVERIFIED')
+    if ('lifecycle_request' in intent and (not isinstance(intent['lifecycle_request'], str)
+            or not intent['lifecycle_request'])):
         raise registry.SourceRegistrationError('SOURCE_RENEWAL_UNVERIFIED')
     from core.workflow_event_source_adapters import source_adapter
     adapter = source_adapter(document['source'])
@@ -120,10 +123,13 @@ def _audit(db, document, event_type, action):
 
 def _write(db, before, after, event_type, action):
     row = _row(db, before)
-    if row is None:
+    if row is None or registry._digest(registry._read_document(row)) != registry._digest(before):
         raise registry.SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
+    # Validate strict JSON material, then bind the actual observed storage
+    # bytes. Re-serializing before the CAS falsely rejects equivalent spacing.
+    observed_value = row.setting_value
     changed = db.execute(update(TenantSetting).where(TenantSetting.id == row.id,
-        TenantSetting.setting_value == registry._json(before)).values(
+        TenantSetting.setting_value == observed_value).values(
         setting_value=registry._json(after)).execution_options(synchronize_session=False))
     if changed.rowcount != 1:
         raise registry.SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
@@ -143,6 +149,9 @@ def _prepare(document, adapter, at, db_factory):
             authority=dict(actor=actor, connection=connection,
                 credential_commitment=_credential_commitment(db, document['connection_id'])),
             source_operation_id=document['operation_id'], subscription_id=document['provider_subscription_id'])
+        challenge = document.get('lifecycle_requests', {}).get('reauthorizationRequired')
+        if challenge is not None:
+            intent['lifecycle_request'] = challenge['digest']
         _verify_intent(document, intent)
         updated = dict(document, pending_lease=intent)
         _write(db, document, updated, 'workflow_event_source_renewal_prepared',
@@ -194,6 +203,23 @@ def _finish(document, intent):
         _claim_dispatch(db, document, intent)
         updated = dict(document, current_lease=_lease(document, intent))
         updated.pop('pending_lease', None)
+        challenge = intent.get('lifecycle_request')
+        requests = dict(document.get('lifecycle_requests', {}))
+        reauthorization = requests.get('reauthorizationRequired')
+        if challenge is None and isinstance(reauthorization, dict):
+            material = reauthorization.get('material', {})
+            if (material.get('subscription_id') == document['provider_subscription_id']
+                    and material.get('expires_at') == _time(intent['previous_plan']['expires_at']).isoformat()):
+                # A challenge received while this lease was pending is also
+                # satisfied by the same subsequent renewing/reauthorizing PATCH.
+                challenge = reauthorization['digest']
+        if challenge and requests.get('reauthorizationRequired', {}).get('digest') == challenge:
+            requests.pop('reauthorizationRequired')
+            updated['lifecycle_requests'] = requests
+            history = list(document.get('lifecycle_history', []))
+            if challenge not in history:
+                history.append(challenge)
+            updated['lifecycle_history'] = history[-32:]
         _write(db, document, updated, 'workflow_event_source_renewed', _ACTION)
     return effect
 
@@ -223,8 +249,13 @@ async def renew_source(connection_id, registration_id, adapter, db_factory=None,
         expires = _time(_current_plan(document, adapter)['expires_at'])
         if expires <= at:
             return _outcome(document, 'refused', 'none', reason='SOURCE_SUBSCRIPTION_EXPIRED')
-        if expires > at + timedelta(hours=24):
+        challenge = document.get('lifecycle_requests', {}).get('reauthorizationRequired')
+        if expires > at + timedelta(hours=24) and challenge is None:
             return _outcome(document, 'not_due', 'none')
+        if challenge is not None and _time(adapter.renewal_material(document, now=at)['expires_at']) <= expires:
+            # GET cannot prove reauthorization when old/new lease values are
+            # identical. Wait for a strictly later frozen expiry, no busy retry.
+            return _outcome(document, 'reauthorization_deferred', 'none')
         # Refresh only before freezing a fresh intent; unknown intent reconciliation below
         # cannot acquire a new identity or redo the provider effect.
         if not await source_credentials(document, adapter, db_factory):

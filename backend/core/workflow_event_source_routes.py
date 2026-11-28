@@ -1,6 +1,4 @@
 """Authenticated setup and provider callbacks for registered workflow sources."""
-import hashlib
-import hmac
 import os
 from typing import Optional
 from urllib.parse import quote, urlsplit
@@ -138,12 +136,12 @@ async def receive_source_notification(connection_id: str, request: Request,
         raise HTTPException(400, detail={'code': 'INVALID_SOURCE_NOTIFICATION'})
     adapter = source_adapter(document['source'])
     admitted = duplicates = ignored = 0
+    lifecycle_received = lifecycle_duplicates = 0
     for item in payload['value']:
         if not isinstance(item, dict):
             raise HTTPException(400, detail={'code': 'INVALID_SOURCE_NOTIFICATION'})
         state = item.get('clientState')
-        if (not isinstance(state, str) or not hmac.compare_digest(
-                hashlib.sha256(state.encode()).hexdigest(), document['receiver_state_digest'])):
+        if not registrations.receiver_state_matches(document, state):
             raise HTTPException(401, detail={'code': 'SOURCE_NOTIFICATION_REFUTED'})
         subscription_id = item.get('subscriptionId')
         if not isinstance(subscription_id, str) or not subscription_id:
@@ -160,6 +158,15 @@ async def receive_source_notification(connection_id: str, request: Request,
                 raise HTTPException(503, detail={'code': 'SOURCE_ENROLLMENT_UNVERIFIED', 'do_not_repeat': True}) from None
         if subscription_id != document.get('provider_subscription_id'):
             raise HTTPException(401, detail={'code': 'SOURCE_NOTIFICATION_REFUTED'})
+        if 'lifecycleEvent' in item:
+            from core.workflow_event_source_lifecycle import record_source_lifecycle
+            try:
+                document, received = await record_source_lifecycle(document, item, adapter, factory)
+            except registrations.SourceRegistrationError as exc:
+                raise _source_error(exc) from None
+            lifecycle_received += int(received)
+            lifecycle_duplicates += int(not received)
+            continue
         if item.get('changeType') != 'created':
             ignored += 1
             continue
@@ -187,4 +194,8 @@ async def receive_source_notification(connection_id: str, request: Request,
             raise HTTPException(503, detail={'code': 'SOURCE_EVENT_UNAVAILABLE'}) from None
         admitted += sum(row['status'] == 'admitted' for row in results)
         duplicates += sum(row['status'] == 'already_applied' for row in results)
-    return {'status': 'accepted', 'admitted': admitted, 'duplicates': duplicates, 'ignored': ignored}
+    result = {'status': 'accepted', 'admitted': admitted, 'duplicates': duplicates, 'ignored': ignored}
+    if lifecycle_received or lifecycle_duplicates:
+        result.update(lifecycle_received=lifecycle_received, lifecycle_duplicates=lifecycle_duplicates)
+        return JSONResponse(result, status_code=202)
+    return result
