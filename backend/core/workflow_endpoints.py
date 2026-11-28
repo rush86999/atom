@@ -281,6 +281,8 @@ class WorkflowDefinition(BaseModel):
     workspace_id: Optional[str] = None
     created_by: Optional[str] = None
     event_binding_version: Optional[int] = None
+    # Server-owned cutoffs; editor-supplied activation cannot authorize backfill.
+    event_activation: Optional[Dict[str, Any]] = None
     enabled: bool
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
@@ -1484,7 +1486,7 @@ async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(req
     workflow.updatedAt = datetime.now().isoformat()
 
     workflow_dict = workflow.dict()
-    for identity_field in ("tenant_id", "workspace_id", "created_by", "event_binding_version"):
+    for identity_field in ("tenant_id", "workspace_id", "created_by", "event_binding_version", "event_activation"):
         workflow_dict.pop(identity_field, None)
     subscriptions_provided = ("event_subscriptions" in workflow.model_fields_set
                               and workflow.event_subscriptions is not None)
@@ -1534,6 +1536,9 @@ async def create_workflow(workflow: WorkflowDefinition, user: User = Depends(req
             workflows[existing_index] = workflow_dict
         else:
             workflows.append(workflow_dict)
+        if workflow_dict.get("event_binding_version") == 1:
+            from core.workflow_event_activation import bind_activation
+            bind_activation(workflow_dict)
         workflow_dict["revision"] = _workflow_revision(workflow_dict)
         return True, workflow_dict
 
@@ -1663,6 +1668,9 @@ def _commit_structured_workflow_save(
         final["updatedAt"] = now
         if "updated_at" in current:
             final["updated_at"] = now
+        if final.get("event_binding_version") == 1:
+            from core.workflow_event_activation import bind_activation
+            bind_activation(final, current)
         after_revision = _workflow_revision(final)
         record = {
             "who": str(actor_id or ""),

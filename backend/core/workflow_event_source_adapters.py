@@ -5,8 +5,70 @@ reservations, retries and local activation remain in the general services.
 """
 from datetime import datetime, timedelta, timezone
 import hashlib
-from urllib.parse import quote
+import json
+from urllib.parse import quote, unquote, urlsplit
 from core.workflow_event_source_enrollment import EnrollmentRefused
+
+
+class DeltaResetRequired(Exception):
+    """Provider invalidated the cursor; never silently advance coverage."""
+
+def _id(value):
+    if (not isinstance(value, str) or not value or value.strip() != value
+            or any(ord(c) < 32 or ord(c) == 127 for c in value)
+            or any(p in ('.', '..') for p in value.replace('\\', '/').split('/'))):
+        raise ValueError('Delta binding id is invalid')
+    return value
+
+def _odata(segment, name):
+    prefix = name + '('
+    if not segment.casefold().startswith(prefix.casefold()) or not segment.endswith(')'):
+        return None
+    value = segment[len(prefix):-1]
+    if len(value) > 1 and value[0] == value[-1] == "'":
+        value = value[1:-1]
+    return unquote(value) if value else None
+
+def _path_id(parts, name):
+    if not parts: raise ValueError('Delta cursor is invalid')
+    head = parts.pop(0)
+    if head.casefold() == name:
+        if not parts: raise ValueError('Delta cursor is invalid')
+        return unquote(parts.pop(0))
+    return _odata(head, name)
+
+def _cursor(cursor, user_id, folder_id):
+    if not isinstance(cursor, str) or not cursor or any(c.isspace() for c in cursor):
+        raise ValueError('Delta cursor is invalid')
+    try:
+        parts = urlsplit(cursor); port = parts.port
+    except ValueError:
+        raise ValueError('Delta cursor is invalid') from None
+    if (parts.scheme.lower() != 'https' or parts.hostname != 'graph.microsoft.com'
+            or parts.username is not None or parts.password is not None
+            or parts.fragment or (port is not None and port != 443)):
+        raise ValueError('Delta cursor is invalid')
+    path = parts.path.split('/')
+    if (len(path) < 3 or path[0] or path[1] != 'v1.0'
+            or any(p in ('.', '..') for p in unquote(parts.path).replace('\\', '/').split('/'))):
+        raise ValueError('Delta cursor is invalid')
+    parts = path[2:]
+    if _path_id(parts, 'users') != user_id or _path_id(parts, 'mailfolders') != folder_id:
+        raise ValueError('Delta cursor is invalid')
+    if (len(parts) != 2 or parts[0].casefold() != 'messages'
+            or parts[1].casefold() != 'delta'):
+        raise ValueError('Delta cursor is invalid')
+    return cursor
+
+def _reset_required(response):
+    body = response.get('message')
+    if isinstance(body, str):
+        try:
+            body = json.loads(body)
+        except (TypeError, ValueError):
+            return False
+    error = body.get('error') if isinstance(body, dict) else None
+    return isinstance(error, dict) and error.get('code') == 'syncStateNotFound'
 
 
 class OutlookMailSourceAdapter:
@@ -22,6 +84,92 @@ class OutlookMailSourceAdapter:
             from integrations.microsoft365_service import Microsoft365Service
             service = Microsoft365Service(config={})
         self.service = service
+
+    @staticmethod
+    def _token(credentials):
+        token = credentials.get('access_token') if isinstance(credentials, dict) else None
+        if (not isinstance(token, str) or not token.strip()
+                or any(ord(c) < 32 or ord(c) == 127 for c in token)):
+            raise ValueError('Delta credentials are unavailable')
+        return token
+
+    async def _delta_request(self, token, url):
+        # Opaque cursors and transport exceptions may contain credentials. Keep
+        # them out of caller-visible errors; cancellation still propagates.
+        try:
+            return await self.service._make_graph_request('GET', url, token)
+        except Exception:
+            raise ValueError('Delta transport is unavailable') from None
+
+    async def _resolve_id(self, token, path):
+        response = await self._delta_request(token, 'https://graph.microsoft.com/v1.0' + path)
+        data = response.get('data') if isinstance(response, dict) and response.get('status') == 'success' else None
+        if not isinstance(data, dict):
+            raise ValueError('Delta binding is unavailable')
+        return _id(data.get('id'))
+
+    async def resolve_delta_binding(self, credentials):
+        token = self._token(credentials)
+        return {'user_id': await self._resolve_id(token, '/me?$select=id'),
+                'folder_id': await self._resolve_id(token, '/me/mailFolders/Inbox?$select=id')}
+
+    async def read_delta_page(self, binding, credentials, cursor=None):
+        if not isinstance(binding, dict):
+            raise ValueError('Delta binding is unavailable')
+        user_id, folder_id = _id(binding.get('user_id')), _id(binding.get('folder_id'))
+        token = self._token(credentials)
+        fresh = await self.resolve_delta_binding(credentials)
+        if fresh != {'user_id': user_id, 'folder_id': folder_id}:
+            raise ValueError('Delta binding changed')
+        if cursor is None:
+            url = ('https://graph.microsoft.com/v1.0/users/' + quote(user_id, safe='')
+                   + '/mailFolders/' + quote(folder_id, safe='')
+                   + '/messages/delta?changeType=created&$select=id,createdDateTime&$top=50')
+        else:
+            url = _cursor(cursor, user_id, folder_id)
+        response = await self._delta_request(token, url)
+        if not isinstance(response, dict) or response.get('status') != 'success':
+            if isinstance(response, dict) and (
+                    (type(response.get('code')) is int and response['code'] == 410)
+                    or _reset_required(response)):
+                raise DeltaResetRequired('Delta cursor must be reset') from None
+            raise ValueError('Delta page is unavailable') from None
+        page = response.get('data'); values = page.get('value') if isinstance(page, dict) else None
+        if not isinstance(values, list) or len(values) > 100: raise ValueError('Delta page is malformed') from None
+        nxt, delta = page.get('@odata.nextLink'), page.get('@odata.deltaLink')
+        if ((nxt is not None and (not isinstance(nxt, str) or not nxt))
+                or (delta is not None and (not isinstance(delta, str) or not delta))):
+            raise ValueError('Delta page links are malformed') from None
+        if (nxt is None) == (delta is None):
+            raise ValueError('Delta page must have one continuation') from None
+        if nxt is not None:
+            _cursor(nxt, user_id, folder_id)
+            if cursor is not None and nxt == cursor:
+                raise ValueError('Delta page cursor loop') from None
+            link, complete = nxt, False
+        else:
+            _cursor(delta, user_id, folder_id)
+            link, complete = delta, True
+        items = []
+        for row in values:
+            if not isinstance(row, dict): raise ValueError('Delta page entry is malformed') from None
+            if '@removed' in row:
+                continue
+            message_id, created = row.get('id'), row.get('createdDateTime')
+            if (not isinstance(message_id, str) or not message_id
+                    or message_id.strip() != message_id
+                    or any(ord(c) < 32 or ord(c) == 127 for c in message_id)):
+                raise ValueError('Delta entry identity is invalid') from None
+            if not isinstance(created, str) or not created:
+                raise ValueError('Delta entry time is invalid') from None
+            try:
+                stamp = datetime.fromisoformat(created.replace('Z', '+00:00'))
+            except (TypeError, ValueError):
+                raise ValueError('Delta entry time is invalid') from None
+            if stamp.tzinfo is None:
+                raise ValueError('Delta entry time is invalid') from None
+            items.append({'id': message_id, 'created_at': stamp.astimezone(timezone.utc)})
+        return {'items': items, 'cursor': link, 'complete': complete}
 
     def material(self, document):
         prepared = datetime.fromisoformat(document['prepared_at'])
