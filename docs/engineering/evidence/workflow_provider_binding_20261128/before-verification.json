@@ -1,0 +1,14 @@
+{
+  "source_ref": "a54c39d1afa73333f996ec4fd7c65bc96744552c",
+  "sources": {
+    "backend/tests/test_workflow_event_source_binding.py": "c02abad78bb593476846990aa1232cf6badd9d90dec08e3d76f63078282c4181",
+    "backend/core/workflow_event_source_registration.py": "46b41c630a3388b44f973ff75a1b5aedd0dc9e6ed2b319d46897c6e1ee898884",
+    "backend/core/workflow_event_source_enrollment.py": "998e28557e04a5bd99147e6eea0cb97b2971c636ba39d4f0f70b33e47b38be48",
+    "backend/core/workflow_event_source_adapters.py": "8635cd07c432af6f9bba7525a6a55126a5fbefda34dc547028167be346f45ccb"
+  },
+  "artifact_sha256": "4606f9809da2f60a75d66e24b6098e2ed45071fa190a8e05b543ceae14b3dc33",
+  "result": "7 failed, 1 passed",
+  "fixture_git_sha256": {
+    "backend/tests/test_workflow_event_source_enrollment.py": "a5fbf4cdec1ca3512bd18033d03467ce546e0678b14c0220e6c6779dfb32725e"
+  }
+}

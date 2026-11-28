@@ -1,0 +1,14 @@
+{
+  "source": "00ae8bd5495918fbfab71a5747c15be67df7bf0b",
+  "sources": {
+    ".github/workflows/ci.yml": "a9c5e0a708eed2835560120194122879682ae58635d3399b75c2919c104ada67",
+    "frontend-nextjs/components/Automations/EventSourcePicker.tsx": "eacd0ac53b4d136e6c3af80dbc5fd4b7daf3eef93dcaeaacc054ceb5a4e4f045",
+    "frontend-nextjs/components/Automations/NodeConfigSidebar.tsx": "9a85a8bd8fb527abf04a6c83c6836f78faeea16f6a714d899e6122323c02af61",
+    "frontend-nextjs/components/Automations/PiecesSidebar.tsx": "5bfda9838d998b95a14cfd082b9bc72aa3b720b1cf352773f2a9a985e31ab5ff",
+    "frontend-nextjs/components/Automations/__tests__/EventSourcePicker.test.tsx": "6e622d1d16decb30e6e4818b6f0624e543ff3940cfab0341f83dd7974bd79306"
+  },
+  "artifacts": {
+    "README.md": "fd354b10263857896c14a266da65f22378b76b7da5f9395931f9728c5f9c5fd1",
+    "verification.json": "77f4eafb3e25503be6ee6ab294ef16129db8f5b66f28591bd3d2e0bf24fd2aa6"
+  }
+}

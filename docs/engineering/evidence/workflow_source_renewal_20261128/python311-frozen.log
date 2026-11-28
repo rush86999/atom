@@ -1,0 +1,744 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-28 10:40:58 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-28 10:40:58 [    INFO] No token storage file found, starting empty
+2026-11-28 10:40:58 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 10:40:58 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 10:40:58 [    INFO] EscalationManager initialized
+2026-11-28 10:40:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 10:40:58 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 10:40:58 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 10:40:58 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 10:40:58 [    INFO] EscalationManager initialized
+2026-11-28 10:40:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 10:40:58 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 10:40:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-28 10:40:58 [    INFO] MCP Service initialized
+2026-11-28 10:40:58 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+tests/test_workflow_event_source_renewal.py::test_success_atomic_proof_and_enrollment_replay 
+-------------------------------- live log setup --------------------------------
+2026-11-28 10:40:59 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_workflow_event_source_renewal.py::test_competing_callers_patch_once PASSED [  0%]
+tests/test_workflow_event_source_renewal.py::test_unknown_reconciles_original_intent_only PASSED [  0%]
+tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[resource] PASSED [  1%]
+tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[callback] PASSED [  1%]
+tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[moved_expiry] PASSED [  1%]
+tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[state] PASSED [  2%]
+tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[identity] PASSED [  2%]
+tests/test_workflow_event_source_renewal.py::test_audit_failure_rolls_back_receipt_and_lease_then_get_recovers 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:11 [   ERROR] outbound claim status update failed (succeeded): RuntimeError
+PASSED                                                                   [  2%]
+tests/test_workflow_event_source_renewal.py::test_dispatch_claim_refuses_peer_change[authority] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:12 [   ERROR] outbound claim status update failed (dispatching): SourceRegistrationError
+PASSED                                                                   [  3%]
+tests/test_workflow_event_source_renewal.py::test_dispatch_claim_refuses_peer_change[target] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:14 [   ERROR] outbound claim status update failed (dispatching): SourceRegistrationError
+PASSED                                                                   [  3%]
+tests/test_workflow_event_source_renewal.py::test_dispatch_claim_refuses_peer_change[enrollment_receipt] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:15 [   ERROR] outbound claim status update failed (dispatching): SourceRegistrationError
+PASSED                                                                   [  3%]
+tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[lease] PASSED [  4%]
+tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[receipt] PASSED [  4%]
+tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[audit] PASSED [  4%]
+tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[scope] PASSED [  5%]
+tests/test_workflow_event_source_renewal.py::test_not_due_and_expired_never_patch PASSED [  5%]
+tests/test_workflow_event_source_renewal.py::test_confirmed_refusal_is_durable_no_effect PASSED [  5%]
+tests/test_workflow_event_source_renewal.py::test_unavailable_preflight_never_dispatches PASSED [  6%]
+tests/test_workflow_event_source_renewal.py::test_failed_fresh_proof_is_committed_unverified PASSED [  6%]
+tests/test_workflow_event_source_renewal.py::test_unknown_with_changed_credentials_never_repatches 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:27 [   ERROR] outbound claim status update failed (succeeded): SourceRegistrationError
+PASSED                                                                   [  6%]
+tests/test_workflow_event_source_renewal.py::test_renewed_callback_still_admits_one_real_workflow 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:28 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:41:28 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:41:28 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=f69fd224-3ef5-425c-8f4a-22c6750adb99 "HTTP/1.1 200 OK"
+2026-11-28 10:41:28 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=f69fd224-3ef5-425c-8f4a-22c6750adb99 "HTTP/1.1 200 OK"
+2026-11-28 10:41:28 [    INFO] Event bus started
+2026-11-28 10:41:29 [    INFO] Loaded analytics data: 2 workflows, 0 integrations
+2026-11-28 10:41:29 [    INFO] Executing workflow_notification.notify_caller with params: {'title': 'Selected mail', 'message': 'invoice', 'user_id': 'forged-recipient', 'workspace_id': 'foreign'}
+PASSED                                                                   [  7%]
+tests/test_workflow_event_source_renewal.py::test_new_os_process_reconciles_unknown_by_get_without_patch PASSED [  7%]
+tests/test_workflow_event_source_renewal.py::test_invalid_server_clock_refuses_before_provider_read[0] PASSED [  7%]
+tests/test_workflow_event_source_renewal.py::test_invalid_server_clock_refuses_before_provider_read[bad] PASSED [  8%]
+tests/test_workflow_event_source_renewal.py::test_invalid_server_clock_refuses_before_provider_read[invalid2] PASSED [  8%]
+tests/test_workflow_event_source_renewal_adapter.py::test_renewal_uses_exact_escaped_original_id_and_only_expiry_patch PASSED [  8%]
+tests/test_workflow_event_source_renewal_adapter.py::test_readback_requires_exact_new_lease_material[id-foreign] PASSED [  9%]
+tests/test_workflow_event_source_renewal_adapter.py::test_readback_requires_exact_new_lease_material[resource-foreign] PASSED [  9%]
+tests/test_workflow_event_source_renewal_adapter.py::test_readback_requires_exact_new_lease_material[changeType-created] PASSED [  9%]
+tests/test_workflow_event_source_renewal_adapter.py::test_readback_requires_exact_new_lease_material[notificationUrl-https://example.invalid/foreign] PASSED [ 10%]
+tests/test_workflow_event_source_renewal_adapter.py::test_readback_requires_exact_new_lease_material[expirationDateTime-2099-01-01T00:00:00Z] PASSED [ 10%]
+tests/test_workflow_event_source_renewal_adapter.py::test_readback_requires_exact_new_lease_material[clientState-foreign] PASSED [ 10%]
+tests/test_workflow_event_source_renewal_adapter.py::test_only_confirmed_refusal_is_pre_effect[403-True] PASSED [ 11%]
+tests/test_workflow_event_source_renewal_adapter.py::test_only_confirmed_refusal_is_pre_effect[404-True] PASSED [ 11%]
+tests/test_workflow_event_source_renewal_adapter.py::test_only_confirmed_refusal_is_pre_effect[429-False] PASSED [ 11%]
+tests/test_workflow_event_source_renewal_adapter.py::test_only_confirmed_refusal_is_pre_effect[500-False] PASSED [ 12%]
+tests/test_workflow_event_source_renewal_adapter.py::test_only_confirmed_refusal_is_pre_effect[True-False] PASSED [ 12%]
+tests/test_workflow_event_source_renewal_adapter.py::test_transport_uncertainty_propagates_without_retry PASSED [ 12%]
+tests/test_workflow_event_source_renewal_adapter.py::test_invalid_frozen_material_never_dispatches[callback] PASSED [ 13%]
+tests/test_workflow_event_source_renewal_adapter.py::test_invalid_frozen_material_never_dispatches[naive] PASSED [ 13%]
+tests/test_workflow_event_source_renewal_adapter.py::test_invalid_frozen_material_never_dispatches[expired] PASSED [ 13%]
+tests/test_workflow_event_source_renewal_adapter.py::test_invalid_frozen_material_never_dispatches[too_far] PASSED [ 14%]
+tests/test_workflow_event_source_renewal_adapter.py::test_invalid_frozen_material_never_dispatches[extra] PASSED [ 14%]
+tests/test_workflow_event_source_renewal_adapter.py::test_missing_target_cannot_create_replacement PASSED [ 14%]
+tests/test_workflow_event_source_renewal_adapter.py::test_unproved_receipt_never_certifies_renewal[None] PASSED [ 15%]
+tests/test_workflow_event_source_renewal_adapter.py::test_unproved_receipt_never_certifies_renewal[receipt1] PASSED [ 15%]
+tests/test_workflow_event_source_renewal_adapter.py::test_unproved_receipt_never_certifies_renewal[receipt2] PASSED [ 15%]
+tests/test_workflow_event_source_renewal_adapter.py::test_unproved_receipt_never_certifies_renewal[receipt3] PASSED [ 16%]
+tests/test_scoped_connection_refresh.py::test_refresh_commit_readback_and_replay_create_one_attempt PASSED [ 16%]
+tests/test_scoped_connection_refresh.py::test_competing_refreshes_have_one_provider_call PASSED [ 16%]
+tests/test_scoped_connection_refresh.py::test_unknown_or_refused_refresh_never_resends_or_stores_private_failure[timeout] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:41 [   ERROR] OAuth refresh request failed (ReadTimeout)
+2026-11-28 10:41:41 [ WARNING] Scoped credential refresh unavailable (HTTPException)
+PASSED                                                                   [ 17%]
+tests/test_scoped_connection_refresh.py::test_unknown_or_refused_refresh_never_resends_or_stores_private_failure[malformed] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:42 [ WARNING] Scoped credential refresh unavailable (ValueError)
+PASSED                                                                   [ 17%]
+tests/test_scoped_connection_refresh.py::test_unknown_or_refused_refresh_never_resends_or_stores_private_failure[lifetime] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:43 [ WARNING] Scoped credential refresh unavailable (ValueError)
+PASSED                                                                   [ 17%]
+tests/test_scoped_connection_refresh.py::test_unknown_or_refused_refresh_never_resends_or_stores_private_failure[refused] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:44 [   ERROR] Token refresh failed (HTTP 400)
+PASSED                                                                   [ 18%]
+tests/test_scoped_connection_refresh.py::test_refresh_does_not_overwrite_peer_authority_or_reconnect[reconnect] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:46 [   ERROR] outbound claim status update failed (succeeded): ValueError
+2026-11-28 10:41:46 [ WARNING] Scoped credential refresh unavailable (ValueError)
+PASSED                                                                   [ 18%]
+tests/test_scoped_connection_refresh.py::test_refresh_does_not_overwrite_peer_authority_or_reconnect[disable] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:47 [   ERROR] outbound claim status update failed (succeeded): ValueError
+2026-11-28 10:41:47 [ WARNING] Scoped credential refresh unavailable (ValueError)
+PASSED                                                                   [ 18%]
+tests/test_scoped_connection_refresh.py::test_refresh_does_not_overwrite_peer_authority_or_reconnect[move] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:48 [   ERROR] outbound claim status update failed (succeeded): ValueError
+2026-11-28 10:41:48 [ WARNING] Scoped credential refresh unavailable (ValueError)
+PASSED                                                                   [ 19%]
+tests/test_scoped_connection_refresh.py::test_refresh_does_not_overwrite_peer_authority_or_reconnect[policy] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:49 [   ERROR] outbound claim status update failed (succeeded): ValueError
+2026-11-28 10:41:49 [ WARNING] Scoped credential refresh unavailable (ValueError)
+PASSED                                                                   [ 19%]
+tests/test_scoped_connection_refresh.py::test_missing_refresh_material_has_no_operation_or_provider_effect PASSED [ 19%]
+tests/test_scoped_connection_refresh.py::test_lost_local_receipt_never_issues_a_second_refresh 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:51 [ WARNING] Scoped credential refresh unavailable (ValueError)
+PASSED                                                                   [ 20%]
+tests/test_scoped_connection_refresh.py::test_predispatch_authority_change_prevents_refresh 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:52 [   ERROR] outbound claim status update failed (dispatching): ValueError
+PASSED                                                                   [ 20%]
+tests/test_scoped_connection_refresh.py::test_audit_failure_rolls_back_grant_and_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:53 [   ERROR] outbound claim status update failed (succeeded): ValueError
+2026-11-28 10:41:53 [ WARNING] Scoped credential refresh unavailable (ValueError)
+PASSED                                                                   [ 20%]
+tests/test_scoped_connection_refresh.py::test_authorized_oauth_material_is_frozen_before_dispatch PASSED [ 21%]
+tests/test_scoped_connection_refresh.py::test_scope_move_cannot_repeat_an_uncertain_credential_version 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:55 [   ERROR] OAuth refresh request failed (ReadTimeout)
+2026-11-28 10:41:55 [ WARNING] Scoped credential refresh unavailable (HTTPException)
+2026-11-28 10:41:55 [   ERROR] outbound claim status update failed (dispatching): ValueError
+PASSED                                                                   [ 21%]
+tests/test_scoped_connection_refresh.py::test_fresh_process_does_not_repeat_unknown_refresh 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:41:56 [   ERROR] OAuth refresh request failed (ReadTimeout)
+2026-11-28 10:41:56 [ WARNING] Scoped credential refresh unavailable (HTTPException)
+PASSED                                                                   [ 21%]
+tests/test_operation_transition_effect.py::test_losing_transition_rolls_back_factory_writes PASSED [ 22%]
+tests/test_operation_transition_effect.py::test_winner_commits_effect_and_receipt_together PASSED [ 22%]
+tests/test_operation_transition_effect.py::test_peer_winner_does_not_run_effect PASSED [ 22%]
+tests/test_operation_transition_effect.py::test_effect_refusal_rolls_back_receipt_and_target 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:03 [   ERROR] outbound claim status update failed (succeeded): ValueError
+PASSED                                                                   [ 23%]
+tests/test_operation_transition_effect.py::test_async_effect_cannot_certify_unexecuted_write[coroutine] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:04 [   ERROR] outbound claim status update failed (succeeded): TypeError
+PASSED                                                                   [ 23%]
+tests/test_operation_transition_effect.py::test_async_effect_cannot_certify_unexecuted_write[async_generator] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:05 [   ERROR] outbound claim status update failed (succeeded): TypeError
+PASSED                                                                   [ 23%]
+tests/test_operation_transition_effect.py::test_unconditional_transition_cannot_attach_effect PASSED [ 24%]
+tests/test_operation_transition_effect.py::test_orm_effect_is_flushed_before_receipt_commit PASSED [ 24%]
+tests/test_workflow_event_source_http.py::test_public_setup_callback_real_worker_and_real_notification_once 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:09 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/event-sources "HTTP/1.1 200 OK"
+2026-11-28 10:42:09 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:09 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:09 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=3f682378-5828-4e29-95cf-ac37cf92c4fe "HTTP/1.1 200 OK"
+2026-11-28 10:42:09 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=3f682378-5828-4e29-95cf-ac37cf92c4fe "HTTP/1.1 200 OK"
+2026-11-28 10:42:09 [    INFO] Executing workflow_notification.notify_caller with params: {'title': 'Selected mail', 'message': 'invoice', 'user_id': 'forged-recipient', 'workspace_id': 'foreign'}
+PASSED                                                                   [ 24%]
+tests/test_workflow_event_source_http.py::test_unverified_callback_has_no_event_or_content_fetch[bad_state] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:10 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:10 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:10 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=2b742d4c-aa42-4e60-8ecb-e5aee620e1c3 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 25%]
+tests/test_workflow_event_source_http.py::test_unverified_callback_has_no_event_or_content_fetch[wrong_subscription] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:11 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:11 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:11 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=d043fb89-f9c4-4b6d-8546-a933cf172c39 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 25%]
+tests/test_workflow_event_source_http.py::test_unverified_callback_has_no_event_or_content_fetch[wrong_registration] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:12 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:12 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:12 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=other-registration "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 25%]
+tests/test_workflow_event_source_http.py::test_content_failure_is_retriable_not_a_false_accepted_delivery 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:13 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:13 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:13 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=9680654c-b77b-423b-8475-170c82627529 "HTTP/1.1 503 Service Unavailable"
+2026-11-28 10:42:13 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=9680654c-b77b-423b-8475-170c82627529 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_workflow_event_source_http.py::test_role_and_forged_setup_body_do_not_enroll 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:14 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 422 Unprocessable Entity"
+2026-11-28 10:42:14 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 26%]
+tests/test_workflow_event_source_http.py::test_missing_callback_configuration_has_no_setup_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:15 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 26%]
+tests/test_workflow_event_source_http.py::test_verified_callback_reconciles_lost_enrollment_without_second_create 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:16 [   ERROR] Create subscription failed: error_class=TimeoutError
+2026-11-28 10:42:16 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 503 Service Unavailable"
+2026-11-28 10:42:16 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:16 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=ab7ef950-61f5-4613-adcc-6636a55de0a3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_workflow_event_source_http.py::test_authority_change_during_content_fetch_cannot_admit[disable_owner] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:17 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=6c7314c1-d672-48ea-a44f-8bb3d8a7374e "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 27%]
+tests/test_workflow_event_source_http.py::test_authority_change_during_content_fetch_cannot_admit[transfer_connection] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:18 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:18 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:18 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=8a4ec7a1-caa8-4137-ad3a-0fa13136cf3d "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 27%]
+tests/test_workflow_event_source_http.py::test_registered_provider_validation_handshake 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:19 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=0651a40a-92c5-4688-b943-7616a93dbedc&validationToken=synthetic-handshake "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_workflow_event_source_http.py::test_malformed_server_callback_configuration_is_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:21 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/event-sources "HTTP/1.1 200 OK"
+2026-11-28 10:42:21 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 28%]
+tests/test_workflow_event_source_http.py::test_expired_callback_grant_refreshes_once_then_admits_original_source 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:22 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:22 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:22 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=c5b5b2ad-3f49-49b8-a040-596e63032c3b "HTTP/1.1 200 OK"
+2026-11-28 10:42:22 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=c5b5b2ad-3f49-49b8-a040-596e63032c3b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_workflow_event_source_http.py::test_still_valid_grant_without_refresh_material_keeps_delivering[refresh] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:23 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:23 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:23 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=0ee382bb-4c59-4300-926e-a1d596789d5b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_workflow_event_source_http.py::test_still_valid_grant_without_refresh_material_keeps_delivering[configuration] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:24 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:24 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:24 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=f9f24825-7fce-4955-884c-3d58bd2ed50b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_workflow_event_source_http.py::test_private_credential_read_failure_is_safe_unavailability[callback] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:25 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:25 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:25 [ WARNING] Source credential read unavailable (RuntimeError)
+2026-11-28 10:42:25 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=72ce1772-88a3-4fd4-8e0d-6c60ce897a57 "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 29%]
+tests/test_workflow_event_source_http.py::test_private_credential_read_failure_is_safe_unavailability[replay] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:26 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 10:42:26 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:42:26 [ WARNING] Source credential read unavailable (RuntimeError)
+2026-11-28 10:42:26 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 30%]
+tests/test_workflow_event_source_enrollment.py::test_enroll_readback_activate_and_replay_never_create_twice PASSED [ 30%]
+tests/test_workflow_event_source_enrollment.py::test_lost_confirmation_is_durable_unknown_and_never_reenrolls 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:28 [   ERROR] Create subscription failed: error_class=TimeoutError
+PASSED                                                                   [ 30%]
+tests/test_workflow_event_source_enrollment.py::test_confirmed_refusal_reports_no_effect_without_another_provider_attempt PASSED [ 31%]
+tests/test_workflow_event_source_enrollment.py::test_readback_mismatch_recovers_from_original_receipt_without_enrolling[resource] PASSED [ 31%]
+tests/test_workflow_event_source_enrollment.py::test_readback_mismatch_recovers_from_original_receipt_without_enrolling[state] PASSED [ 31%]
+tests/test_workflow_event_source_enrollment.py::test_readback_mismatch_recovers_from_original_receipt_without_enrolling[callback] PASSED [ 32%]
+tests/test_workflow_event_source_enrollment.py::test_readback_mismatch_recovers_from_original_receipt_without_enrolling[expiry] PASSED [ 32%]
+tests/test_workflow_event_source_enrollment.py::test_readback_mismatch_recovers_from_original_receipt_without_enrolling[moved_expiry] PASSED [ 32%]
+tests/test_workflow_event_source_enrollment.py::test_readback_mismatch_recovers_from_original_receipt_without_enrolling[identity] PASSED [ 33%]
+tests/test_workflow_event_source_enrollment.py::test_activation_failure_recovers_without_another_provider_effect PASSED [ 33%]
+tests/test_workflow_event_source_enrollment.py::test_competing_enrollments_have_one_provider_create PASSED [ 33%]
+tests/test_workflow_event_source_enrollment.py::test_authority_change_before_dispatch_refuses_with_no_provider_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:39 [   ERROR] outbound claim status update failed (dispatching): SourceRegistrationError
+PASSED                                                                   [ 34%]
+tests/test_workflow_event_source_enrollment.py::test_lost_receipt_persistence_never_creates_second_subscription PASSED [ 34%]
+tests/test_workflow_event_source_enrollment.py::test_changed_adapter_material_conflicts_without_reissuing_original_effect PASSED [ 34%]
+tests/test_workflow_event_source_enrollment.py::test_changed_receipt_shape_is_not_acknowledged_as_verified_replay PASSED [ 35%]
+tests/test_workflow_event_source_enrollment.py::test_missing_credentials_cannot_relabel_original_enrollment_effect[unknown] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:42:43 [   ERROR] Create subscription failed: error_class=TimeoutError
+PASSED                                                                   [ 35%]
+tests/test_workflow_event_source_enrollment.py::test_missing_credentials_cannot_relabel_original_enrollment_effect[committed] PASSED [ 35%]
+tests/test_workflow_event_source_registration.py::test_preparation_is_durable_replay_with_private_encrypted_receiver_state PASSED [ 36%]
+tests/test_workflow_event_source_registration.py::test_changed_material_does_not_overwrite_registration PASSED [ 36%]
+tests/test_workflow_event_source_registration.py::test_unavailable_source_has_no_registration_or_audit[foreign] PASSED [ 36%]
+tests/test_workflow_event_source_registration.py::test_unavailable_source_has_no_registration_or_audit[revoked] PASSED [ 37%]
+tests/test_workflow_event_source_registration.py::test_unavailable_source_has_no_registration_or_audit[inactive] PASSED [ 37%]
+tests/test_workflow_event_source_registration.py::test_unavailable_source_has_no_registration_or_audit[moved] PASSED [ 37%]
+tests/test_workflow_event_source_registration.py::test_unavailable_source_has_no_registration_or_audit[unmanaged] PASSED [ 38%]
+tests/test_workflow_event_source_registration.py::test_authority_change_between_read_and_claim_preserves_peer[actor] PASSED [ 38%]
+tests/test_workflow_event_source_registration.py::test_authority_change_between_read_and_claim_preserves_peer[connection] PASSED [ 38%]
+tests/test_workflow_event_source_registration.py::test_invalid_setup_refuses_before_write[duplicate_events] PASSED [ 39%]
+tests/test_workflow_event_source_registration.py::test_invalid_setup_refuses_before_write[insecure_callback] PASSED [ 39%]
+tests/test_workflow_event_source_registration.py::test_competing_preparations_reconcile_one_durable_registration PASSED [ 39%]
+tests/test_workflow_event_source_registration.py::test_audit_write_failure_rolls_back_preparation_and_returns_safe_error PASSED [ 40%]
+tests/test_workflow_event_source_registration.py::test_corrupted_prepared_material_is_not_recertified_by_its_request_digest[identity] PASSED [ 40%]
+tests/test_workflow_event_source_registration.py::test_corrupted_prepared_material_is_not_recertified_by_its_request_digest[operation_id] PASSED [ 40%]
+tests/test_workflow_event_source_registration.py::test_corrupted_prepared_material_is_not_recertified_by_its_request_digest[receiver_state_ciphertext] PASSED [ 41%]
+tests/test_workflow_event_source_registration.py::test_corrupted_prepared_material_is_not_recertified_by_its_request_digest[enabled] PASSED [ 41%]
+tests/test_workflow_event_source_registration.py::test_corrupted_prepared_material_is_not_recertified_by_its_request_digest[audit_action] PASSED [ 41%]
+tests/test_outlook_subscription_receiver_state.py::test_subscription_uses_explicit_receiver_state_in_emitted_payload PASSED [ 42%]
+tests/test_outlook_subscription_receiver_state.py::test_invalid_receiver_state_refuses_before_provider_dispatch[] PASSED [ 42%]
+tests/test_outlook_subscription_receiver_state.py::test_invalid_receiver_state_refuses_before_provider_dispatch[   ] PASSED [ 42%]
+tests/test_outlook_subscription_receiver_state.py::test_invalid_receiver_state_refuses_before_provider_dispatch[True] PASSED [ 43%]
+tests/test_outlook_subscription_receiver_state.py::test_invalid_receiver_state_refuses_before_provider_dispatch[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx] PASSED [ 43%]
+tests/test_outlook_subscription_receiver_state.py::test_realtime_enrollment_and_receiver_share_the_exact_state 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:03 [    INFO] Graph mail subscription active (id=subscription…, channel=webhook)
+2026-11-28 10:43:03 [ WARNING] Graph notification rejected: clientState mismatch
+PASSED                                                                   [ 43%]
+tests/test_outlook_subscription_receiver_state.py::test_subscription_exception_logs_only_error_class 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:03 [   ERROR] Create subscription failed: error_class=RuntimeError
+PASSED                                                                   [ 44%]
+tests/test_outlook_subscription_receiver_state.py::test_graph_error_body_is_not_logged_but_legacy_response_shape_remains 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:03 [   ERROR] Graph API request failed: status=400
+PASSED                                                                   [ 44%]
+tests/test_workflow_event_intake.py::test_verified_intake_reserves_once_and_replays_original_after_disable PASSED [ 44%]
+tests/test_workflow_event_intake.py::test_unmatched_intake_does_not_reserve[foreign_workflow_owner] PASSED [ 45%]
+tests/test_workflow_event_intake.py::test_unmatched_intake_does_not_reserve[foreign_workflow_scope] PASSED [ 45%]
+tests/test_workflow_event_intake.py::test_unmatched_intake_does_not_reserve[disabled] PASSED [ 45%]
+tests/test_workflow_event_intake.py::test_unmatched_intake_does_not_reserve[legacy] PASSED [ 46%]
+tests/test_workflow_event_intake.py::test_unmatched_intake_does_not_reserve[wrong_event] PASSED [ 46%]
+tests/test_workflow_event_intake.py::test_unavailable_source_refuses_before_reservation[revoked] PASSED [ 46%]
+tests/test_workflow_event_intake.py::test_unavailable_source_refuses_before_reservation[owner_disabled] PASSED [ 47%]
+tests/test_workflow_event_intake.py::test_unavailable_source_refuses_before_reservation[owner_moved] PASSED [ 47%]
+tests/test_workflow_event_intake.py::test_unavailable_source_refuses_before_reservation[missing_event_id] PASSED [ 47%]
+tests/test_workflow_event_intake.py::test_authority_change_at_reservation_rolls_back_event_row[actor] PASSED [ 48%]
+tests/test_workflow_event_intake.py::test_authority_change_at_reservation_rolls_back_event_row[connection] PASSED [ 48%]
+tests/test_workflow_event_intake.py::test_verified_source_identity_cannot_follow_a_transferred_connection PASSED [ 48%]
+tests/test_workflow_event_trigger_dispatch.py::test_registered_trigger_consumes_durable_event_without_connector PASSED [ 49%]
+tests/test_workflow_event_trigger_dispatch.py::test_mismatched_trigger_refuses_without_source_dispatch[manual] PASSED [ 49%]
+tests/test_workflow_event_trigger_dispatch.py::test_mismatched_trigger_refuses_without_source_dispatch[payload] PASSED [ 49%]
+tests/test_workflow_event_trigger_dispatch.py::test_mismatched_trigger_refuses_without_source_dispatch[source] PASSED [ 50%]
+tests/test_workflow_event_trigger_dispatch.py::test_mismatched_trigger_refuses_without_source_dispatch[node] PASSED [ 50%]
+tests/test_workflow_event_trigger_dispatch.py::test_mismatched_trigger_refuses_without_source_dispatch[disabled] PASSED [ 50%]
+tests/test_workflow_event_trigger_dispatch.py::test_mismatched_trigger_refuses_without_source_dispatch[owner] PASSED [ 50%]
+tests/test_workflow_event_trigger_dispatch.py::test_mismatched_trigger_refuses_without_source_dispatch[snapshot] PASSED [ 51%]
+tests/test_workflow_event_trigger_dispatch.py::test_ordinary_action_uses_existing_dispatch PASSED [ 51%]
+tests/test_workflow_event_trigger_dispatch.py::test_selected_event_root_runs_only_its_reachable_branch_without_mutating_snapshot PASSED [ 51%]
+tests/test_workflow_event_trigger_dispatch.py::test_real_reserved_graph_consumes_trigger_and_dispatches_only_selected_action 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 52%]
+tests/test_workflow_event_registration.py::test_public_create_and_fresh_read_preserve_bound_registration 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:43:18 [    INFO] HTTP Request: GET http://testserver/workflows/workflow-one "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_workflow_event_registration.py::test_invalid_registration_refuses_before_catalog_write[missing] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 52%]
+tests/test_workflow_event_registration.py::test_invalid_registration_refuses_before_catalog_write[wrong_owner] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 53%]
+tests/test_workflow_event_registration.py::test_invalid_registration_refuses_before_catalog_write[wrong_workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 53%]
+tests/test_workflow_event_registration.py::test_invalid_registration_refuses_before_catalog_write[wrong_tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 53%]
+tests/test_workflow_event_registration.py::test_invalid_registration_refuses_before_catalog_write[revoked] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 54%]
+tests/test_workflow_event_registration.py::test_invalid_registration_refuses_before_catalog_write[wrong_source] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 54%]
+tests/test_workflow_event_registration.py::test_invalid_registration_refuses_before_catalog_write[duplicate_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 54%]
+tests/test_workflow_event_registration.py::test_invalid_registration_refuses_before_catalog_write[duplicate_binding] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 55%]
+tests/test_workflow_event_registration.py::test_invalid_registration_refuses_before_catalog_write[invalid_enabled] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 55%]
+tests/test_workflow_event_registration.py::test_revision_save_omission_clear_and_stale_preserve_history 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:43:18 [    INFO] HTTP Request: PUT http://testserver/workflows/workflow-one "HTTP/1.1 200 OK"
+2026-11-28 10:43:18 [    INFO] HTTP Request: PUT http://testserver/workflows/workflow-one "HTTP/1.1 409 Conflict"
+2026-11-28 10:43:18 [    INFO] HTTP Request: PUT http://testserver/workflows/workflow-one "HTTP/1.1 200 OK"
+2026-11-28 10:43:18 [    INFO] HTTP Request: GET http://testserver/workflows/workflow-one "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 55%]
+tests/test_workflow_event_registration.py::test_legacy_post_cannot_bypass_subscription_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 56%]
+tests/test_workflow_event_registration.py::test_raw_nullable_connection_scope_is_compared_exactly[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_workflow_event_registration.py::test_raw_nullable_connection_scope_is_compared_exactly[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 56%]
+tests/test_workflow_event_registration.py::test_omitting_subscriptions_cannot_bypass_owned_revision_save 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 57%]
+tests/test_workflow_event_registration.py::test_saved_registration_survives_fresh_process 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:18 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/test_workflow_event_registration.py::test_graph_trigger_derives_registration_disable_and_removal 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:21 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 200 OK"
+2026-11-28 10:43:21 [    INFO] HTTP Request: GET http://testserver/workflows/workflow-one "HTTP/1.1 200 OK"
+2026-11-28 10:43:21 [    INFO] HTTP Request: PUT http://testserver/workflows/workflow-one "HTTP/1.1 200 OK"
+2026-11-28 10:43:21 [    INFO] HTTP Request: PUT http://testserver/workflows/workflow-one "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/test_workflow_event_registration.py::test_graph_trigger_refuses_contradictory_material_before_write[projection] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:21 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 58%]
+tests/test_workflow_event_registration.py::test_graph_trigger_refuses_contradictory_material_before_write[node_identity] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:21 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 58%]
+tests/test_workflow_event_registration.py::test_graph_trigger_refuses_contradictory_material_before_write[action_marker] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:21 [    INFO] HTTP Request: POST http://testserver/workflows "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 58%]
+tests/test_workflow_event_connection_metadata.py::test_connection_binding_reads_metadata_only_without_writes PASSED [ 59%]
+tests/test_workflow_event_policy_owner.py::test_event_owner_saved_rule_pauses_before_any_action[False-None] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:22 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 59%]
+tests/test_workflow_event_policy_owner.py::test_event_owner_saved_rule_pauses_before_any_action[False-synthetic-former-author] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:23 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 59%]
+tests/test_workflow_event_policy_owner.py::test_event_owner_saved_rule_pauses_before_any_action[False-user-a] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:24 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 60%]
+tests/test_workflow_event_policy_owner.py::test_event_owner_saved_rule_pauses_before_any_action[True-None] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:25 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 60%]
+tests/test_workflow_event_policy_owner.py::test_event_owner_saved_rule_pauses_before_any_action[True-synthetic-former-author] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:26 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 60%]
+tests/test_workflow_event_policy_owner.py::test_event_owner_saved_rule_pauses_before_any_action[True-user-a] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:28 [ WARNING] Slack token not configured, skipping notification
+PASSED                                                                   [ 61%]
+tests/test_workflow_event_policy_owner.py::test_non_event_policy_owner_does_not_override_author[manual_one] PASSED [ 61%]
+tests/test_workflow_event_policy_owner.py::test_non_event_policy_owner_does_not_override_author[scheduled_one] PASSED [ 61%]
+tests/test_workflow_event_policy_owner.py::test_incomplete_event_owner_is_not_default_authority[missing_owner] PASSED [ 62%]
+tests/test_workflow_event_policy_owner.py::test_incomplete_event_owner_is_not_default_authority[missing_tenant] PASSED [ 62%]
+tests/test_workflow_event_policy_owner.py::test_incomplete_event_owner_is_not_default_authority[missing_workspace] PASSED [ 62%]
+tests/test_workflow_event_policy_owner.py::test_incomplete_event_owner_is_not_default_authority[wrong_execution] PASSED [ 63%]
+tests/test_workflow_event_policy_owner.py::test_incomplete_event_owner_is_not_default_authority[wrong_workflow] PASSED [ 63%]
+tests/test_workflow_event_policy_owner.py::test_incomplete_event_owner_is_not_default_authority[missing_receipt] PASSED [ 63%]
+tests/test_workflow_event_pending_dispatch.py::test_cursor_reaches_event_after_deferred_page PASSED [ 64%]
+tests/test_workflow_event_pending_dispatch.py::test_refusal_is_durable_and_not_replayed PASSED [ 64%]
+tests/test_workflow_event_pending_dispatch.py::test_stale_refusal_preserves_peer_state[RUNNING] PASSED [ 64%]
+tests/test_workflow_event_pending_dispatch.py::test_stale_refusal_preserves_peer_state[CANCELLED] PASSED [ 65%]
+tests/test_workflow_event_pending_dispatch.py::test_stale_refusal_preserves_peer_state[PAUSED] PASSED [ 65%]
+tests/test_workflow_event_pending_dispatch.py::test_unreceipted_and_wrong_version_refuse_nothing PASSED [ 65%]
+tests/test_workflow_event_pending_dispatch.py::test_existing_event_without_admission_receipt_is_untouched PASSED [ 66%]
+tests/test_workflow_event_worker.py::test_restart_drain_uses_real_manager_and_reserved_launch PASSED [ 66%]
+tests/test_workflow_event_worker.py::test_refused_or_deferred_first_does_not_hide_second[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:37 [    INFO] reserved event execution evt_a_blocked: dispatch preflight rejected
+PASSED                                                                   [ 66%]
+tests/test_workflow_event_worker.py::test_refused_or_deferred_first_does_not_hide_second[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:38 [ WARNING] Event preflight deferred (RuntimeError)
+2026-11-28 10:43:38 [    INFO] reserved event execution evt_a_blocked: dispatch preflight rejected
+PASSED                                                                   [ 67%]
+tests/test_workflow_event_worker.py::test_deferred_page_advances_across_ticks_and_wraps 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:39 [    INFO] reserved event execution evt_a_deferred: dispatch preflight rejected
+2026-11-28 10:43:39 [    INFO] reserved event execution evt_b_deferred: dispatch preflight rejected
+2026-11-28 10:43:39 [    INFO] reserved event execution evt_a_deferred: dispatch preflight rejected
+2026-11-28 10:43:39 [    INFO] reserved event execution evt_b_deferred: dispatch preflight rejected
+PASSED                                                                   [ 67%]
+tests/test_workflow_event_worker.py::test_peer_claim_wins_before_refusal 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:40 [    INFO] reserved event execution evt_race: dispatch preflight rejected
+PASSED                                                                   [ 67%]
+tests/test_workflow_event_worker.py::test_worker_owns_one_task_and_awaits_stop PASSED [ 68%]
+tests/test_workflow_event_worker.py::test_default_preflight_reads_current_owner_and_definition[valid] PASSED [ 68%]
+tests/test_workflow_event_worker.py::test_default_preflight_reads_current_owner_and_definition[inactive] PASSED [ 68%]
+tests/test_workflow_event_worker.py::test_default_preflight_reads_current_owner_and_definition[moved_scope] PASSED [ 69%]
+tests/test_workflow_event_worker.py::test_default_preflight_reads_current_owner_and_definition[definition_changed] PASSED [ 69%]
+tests/test_workflow_event_worker.py::test_default_preflight_reads_current_owner_and_definition[missing_definition] PASSED [ 69%]
+tests/test_workflow_event_worker.py::test_default_preflight_reads_current_owner_and_definition[critical_member] PASSED [ 70%]
+tests/test_workflow_event_worker.py::test_default_preflight_reads_current_owner_and_definition[catalog_unavailable] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:47 [ WARNING] Event preflight deferred (WorkflowStoreUnreadable)
+2026-11-28 10:43:47 [    INFO] reserved event execution evt_authority: dispatch preflight rejected
+PASSED                                                                   [ 70%]
+tests/test_workflow_event_worker.py::test_default_preflight_reads_current_owner_and_definition[revoked_connection] PASSED [ 70%]
+tests/test_workflow_engine_reserved_event_launch.py::ReservedEventLaunchTests::test_claim_winner_publishes_and_dispatches_once PASSED [ 71%]
+tests/test_workflow_engine_reserved_event_launch.py::ReservedEventLaunchTests::test_denied_preflight_does_not_claim_or_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:43:48 [    INFO] reserved event execution evt_one: dispatch preflight rejected
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: dispatch preflight failed: denied
+
+tests/test_workflow_engine_reserved_event_launch.py::ReservedEventLaunchTests::test_denied_preflight_does_not_claim_or_dispatch PASSED [ 71%]
+tests/test_workflow_engine_reserved_event_launch.py::ReservedEventLaunchTests::test_graph_snapshot_is_copied_before_conversion PASSED [ 71%]
+tests/test_workflow_engine_reserved_event_launch.py::ReservedEventLaunchTests::test_invalid_or_missing_state_is_rejected_before_preflight 
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: state execution id mismatch
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: state execution id mismatch
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: workflow id mismatch
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: workflow id mismatch
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: execution is not pending
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: missing event admission
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: admission execution id mismatch
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: admission execution id mismatch
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: workflow id mismatch
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: workflow id mismatch
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: missing workflow snapshot
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: workflow snapshot mismatch
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: missing event admission
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution evt_one: missing workflow snapshot
+------------------------------ live log logreport ------------------------------
+2026-11-28 10:43:48 [ WARNING] reserved event execution job_one: not a reserved event id
+
+tests/test_workflow_engine_reserved_event_launch.py::ReservedEventLaunchTests::test_invalid_or_missing_state_is_rejected_before_preflight PASSED [ 72%]
+tests/test_workflow_engine_reserved_event_launch.py::ReservedEventLaunchTests::test_nullable_saved_graph_steps_are_materialized_before_claim_and_publish PASSED [ 72%]
+tests/test_workflow_engine_reserved_event_launch.py::ReservedEventLaunchTests::test_only_the_first_claim_wins PASSED [ 72%]
+tests/test_workflow_event_reservation.py::test_reserve_persists_event_inputs_admission_context_scope_and_owner PASSED [ 73%]
+tests/test_workflow_event_reservation.py::test_racing_same_row_id_returns_one_winner_and_original_receipt PASSED [ 73%]
+tests/test_workflow_event_reservation.py::test_different_row_ids_create_independent_executions PASSED [ 73%]
+tests/test_workflow_event_reservation.py::test_admission_execution_id_must_match_reserved_row PASSED [ 74%]
+tests/test_workflow_event_reservation.py::test_admission_must_be_a_strict_dict PASSED [ 74%]
+tests/test_workflow_event_reservation.py::test_non_evt_row_id_is_rejected[run_123] PASSED [ 74%]
+tests/test_workflow_event_reservation.py::test_non_evt_row_id_is_rejected[evt_] PASSED [ 75%]
+tests/test_workflow_event_reservation.py::test_non_evt_row_id_is_rejected[evt bad] PASSED [ 75%]
+tests/test_workflow_event_reservation.py::test_missing_scope_is_rejected[tenant_id] PASSED [ 75%]
+tests/test_workflow_event_reservation.py::test_missing_scope_is_rejected[workspace_id] PASSED [ 76%]
+tests/test_workflow_event_reservation.py::test_missing_scope_is_rejected[user_id] PASSED [ 76%]
+tests/test_workflow_event_reservation.py::test_duplicate_with_different_workflow_is_rejected PASSED [ 76%]
+tests/test_workflow_event_reservation.py::test_duplicate_with_different_scope_is_rejected PASSED [ 77%]
+tests/test_workflow_event_reservation.py::test_duplicate_with_different_stored_admission_id_is_rejected PASSED [ 77%]
+tests/test_workflow_event_reservation.py::test_duplicate_with_different_stored_receipt_is_rejected PASSED [ 77%]
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved PASSED [ 78%]
+tests/test_ci_backend_lane_contract.py::test_lineage_ownership_is_single_lane PASSED [ 78%]
+tests/test_ci_backend_lane_contract.py::test_partition_negative_controls PASSED [ 78%]
+tests/test_ci_backend_lane_contract.py::test_layout_negative_controls_reject_coverage_or_ownership_changes PASSED [ 79%]
+tests/test_ci_backend_lane_contract.py::test_removing_any_dependency_fails[backend-core] PASSED [ 79%]
+tests/test_ci_backend_lane_contract.py::test_removing_any_dependency_fails[backend-core-isolated] PASSED [ 79%]
+tests/test_ci_backend_lane_contract.py::test_removing_any_dependency_fails[backend-core-extra] PASSED [ 80%]
+tests/test_ci_backend_lane_contract.py::test_removing_any_dependency_fails[backend-core-extra-isolated] PASSED [ 80%]
+tests/test_ci_backend_lane_contract.py::test_removing_any_dependency_fails[backend-oracle] PASSED [ 80%]
+tests/test_ci_backend_lane_contract.py::test_removing_any_dependency_fails[backend-docker] PASSED [ 81%]
+tests/test_ci_backend_lane_contract.py::test_removing_any_status_env_fails[backend-core] PASSED [ 81%]
+tests/test_ci_backend_lane_contract.py::test_removing_any_status_env_fails[backend-core-isolated] PASSED [ 81%]
+tests/test_ci_backend_lane_contract.py::test_removing_any_status_env_fails[backend-core-extra] PASSED [ 82%]
+tests/test_ci_backend_lane_contract.py::test_removing_any_status_env_fails[backend-core-extra-isolated] PASSED [ 82%]
+tests/test_ci_backend_lane_contract.py::test_removing_any_status_env_fails[backend-oracle] PASSED [ 82%]
+tests/test_ci_backend_lane_contract.py::test_removing_any_status_env_fails[backend-docker] PASSED [ 83%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_all_lanes_even_on_failure PASSED [ 83%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[failure-backend-core] PASSED [ 83%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[failure-backend-core-isolated] PASSED [ 84%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[failure-backend-core-extra] PASSED [ 84%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[failure-backend-core-extra-isolated] PASSED [ 84%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[failure-backend-oracle] PASSED [ 85%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[failure-backend-docker] PASSED [ 85%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[cancelled-backend-core] PASSED [ 85%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[cancelled-backend-core-isolated] PASSED [ 86%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[cancelled-backend-core-extra] PASSED [ 86%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[cancelled-backend-core-extra-isolated] PASSED [ 86%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[cancelled-backend-oracle] PASSED [ 87%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[cancelled-backend-docker] PASSED [ 87%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[skipped-backend-core] PASSED [ 87%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[skipped-backend-core-isolated] PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[skipped-backend-core-extra] PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[skipped-backend-core-extra-isolated] PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[skipped-backend-oracle] PASSED [ 89%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[skipped-backend-docker] PASSED [ 89%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[-backend-core] PASSED [ 89%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[-backend-core-isolated] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[-backend-core-extra] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[-backend-core-extra-isolated] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[-backend-oracle] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_each_lane_non_success_blocks_the_aggregate[-backend-docker] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_all_success_is_the_only_admitted_combination PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[success-success] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[success-failure] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[success-cancelled] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[success-skipped] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[success-] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[failure-success] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[failure-failure] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[failure-cancelled] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[failure-skipped] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[failure-] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[cancelled-success] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[cancelled-failure] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[cancelled-cancelled] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[cancelled-skipped] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[cancelled-] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[skipped-success] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[skipped-failure] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[skipped-cancelled] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[skipped-skipped] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[skipped-] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[-success] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[-failure] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[-cancelled] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[-skipped] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_new_lane_pair_product_subset[-] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/token_storage.py:17
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+tests/test_workflow_event_source_renewal.py: 1 warning
+tests/test_workflow_event_source_http.py: 13 warnings
+tests/test_workflow_event_registration.py: 22 warnings
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/workflow_endpoints.py:1477: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    _validate_workflow_dag(workflow.dict())
+
+tests/test_workflow_event_source_renewal.py: 1 warning
+tests/test_workflow_event_source_http.py: 13 warnings
+tests/test_workflow_event_registration.py: 22 warnings
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/workflow_endpoints.py:1486: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    workflow_dict = workflow.dict()
+
+tests/test_workflow_event_registration.py::test_revision_save_omission_clear_and_stale_preserve_history
+tests/test_workflow_event_registration.py::test_revision_save_omission_clear_and_stale_preserve_history
+tests/test_workflow_event_registration.py::test_revision_save_omission_clear_and_stale_preserve_history
+tests/test_workflow_event_registration.py::test_graph_trigger_derives_registration_disable_and_removal
+tests/test_workflow_event_registration.py::test_graph_trigger_derives_registration_disable_and_removal
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/workflow_endpoints.py:1712: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    key: value for key, value in body.dict(exclude_unset=True).items()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+= 302 passed, 625 deselected, 83 warnings, 18 subtests passed in 221.50s (0:03:41) =

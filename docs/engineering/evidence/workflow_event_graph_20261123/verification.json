@@ -1,0 +1,28 @@
+{
+  "source": "df6f3219b",
+  "scope": "Controlled public HTTP graph event registration; actual editor/source delivery not qualified",
+  "python311": {
+    "registration": {
+      "passed": 20,
+      "command": "python -m pytest -p no:randomly tests/test_workflow_event_registration.py --timeout=120 --timeout-method=thread -q"
+    }
+  },
+  "controls": [
+    "stable trigger-node identity derives subscription",
+    "reload retains graph and binding",
+    "revision save disables binding",
+    "removing last trigger clears subscription",
+    "contradictory projection refuses before write",
+    "node identity mismatch refuses before write",
+    "action-node event marker refuses before write"
+  ],
+  "limits": [
+    "No browser or provider campaign",
+    "No Python3.14 full-repository qualification: missing lancedb native extension",
+    "No deployment or merge"
+  ],
+  "ci_ledger": {
+    "unchanged_shell_matrix": "Passed in previous run (690 passing controls overall; two layout failures before fixing order_reference)",
+    "affected_static_and_negative_controls": "67 passed, 625 deselected after exact additive registration and order-reference update"
+  }
+}

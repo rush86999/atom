@@ -1,0 +1,10 @@
+{
+  "provenance": "development working tree, not Git-bound baseline",
+  "result": "1 failed, 1 passed, 37 deselected",
+  "log_sha256": "e274827b37681cbd5a9ca4e5e0cd1b09240a32f2213913f631e22eb39131283d",
+  "sources": {
+    "backend/core/workflow_event_source_renewal.py": "0736b7425d21133f07debc60b8e67486fc921408dff8477b746ef99387d43515",
+    "backend/core/workflow_event_source_receipt.py": "689d0deda33e8c2732eeaca7a62c66c85c3c6502bace24557b5b512202a78538",
+    "backend/tests/test_workflow_event_source_renewal_receipt_guard.py": "3660877873bdd19789bfb1791c9a974c5e06ccbda9a3bdb4d1a66768aefc5d7d"
+  }
+}

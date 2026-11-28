@@ -1,0 +1,31 @@
+{
+  "source_ref": "fbd292ad9ffdd733e87cb9826b0d300c719bca47",
+  "sources": {
+    "backend/core/workflow_event_source_lifecycle.py": "994300feccc2ffb322934fa51bcba10fbc1a18222a54036ddee69f864d9b7cb1",
+    "backend/integrations/microsoft365_service.py": "f84c0a2b93f5dabfd5e5ee65c132ea0074ff68201e99a014f2ca6e408cd2d255",
+    "backend/tests/test_workflow_event_source_lifecycle.py": "6ae00680800515c4a587af696510fbd0aed6542b43b640d10742ad13934d663e",
+    "backend/tests/test_workflow_event_source_lifecycle_adapter.py": "0fca1a28ec8462f9ff4a6c46db5f522e293e8d0dc2d0c8f5dda3eb0f8293c41c",
+    "backend/core/workflow_event_worker.py": "4b4fc73684e0f522b9d13df17b34a38391e010fe966ebbbee7a709093fdd56f2",
+    "backend/tests/test_workflow_event_worker.py": "0361871fa52a0c9d1a49e38c4258c160ddec8e7813d5815f4b76a597fe39099a",
+    "backend/tests/test_workflow_event_source_maintenance.py": "4a04565ff21af6fd373eda5e94f37ca1178f872cf3c69c717a8c27fc4c78eac1",
+    "backend/core/workflow_event_source_renewal.py": "a6c1c3b81df6a33e412a6eb0785c8a2440ebba11d41384386ee85e0a80d5f4df",
+    "backend/core/workflow_event_source_registration.py": "46b41c630a3388b44f973ff75a1b5aedd0dc9e6ed2b319d46897c6e1ee898884",
+    "backend/core/workflow_event_source_enrollment.py": "998e28557e04a5bd99147e6eea0cb97b2971c636ba39d4f0f70b33e47b38be48",
+    "backend/core/workflow_event_source_routes.py": "cdc18d19df8bc374507057993599b1d4a8a0510d6ce11493d94a72e28e01b152",
+    "backend/core/workflow_event_source_adapters.py": "886a0c6807a145287c420a67595cad0d2b74749a7f9e543fc33f34d317423dc3",
+    "backend/core/connection_service.py": "9637d736ef8bd66ef2a10fd7cbc8d67d1a296a7c89e9e02c9be6fb5c8aec07db",
+    "backend/core/outbound_operation_claim.py": "e5ae9ba5b9830b6fee4f8614e63ac1ce5401f6b10e4ded2a33cd32cfe73b5893",
+    "backend/tests/test_workflow_event_source_renewal.py": "0b6360770a0f9bfe509f891da522fdc5644c47f002add35e384a9b4fb6327bf2",
+    "backend/tests/test_workflow_event_source_renewal_adapter.py": "719bde97aa22e63ef2b6d635ecacc755752ad8a1c93d6af84aeaefe5eff82b5f",
+    "backend/tests/test_workflow_event_source_enrollment.py": "a5fbf4cdec1ca3512bd18033d03467ce546e0678b14c0220e6c6779dfb32725e",
+    ".github/workflows/ci.yml": "f33ebbb5fd90884030e2ccc47e8402e580ea8a026715ba28b28aa19da0dad65e",
+    "backend/tests/fixtures/ci_backend_additions.json": "c1fce34c743e1a966cadaf3c6d80637702c4523b993013cb297023a81bd4c18a"
+  },
+  "artifacts": {
+    "python311.log": "0e6a2f2b8e5530cb3ebab2e9572f92a519c7034f828671d2300bece710627980",
+    "frozen-verification.json": "f3fe3dc2212fd78d417fd78a8c2ed6d69e153b57ab0ef1302dd6a4e79e640c08",
+    "json-cas-positive.log": "1179f3af39ea506afd6fdf0941fc7c8af72210802cb256ef7ce6b33879b4dd2c",
+    "json-cas-development-negative.log": "e4b03907f36d83c407b90c516bb3406e6365015a50630b3b84bbb0eb3e828ced",
+    "TEST_RESULTS.md": "a244e4fbde9a310118d9cd5532e9a7c0d1f7bf0d36baf01d7b14465565d34ba4"
+  }
+}

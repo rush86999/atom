@@ -1,0 +1,7 @@
+# Connected event source authoring
+
+The existing PiecesSidebar now offers Connected event. The actual NodeConfigSidebar uses the authenticated backend catalog to select a connection and a supported event, then preserves singular event_type in the root event_subscription binding. It calls the existing enrollment route only after an explicit click, sends no callback or owner material, reports uncertain setup without automatic retry, and never substitutes a peer connection for an unavailable saved one. No external integration label is treated as proof of event delivery.
+
+Six actual editor/sidebar/pieces/detail/parent suites pass 123 controls. The final wording uses registered rather than asserting ongoing provider connectivity; its seven picker controls pass again. Full-tree TypeScript noEmit exits zero. The initial sparse-tree typecheck lacked unrelated source modules; the complete frontend was materialized and the real full check passed. No dependencies were installed.
+
+The mounted sidebar test exercises authenticated catalog headers, selection/update, one explicit encoded enrollment call and saved-binding reopen. Existing owner editor tests preserve root bindings across revision save/reopen. These are component and HTTP contract evidence, not a browser-to-provider acceptance claim. The next required boundary is ordinary browser setup on an isolated scratch world, followed by scoped renewal/credential maintenance for days-long operation. No merge, deployment or application live-provider/model call occurred.

@@ -1,0 +1,7 @@
+{
+  "python311_exact_four_file_selection": "38 passed, 1 warning, 18 subtests passed in 29.07s",
+  "python314_pending_and_reservations": "21 passed before final receipt-negative test",
+  "python314_final_pending_controls": "7 passed",
+  "raw_logs": "Retained in local isolated scratch; only terminal summaries published",
+  "worker_status": "Not yet wired; these are existing-store prerequisites, not startup acceptance"
+}

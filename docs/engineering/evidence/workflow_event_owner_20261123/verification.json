@@ -1,0 +1,17 @@
+{
+  "executed_source": "65d33b999e3afa076cbd9230bc4341a05e873551",
+  "source_files": {
+    "backend/core/workflow_engine.py": "8b4fcb605882eac57dabe4938f1f9e78cc3f06092f15135ed4b41afc1cb400d0",
+    "backend/tests/test_workflow_event_policy_owner.py": "e4fdccf0f345cebbc553b95dcc2ceec6a5e61e5169810188b6fee17b7d15ce95"
+  },
+  "artifacts": {
+    "python311-focused.log": "5d9bbf4aeca54f6ca0fbb3c5157007bbf2619b5a1da3213b3cb085cab63a35e6",
+    "python314-neighborhood.log": "7569f31b5b39d90014ad7014f954e508c7b79d97f4e4da5d03c8e0238bfb2f88"
+  },
+  "results": {
+    "python314_neighborhood": "221 passed,18 subtests",
+    "python311_focused": "16 passed,18 subtests"
+  },
+  "original_negative": "Retained locally; missing/stale author cases failed before repair, matching author passed. Not republished as raw traceback.",
+  "scope": "Synthetic SQLite, doubled final effects, retained full dependency environment with exact combined runtime overlay; not full repository CI."
+}

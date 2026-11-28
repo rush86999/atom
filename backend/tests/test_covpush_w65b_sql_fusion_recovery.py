@@ -19,6 +19,10 @@ Covers:
 - execution_recovery: workflow + agent sweep, invalid/stale context and
   metadata JSON branches, dict metadata passthrough, idempotency, disabled
   flag, exception rollback path.
+- workflow event building block: receipt-checked one-winner PENDING -> RUNNING
+  claim with stale-context CAS, bounded keyset admission lookup that cannot be
+  starved by nested/malformed receipts, and owner-safe startup reconciliation
+  with explicit action-outcome-uncertain markers.
 
 No real DB writes: every test uses a fresh in-memory SQLite engine; the
 fusion router and SQL generator LLM dependencies are mocked. The real
@@ -71,6 +75,11 @@ from core.schema_aware_sql_generator import SchemaAwareSQLGenerator
 
 import core.execution_recovery as er_mod
 from core.execution_ownership import HOSTNAME
+import core.execution_state_manager as esm_mod
+from core.execution_state_manager import (
+    EVENT_ADMISSION_CONTEXT_KEY,
+    EVENT_CLAIM_CONTEXT_KEY,
+)
 import core.resource_reasoning as rr_mod
 
 
@@ -1325,3 +1334,480 @@ class TestExecutionRecoveryHelpers:
         assert ids == [orphan.id]
         assert orphan.status == ExecutionStatus.FAILED.value
         assert orphan.error_message == _CRASH_ERROR_MESSAGE
+
+
+# ============================================================================
+# Workflow event recovery (claim + bounded admission lookup)
+# ============================================================================
+
+
+class _AsyncSessionAdapter:
+    """Await-compatible wrapper around the suite's sync in-memory session."""
+
+    def __init__(self, session):
+        self._session = session
+
+    async def execute(self, statement):
+        return self._session.execute(statement)
+
+    async def commit(self):
+        self._session.commit()
+
+
+class _AsyncSessionContext:
+    def __init__(self, factory):
+        self._factory = factory
+        self._session = None
+
+    async def __aenter__(self):
+        self._session = self._factory()
+        return _AsyncSessionAdapter(self._session)
+
+    async def __aexit__(self, exc_type, exc, tb):
+        if self._session is not None:
+            self._session.close()
+        return False
+
+
+class _FrozenResult:
+    """Minimal Result exposing the single observed row to the claim."""
+
+    def __init__(self, row):
+        self._row = row
+
+    def first(self):
+        return self._row
+
+
+class _MutatingAsyncSessionAdapter(_AsyncSessionAdapter):
+    """Mutate the row after the claim's observation, before its CAS write."""
+
+    def __init__(self, session, mutate):
+        super().__init__(session)
+        self._mutate = mutate
+        self._mutated = False
+
+    async def execute(self, statement):
+        if not self._mutated and str(statement).lstrip().lower().startswith(
+            "select"
+        ):
+            result = self._session.execute(statement)
+            observed = result.first()
+            self._mutated = True
+            self._mutate(self._session)
+            return _FrozenResult(observed)
+        return self._session.execute(statement)
+
+
+class _MutatingAsyncSessionContext:
+    def __init__(self, factory, mutate):
+        self._factory = factory
+        self._mutate = mutate
+        self._session = None
+
+    async def __aenter__(self):
+        self._session = self._factory()
+        return _MutatingAsyncSessionAdapter(self._session, self._mutate)
+
+    async def __aexit__(self, exc_type, exc, tb):
+        if self._session is not None:
+            self._session.close()
+        return False
+
+
+def _bind_async_state_manager(monkeypatch, factory):
+    monkeypatch.setattr(
+        esm_mod, "get_async_db_session", lambda: _AsyncSessionContext(factory)
+    )
+
+
+def _make_event_exec(
+    db,
+    execution_id,
+    *,
+    status="PENDING",
+    admission_execution_id=None,
+    admission=True,
+    extra_context=None,
+    created_at=None,
+):
+    context = dict(extra_context or {})
+    if admission:
+        context[EVENT_ADMISSION_CONTEXT_KEY] = {
+            "execution_id": admission_execution_id or execution_id,
+            "admitted_by": "test",
+        }
+    row = WorkflowExecution(
+        execution_id=execution_id,
+        workflow_id="wf_event",
+        status=status,
+        input_data="{}",
+        steps="{}",
+        outputs="{}",
+        context=json.dumps(context),
+        version=1,
+        created_at=created_at or datetime.now(timezone.utc),
+        updated_at=created_at or datetime.now(timezone.utc),
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+class TestEventExecutionClaim:
+    def test_claim_is_one_winner_and_separate_from_manual_status(
+        self, db_factory, monkeypatch
+    ):
+        db = db_factory()
+        _bind_async_state_manager(monkeypatch, db_factory)
+        manager = esm_mod.ExecutionStateManager()
+        event = _make_event_exec(db, "evt_claim_me")
+        manual = _make_workflow_exec(
+            db, status=WorkflowExecutionStatus.PENDING.value
+        )
+
+        assert asyncio.run(
+            manager.claim_event_execution(event.execution_id)
+        ) is True
+        # Second caller (same or another process) loses the CAS.
+        assert asyncio.run(
+            manager.claim_event_execution(event.execution_id)
+        ) is False
+        # A manual row is never eligible for the event claim path.
+        assert asyncio.run(
+            manager.claim_event_execution(manual.execution_id)
+        ) is False
+
+        db.refresh(event)
+        db.refresh(manual)
+        assert event.status == WorkflowExecutionStatus.RUNNING.value
+        assert event.version == 2
+        assert manual.status == WorkflowExecutionStatus.PENDING.value
+        ctx = json.loads(event.context)
+        assert ctx[EVENT_CLAIM_CONTEXT_KEY]["pid"] == os.getpid()
+
+    def test_claim_requires_exact_persisted_admission(
+        self, db_factory, monkeypatch
+    ):
+        db = db_factory()
+        _bind_async_state_manager(monkeypatch, db_factory)
+        manager = esm_mod.ExecutionStateManager()
+        no_admission = _make_event_exec(
+            db, "evt_no_admission_claim", admission=False
+        )
+        mismatched = _make_event_exec(
+            db, "evt_mismatched_claim",
+            admission_execution_id="evt_someone_else",
+        )
+
+        assert asyncio.run(
+            manager.claim_event_execution(no_admission.execution_id)
+        ) is False
+        assert asyncio.run(
+            manager.claim_event_execution(mismatched.execution_id)
+        ) is False
+
+        for row in (no_admission, mismatched):
+            db.refresh(row)
+            assert row.status == WorkflowExecutionStatus.PENDING.value
+            assert row.version == 1
+            assert EVENT_CLAIM_CONTEXT_KEY not in json.loads(row.context)
+
+    def test_claim_cas_loses_if_context_changes_after_observation(
+        self, db_factory, monkeypatch
+    ):
+        db = db_factory()
+        event = _make_event_exec(db, "evt_stale_context")
+
+        def mutate(session):
+            changed = json.loads(event.context)
+            changed["changed_after_read"] = True
+            session.execute(
+                update(WorkflowExecution)
+                .where(WorkflowExecution.execution_id == event.execution_id)
+                .values(context=json.dumps(changed))
+            )
+            session.commit()
+
+        monkeypatch.setattr(
+            esm_mod, "get_async_db_session",
+            lambda: _MutatingAsyncSessionContext(db_factory, mutate),
+        )
+        manager = esm_mod.ExecutionStateManager()
+        assert asyncio.run(
+            manager.claim_event_execution(event.execution_id)
+        ) is False
+
+        db.refresh(event)
+        assert event.status == WorkflowExecutionStatus.PENDING.value
+        assert event.version == 1
+        ctx = json.loads(event.context)
+        assert ctx["changed_after_read"] is True
+        assert EVENT_CLAIM_CONTEXT_KEY not in ctx
+
+    def test_claim_does_not_replay_a_running_event(self, db_factory, monkeypatch):
+        db = db_factory()
+        _bind_async_state_manager(monkeypatch, db_factory)
+        manager = esm_mod.ExecutionStateManager()
+        event = _make_event_exec(
+            db, "evt_already_running",
+            status=WorkflowExecutionStatus.RUNNING.value,
+        )
+        assert asyncio.run(
+            manager.claim_event_execution(event.execution_id)
+        ) is False
+        db.refresh(event)
+        assert event.status == WorkflowExecutionStatus.RUNNING.value
+        # A rejected claim performs no version bump either.
+        assert event.version == 1
+
+
+class TestAdmittedEventLookup:
+    def test_filters_prefix_status_admission_and_matching_id_before_limit(
+        self, db_factory, monkeypatch
+    ):
+        db = db_factory()
+        _bind_async_state_manager(monkeypatch, db_factory)
+        manager = esm_mod.ExecutionStateManager()
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        _make_event_exec(db, "manual_admitted", created_at=base)
+        _make_event_exec(
+            db, "evt_wrong_id",
+            admission_execution_id="evt_someone_else",
+            created_at=base + timedelta(milliseconds=1),
+        )
+        _make_event_exec(
+            db, "evt_no_admission", admission=False,
+            created_at=base + timedelta(milliseconds=2),
+        )
+        first = _make_event_exec(
+            db, "evt_a", created_at=base + timedelta(seconds=1)
+        )
+        second = _make_event_exec(
+            db, "evt_b", created_at=base + timedelta(seconds=2)
+        )
+        _make_event_exec(
+            db, "evt_running",
+            status=WorkflowExecutionStatus.RUNNING.value,
+            created_at=base + timedelta(seconds=5),
+        )
+
+        runs = asyncio.run(manager.list_admitted_event_executions(limit=10))
+        assert [run["execution_id"] for run in runs] == [
+            first.execution_id, second.execution_id,
+        ]
+
+        # Limit is applied by the SQL page, not after collecting everything.
+        assert [
+            run["execution_id"]
+            for run in asyncio.run(
+                manager.list_admitted_event_executions(limit=1)
+            )
+        ] == [first.execution_id]
+        assert [
+            run["execution_id"]
+            for run in asyncio.run(
+                manager.list_admitted_event_executions(limit=2)
+            )
+        ] == [first.execution_id, second.execution_id]
+
+    def test_nested_matching_id_in_malformed_receipt_cannot_starve_valid_row(
+        self, db_factory, monkeypatch
+    ):
+        db = db_factory()
+        _bind_async_state_manager(monkeypatch, db_factory)
+        manager = esm_mod.ExecutionStateManager()
+        base = datetime(2026, 1, 1, tzinfo=timezone.utc)
+
+        valid = _make_event_exec(
+            db, "evt_zzz_valid", created_at=base + timedelta(seconds=3)
+        )
+        # Both older rows are ineligible at the top level.  The nested value
+        # equals the later valid id, which is exactly what a substring/LIKE
+        # prefilter would mistake for a matching receipt.
+        _make_event_exec(
+            db, "evt_000_bad",
+            admission_execution_id="evt_someone_else",
+            extra_context={
+                "metadata": {"execution_id": valid.execution_id},
+            },
+            created_at=base,
+        )
+        _make_event_exec(
+            db, "evt_001_bad",
+            admission_execution_id="evt_another",
+            extra_context={
+                "details": [{"execution_id": valid.execution_id}],
+            },
+            created_at=base + timedelta(seconds=1),
+        )
+
+        runs = asyncio.run(manager.list_admitted_event_executions(limit=1))
+        assert [run["execution_id"] for run in runs] == [valid.execution_id]
+
+    def test_zero_limit_returns_no_rows(self, db_factory, monkeypatch):
+        db = db_factory()
+        _bind_async_state_manager(monkeypatch, db_factory)
+        manager = esm_mod.ExecutionStateManager()
+        _make_event_exec(db, "evt_zero_limit")
+        assert asyncio.run(
+            manager.list_admitted_event_executions(limit=0)
+        ) == []
+
+
+class TestEventWorkflowRecovery:
+    def test_event_owner_comes_only_from_persisted_claim_context(self):
+        owner = {
+            "pid": _dead_pid(),
+            "host": HOSTNAME,
+            "token": "crashed-event-worker",
+        }
+        assert er_mod._event_claim_owner({
+            EVENT_CLAIM_CONTEXT_KEY: owner,
+        }) == (owner, "claim")
+        # The literal string is not an owner, and an admission-side owner is
+        # not the process that claimed the run.
+        assert er_mod._event_claim_owner({
+            EVENT_CLAIM_CONTEXT_KEY: "claim",
+            EVENT_ADMISSION_CONTEXT_KEY: {"owner": owner},
+        }) == (None, None)
+
+    def test_ownerless_running_event_is_left_for_explicit_reconciliation(
+        self, db_factory, monkeypatch
+    ):
+        db = db_factory()
+        monkeypatch.setattr(er_mod, "SessionLocal", db_factory)
+        event = _make_event_exec(
+            db, "evt_ownerless",
+            status=WorkflowExecutionStatus.RUNNING.value,
+        )
+        result = reconcile_orphaned_executions()
+        db.refresh(event)
+        assert event.status == WorkflowExecutionStatus.RUNNING.value
+        assert result["workflow_recovered"] == 0
+        assert result["workflow_event_left_running"] == 1
+        assert result["workflow_event_ownership_dependency"] is True
+        assert result["workflow_event_reconciliation_required"] is True
+        assert result["workflow_event_detail"][0]["reason"] == (
+            "event-owner-not-recorded"
+        )
+
+    def test_dead_owner_event_records_action_outcome_uncertain(
+        self, db_factory, monkeypatch
+    ):
+        db = db_factory()
+        monkeypatch.setattr(er_mod, "SessionLocal", db_factory)
+        event = _make_event_exec(
+            db, "evt_dead_owner",
+            status=WorkflowExecutionStatus.RUNNING.value,
+            extra_context={
+                EVENT_CLAIM_CONTEXT_KEY: {
+                    "pid": _dead_pid(),
+                    "host": HOSTNAME,
+                    "token": "crashed-event-worker",
+                },
+            },
+        )
+        result = reconcile_orphaned_executions()
+        db.refresh(event)
+        assert event.status == WorkflowExecutionStatus.FAILED.value
+        assert result["workflow_recovered"] == 1
+        assert result["workflow_event_recovered"] == 1
+        assert result["workflow_event_left_running"] == 0
+        ctx = json.loads(event.context)
+        marker = ctx["recovery"]
+        assert marker["action_outcome"] == "uncertain"
+        assert marker["action_outcome_uncertain"] is True
+        assert marker["outcome"] == "uncertain"
+        assert marker["requires_reconciliation"] is True
+        assert marker["event"] is True
+        assert marker["owner_source"] == "claim"
+        assert ctx["_atom_event_recovery"]["status"] == (
+            "action-outcome-uncertain"
+        )
+
+    def test_cancellation_committed_during_liveness_verdict_wins(
+        self, db_factory, monkeypatch
+    ):
+        db = db_factory()
+        monkeypatch.setattr(er_mod, "SessionLocal", db_factory)
+        event = _make_event_exec(
+            db, "evt_cancelled_during_verdict",
+            status=WorkflowExecutionStatus.RUNNING.value,
+            extra_context={
+                EVENT_CLAIM_CONTEXT_KEY: {
+                    "pid": _dead_pid(),
+                    "host": HOSTNAME,
+                    "token": "cancelled-event-worker",
+                },
+            },
+        )
+        observed_version = event.version
+
+        def cancel_then_report_dead(owner):
+            # Commit a product cancellation from another session while the
+            # recovery sweep is inside the liveness verdict.  The recovery
+            # session already observed RUNNING/version=1, so only a CAS on that
+            # observation prevents the stale sweep from replacing CANCELLED.
+            cancelling = db_factory()
+            try:
+                cancelling.execute(
+                    update(WorkflowExecution)
+                    .where(
+                        WorkflowExecution.execution_id == event.execution_id,
+                        WorkflowExecution.status
+                        == WorkflowExecutionStatus.RUNNING.value,
+                        WorkflowExecution.version == observed_version,
+                    )
+                    .values(
+                        status="CANCELLED",
+                        version=WorkflowExecution.version + 1,
+                    )
+                )
+                cancelling.commit()
+            finally:
+                cancelling.close()
+            return "dead", {
+                "pid": owner.get("pid"),
+                "host": owner.get("host"),
+                "token": owner.get("token"),
+            }
+
+        import core.execution_ownership as ownership_mod
+        monkeypatch.setattr(
+            ownership_mod, "owner_liveness", cancel_then_report_dead
+        )
+
+        result = reconcile_orphaned_executions()
+        db.rollback()
+        db.refresh(event)
+        assert event.status == "CANCELLED"
+        assert event.version == observed_version + 1
+        assert result["workflow_recovered"] == 0
+        assert result["workflow_event_recovered"] == 0
+
+    def test_live_owner_event_is_not_failed_by_startup(
+        self, db_factory, monkeypatch
+    ):
+        db = db_factory()
+        monkeypatch.setattr(er_mod, "SessionLocal", db_factory)
+        event = _make_event_exec(
+            db, "evt_live_owner",
+            status=WorkflowExecutionStatus.RUNNING.value,
+            extra_context={
+                EVENT_CLAIM_CONTEXT_KEY: {
+                    "pid": _live_pid(),
+                    "host": HOSTNAME,
+                    "token": "live-event-worker",
+                },
+            },
+        )
+        result = reconcile_orphaned_executions()
+        db.refresh(event)
+        assert event.status == WorkflowExecutionStatus.RUNNING.value
+        assert result["workflow_recovered"] == 0
+        assert result["workflow_event_left_running"] == 1
+        detail = result["workflow_event_detail"][0]
+        assert detail["owner_state"] == "live"
+        assert detail["owner_source"] == "claim"

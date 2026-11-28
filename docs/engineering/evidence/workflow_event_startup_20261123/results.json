@@ -1,0 +1,7 @@
+{
+  "python311_final_selection": "55 passed, 1 warning, 18 subtests passed in 46.21s",
+  "python314_final_changed_controls": "27 passed, 56 warnings in 20.32s",
+  "scope": "Real scratch SQLite reservations, state manager, engine claim and saved owner rule; final business effects/approval delivery doubled. Current-owner preflight uses real scratch User rows and existing RBAC. No browser, live source event, PostgreSQL or multi-worker qualification.",
+  "lifecycle": "App lifespan startup/shutdown code parsed and inspected; full application boot awaits hosted CI.",
+  "open": "Editor/source registration and complete setup-to-event-to-audit journeys remain open; PR remains draft."
+}

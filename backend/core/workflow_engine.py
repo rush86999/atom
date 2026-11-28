@@ -9,6 +9,7 @@ Handles the execution of workflows with support for:
 """
 
 import asyncio
+import copy
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import json
 from datetime import datetime, timezone
@@ -16,7 +17,7 @@ import logging
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 import uuid
 import httpx
 import jsonschema
@@ -744,7 +745,7 @@ class WorkflowEngine:
         writer and never treated as identity.
         """
         # Convert graph to steps if needed
-        if "steps" not in workflow and "nodes" in workflow:
+        if not workflow.get("steps") and "nodes" in workflow:
             workflow["steps"] = self._convert_nodes_to_steps(workflow)
 
         # Some definitions carry only the alternate "workflow_id" key — normalize
@@ -776,7 +777,7 @@ class WorkflowEngine:
         # Phase 5: publish a WORKFLOW_STARTED event for the EventBus.
         self._publish_orchestration_event(
             "WORKFLOW_STARTED", workflow["id"], execution_id,
-            data={"step_count": len(workflow.get("steps", []))},
+            data={"step_count": len(workflow.get("steps") or [])},
         )
 
         # Run execution in background
@@ -859,6 +860,8 @@ class WorkflowEngine:
                 step["action"] = config.get("action", "manual_trigger")
             else:
                 step["type"] = "action"
+            if "event_subscription" in config:
+                step["event_subscription"] = copy.deepcopy(config["event_subscription"])
                 
             steps.append(step)
             
@@ -997,6 +1000,8 @@ class WorkflowEngine:
                         "workflow_id": workflow.get("id", "unknown"),
                         "connection_id": config.get("connectionId"),
                     }
+                    if "event_subscription" in config:
+                        step["event_subscription"] = copy.deepcopy(config["event_subscription"])
                     _attach_step_identity_context(
                         step,
                         execution_id=execution_id,
@@ -1039,7 +1044,7 @@ class WorkflowEngine:
                         # Execute step
                         try:
                             start_step_time = datetime.now(timezone.utc)
-                            output = await self._execute_step(step, resolved_params)
+                            output = await self._execute_dispatched_step(step, resolved_params, current_state)
                             duration_ms = int((datetime.now(timezone.utc) - start_step_time).total_seconds() * 1000)
                             self._validate_output_schema(step, output)
                             
@@ -1324,6 +1329,139 @@ class WorkflowEngine:
         task.add_done_callback(self._background_tasks.discard)
         return True
 
+    async def launch_reserved_event_execution(
+        self,
+        execution_id: str,
+        state: Dict[str, Any],
+        dispatch_preflight: Callable[
+            [str, Dict[str, Any], Dict[str, Any]], Awaitable[bool]
+        ],
+    ) -> bool:
+        """Launch an already-reserved event execution exactly once.
+
+        The execution row and its workflow snapshot are created by the event
+        reservation path. This entry never creates another row, never accepts a
+        caller-chosen workflow, and performs no engine effect (claim, event
+        publish, or run dispatch) until the exact PENDING receipt has been
+        validated and the trusted preflight has approved the dispatch.
+
+        ``state`` is the already-loaded execution state. The receipt must live
+        under ``context._atom_event_admission`` and name this exact ``evt_``
+        execution id and the state's workflow id; its ``workflow_snapshot`` is
+        the only workflow this entry will launch.
+        """
+        if not isinstance(state, dict):
+            return False
+
+        token = str(execution_id or "").strip()
+        if not token.startswith("evt_"):
+            logger.warning(
+                "reserved event execution %s: not a reserved event id", token)
+            return False
+
+        if str(state.get("execution_id") or "").strip() != token:
+            logger.warning(
+                "reserved event execution %s: state execution id mismatch",
+                token)
+            return False
+
+        if str(state.get("status") or "").strip() != "PENDING":
+            logger.warning(
+                "reserved event execution %s: execution is not pending", token)
+            return False
+
+        context = state.get("context")
+        if isinstance(context, str):
+            try:
+                context = json.loads(context)
+            except (TypeError, ValueError):
+                context = None
+        admission = (
+            context.get("_atom_event_admission")
+            if isinstance(context, dict) else None)
+        if not isinstance(admission, dict):
+            logger.warning(
+                "reserved event execution %s: missing event admission", token)
+            return False
+
+        if str(admission.get("execution_id") or "").strip() != token:
+            logger.warning(
+                "reserved event execution %s: admission execution id mismatch",
+                token)
+            return False
+
+        workflow_id = str(state.get("workflow_id") or "").strip()
+        admission_workflow_id = str(
+            admission.get("workflow_id") or "").strip()
+        if (not workflow_id or not admission_workflow_id
+                or workflow_id != admission_workflow_id):
+            logger.warning(
+                "reserved event execution %s: workflow id mismatch", token)
+            return False
+
+        snapshot = admission.get("workflow_snapshot")
+        if not isinstance(snapshot, dict):
+            logger.warning(
+                "reserved event execution %s: missing workflow snapshot", token)
+            return False
+
+        # Copy before graph conversion so adding steps never mutates the frozen
+        # reservation material.
+        workflow = copy.deepcopy(snapshot)
+        snapshot_workflow_id = str(
+            workflow.get("id") or workflow.get("workflow_id") or "").strip()
+        if snapshot_workflow_id and snapshot_workflow_id != workflow_id:
+            logger.warning(
+                "reserved event execution %s: workflow snapshot mismatch",
+                token)
+            return False
+        workflow["id"] = workflow_id
+
+        if not workflow.get("steps") and "nodes" in workflow:
+            try:
+                workflow["steps"] = self._convert_nodes_to_steps(workflow)
+            except Exception as exc:  # noqa: BLE001 — reject before any effect
+                logger.warning(
+                    "reserved event execution %s: invalid workflow graph: %s",
+                    token, exc)
+                return False
+
+        # Preflight runs before the claim. A refused or failed preflight must
+        # leave the reservation untouched.
+        try:
+            approved = await dispatch_preflight(token, state, workflow)
+        except Exception as exc:  # noqa: BLE001 — fail closed before claim
+            logger.warning(
+                "reserved event execution %s: dispatch preflight failed: %s",
+                token, exc)
+            return False
+        if not approved:
+            logger.info(
+                "reserved event execution %s: dispatch preflight rejected",
+                token)
+            return False
+
+        try:
+            claimed = await self.state_manager.claim_event_execution(token)
+        except Exception as exc:  # noqa: BLE001 — claim failure is not a launch
+            logger.warning(
+                "reserved event execution %s: claim failed: %s", token, exc)
+            return False
+        if not claimed:
+            # Another caller already owns the single dispatch; emit nothing.
+            return False
+
+        # Only the claim winner reaches this point. Reuse the existing runner
+        # so task-profile binding and never-autonomous admission still run.
+        self._publish_orchestration_event(
+            "WORKFLOW_STARTED", workflow_id, token,
+            data={"step_count": len(workflow.get("steps") or [])},
+        )
+        task = asyncio.create_task(self._run_execution(token, workflow))
+        self._background_tasks.add(task)
+        task.add_done_callback(self._background_tasks.discard)
+        return True
+
     async def cancel_execution(self, execution_id: str) -> bool:
         """Request cancellation of a running workflow execution."""
         self.cancellation_requests.add(execution_id)
@@ -1334,6 +1472,23 @@ class WorkflowEngine:
         await self.state_manager.update_execution_status(execution_id, "CANCELLED")
         await ws_manager.notify_workflow_status("default", execution_id, "CANCELLED")
         return True
+
+    @staticmethod
+    def _reserved_event_policy_owner(execution_id, workflow, state):
+        """Read event ownership from its durable receipt, never the author."""
+        if not str(execution_id).startswith("evt_"):
+            return None
+        context = state.get("context") if isinstance(state, dict) else None
+        if isinstance(context, str):
+            context = json.loads(context)
+        admission = context.get("_atom_event_admission") if isinstance(context, dict) else None
+        identity = frozen_execution_identity(state.get("input_data")) if isinstance(state, dict) else {}
+        if (not isinstance(admission, dict)
+                or admission.get("execution_id") != execution_id
+                or admission.get("workflow_id") != workflow.get("id")
+                or any(not identity.get(key) for key in ("user_id", "tenant_id", "workspace_id"))):
+            raise ValueError("Reserved event has no complete durable policy owner")
+        return identity["user_id"]
 
     async def _admit_never_autonomous_task(
         self,
@@ -1375,7 +1530,8 @@ class WorkflowEngine:
         # The admitted workflow actor is the policy owner. Never let a stale
         # ancestor profile choose a different owner than the run's creator.
         owner_user_id = (
-            workflow.get("created_by")
+            self._reserved_event_policy_owner(execution_id, workflow, state)
+            or workflow.get("created_by")
             or workflow.get("user_id")
             or user_id
             or (profile.owner_user_id if profile is not None else None))
@@ -1513,6 +1669,20 @@ class WorkflowEngine:
         """
         token = None
         boundary = None
+        profile_workflow = workflow
+        if str(execution_id).startswith("evt_"):
+            policy_state = await self.state_manager.get_execution_state(execution_id)
+            try:
+                event_owner = self._reserved_event_policy_owner(
+                    execution_id, workflow, policy_state)
+                workflow = await self._project_admitted_event_graph(workflow, policy_state)
+            except (ValueError, TypeError):
+                await self.state_manager.update_execution_status(
+                    execution_id, "FAILED", error="Reserved event policy owner is unavailable")
+                return
+            # Classification gets a run-local view; never rewrite the stored
+            # definition or its receipt-bound workflow snapshot.
+            profile_workflow = dict(workflow, created_by=event_owner)
         try:
             from core.task_classification import (
                 begin_task_profile_boundary,
@@ -1528,7 +1698,7 @@ class WorkflowEngine:
             # profile if both this build and the unknown fallback fail.
             boundary = begin_task_profile_boundary(None)
             try:
-                profile = build_workflow_task_profile(workflow)
+                profile = build_workflow_task_profile(profile_workflow)
             except Exception as _classify_err:  # noqa: BLE001
                 # Bind the canonical unknown profile rather than letting the
                 # run skip task admission entirely. Configured rules become
@@ -1539,8 +1709,8 @@ class WorkflowEngine:
                     execution_id, type(_classify_err).__name__)
                 profile = build_unknown_task_profile(
                     user_id=(
-                        workflow.get("created_by")
-                        or workflow.get("user_id")),
+                        profile_workflow.get("created_by")
+                        or profile_workflow.get("user_id")),
                     reason=type(_classify_err).__name__,
                 )
             token = bind_task_profile(None, profile)
@@ -1575,6 +1745,10 @@ class WorkflowEngine:
         analytics = get_analytics_engine()
         
         user_id = workflow.get("created_by", "default")
+        if str(execution_id).startswith("evt_"):
+            policy_state = await self.state_manager.get_execution_state(execution_id)
+            user_id = self._reserved_event_policy_owner(
+                execution_id, workflow, policy_state)
         start_time = datetime.now(timezone.utc)
         
         try:
@@ -1619,7 +1793,9 @@ class WorkflowEngine:
                 return
 
             # Decide execution mode based on conditional connections
-            if self._has_conditional_connections(workflow):
+            if self._has_conditional_connections(workflow) or any(
+                    "event_subscription" in (node.get("config") or {})
+                    for node in workflow.get("nodes", [])):
                 # Use graph execution with branching
                 await self._execute_workflow_graph(execution_id, workflow, state, ws_manager, user_id, start_time)
                 # The graph execution will update execution status internally
@@ -1951,7 +2127,7 @@ class WorkflowEngine:
                     logger.error(f"Failed to create step execution record: {e}")
                 
                 try:
-                    output = await self._execute_step(step, resolved_params)
+                    output = await self._execute_dispatched_step(step, resolved_params, state)
                     # BUG-067: _execute_step can return {"status": "error", ...}
                     # instead of raising. Previously this was treated as success
                     # (step marked COMPLETED, workflow continued). Now check the
@@ -2395,6 +2571,76 @@ class WorkflowEngine:
             )
 
     @async_retry_with_backoff(max_retries=3, retry_if=_retry_step_failure)
+    async def _project_admitted_event_graph(self, workflow, state):
+        """Only the admitted root and its descendants run; keep receipt graph frozen."""
+        registered = [n for n in workflow.get("nodes", [])
+                      if "event_subscription" in (n.get("config") or {})]
+        if not registered:
+            return workflow
+        admission = (state.get("context") or {}).get("_atom_event_admission") or {}
+        selected = [n for n in registered if n.get("id") == admission.get("subscription_id")]
+        if len(selected) != 1:
+            raise ValueError("Admitted event trigger is absent from saved graph")
+        root = selected[0]
+        await self._execute_dispatched_step({
+            "id": root["id"], "type": root.get("type"),
+            "event_subscription": (root.get("config") or {})["event_subscription"]}, {}, state)
+        connections = workflow.get("connections") or []
+        if any(c.get("target") == root["id"] for c in connections):
+            raise ValueError("Registered event trigger must be a graph root")
+        reachable = {root["id"]}
+        while True:
+            expanded = reachable | {c.get("target") for c in connections if c.get("source") in reachable}
+            if expanded == reachable:
+                break
+            reachable = expanded
+        if any(n["id"] in reachable and n["id"] != root["id"] for n in registered):
+            raise ValueError("An event trigger cannot dispatch another event trigger")
+        projected = copy.deepcopy(workflow)
+        projected["nodes"] = [n for n in projected["nodes"] if n["id"] in reachable]
+        projected["connections"] = [c for c in projected.get("connections", [])
+                                    if c.get("source") in reachable and c.get("target") in reachable]
+        projected["steps"] = self._convert_nodes_to_steps(projected)
+        return projected
+
+    async def _execute_dispatched_step(self, step, params, state):
+        """Registered event triggers consume durable admission, never a connector call."""
+        if "event_subscription" not in step:
+            return await self._execute_step(step, params)
+        from core.workflow_event_admission import payload_digest
+
+        binding = step["event_subscription"]
+        admission = (state.get("context") or {}).get("_atom_event_admission") or {}
+        snapshot = admission.get("workflow_snapshot") or {}
+        event = (state.get("input_data") or {}).get("event")
+        execution_id = state.get("execution_id")
+        if (step.get("type") != "trigger" or not isinstance(binding, dict)
+                or not isinstance(event, dict) or not str(execution_id).startswith("evt_")):
+            raise ValueError("Registered event trigger requires durable event admission")
+        self._reserved_event_policy_owner(execution_id, snapshot, state)
+        identity = frozen_execution_identity(state.get("input_data"))
+        if any(admission.get(receipt_key) != identity.get(identity_key)
+               for receipt_key, identity_key in (("owner_id", "user_id"),
+                                                  ("tenant_id", "tenant_id"),
+                                                  ("workspace_id", "workspace_id"))):
+            raise ValueError("Registered event identity differs from durable execution owner")
+        selected = [node for node in snapshot.get("nodes", [])
+                    if node.get("id") == step.get("id") and node.get("type") == "trigger"]
+        if (len(selected) != 1 or admission.get("subscription_id") != step.get("id")
+                or (selected[0].get("config") or {}).get("event_subscription") != binding
+                or binding.get("enabled") is not True):
+            raise ValueError("Registered event trigger differs from admitted material")
+        for key in ("connection_id", "source", "event_type"):
+            if not binding.get(key) or binding[key] != admission.get(key) or binding[key] != event.get(key):
+                raise ValueError("Registered event source differs from admitted material")
+        for key in ("tenant_id", "workspace_id", "owner_id", "provider_event_id"):
+            if not admission.get(key) or admission[key] != event.get(key):
+                raise ValueError("Registered event identity differs from admitted material")
+        if payload_digest(event.get("payload")) != admission.get("payload_digest"):
+            raise ValueError("Registered event payload differs from admitted material")
+        return {"status": "success", "result": copy.deepcopy(event),
+                "execution_method": "durable_event_admission"}
+
     async def _execute_step(self, step: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute a single step.
@@ -4616,7 +4862,7 @@ Return your response in a clear, structured format."""
         # Normalize graph-format workflows (nodes/connections) to steps BEFORE
         # measuring parallelizability — start_workflow does the same conversion
         # later, so measuring the raw nodes dict would always report ratio 0.
-        if "steps" not in workflow and "nodes" in workflow:
+        if not workflow.get("steps") and "nodes" in workflow:
             workflow["steps"] = self._convert_nodes_to_steps(workflow)
 
         # Measure parallelizable nodes vs sequential nodes

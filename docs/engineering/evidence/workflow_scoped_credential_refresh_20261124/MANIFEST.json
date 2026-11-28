@@ -1,0 +1,23 @@
+{
+  "source": "c018fc0008e54b1ca0a555cad9674b17b4add43e",
+  "sources": {
+    ".github/workflows/ci.yml": "f829a8283e10094c93cb69096d06233603db25d4e9b988e3b8642aa74ec388ea",
+    "backend/core/connection_service.py": "9637d736ef8bd66ef2a10fd7cbc8d67d1a296a7c89e9e02c9be6fb5c8aec07db",
+    "backend/core/oauth_handler.py": "a0eb6427a70e7e915ed44a100d6a66fe8867a8f72ab8d06498cdd018f6689dde",
+    "backend/core/outbound_operation_claim.py": "e5ae9ba5b9830b6fee4f8614e63ac1ce5401f6b10e4ded2a33cd32cfe73b5893",
+    "backend/core/workflow_event_source_adapters.py": "ad3b968a9e0974bdb419acb2167cf269088c7e3bc88395f3645e795aa232abf6",
+    "backend/core/workflow_event_source_enrollment.py": "4357cce805c06ea88f897ce1b69a9eaec9916c2c76f53d944e63c0311346c833",
+    "backend/core/workflow_event_source_routes.py": "ee630f26485bdccfc0c3b0f416654739a03b64b4e938d7d0c99c497d34baaf95",
+    "backend/tests/fixtures/ci_backend_additions.json": "12e6b22a47256806b919149e23e03a66f29ed943d477a6adbb6cc6f9b6e9b5cb",
+    "backend/tests/test_operation_transition_effect.py": "ab3b971506c7c46479236097f505d6e611181b94216b25320dae449237e2a3e0",
+    "backend/tests/test_scoped_connection_refresh.py": "a551de6e4d93103b66487490555bdb0ae0514f049510c0191bad8a15636ea79d",
+    "backend/tests/test_workflow_event_source_enrollment.py": "6154619387bcc5d018789735906a3e6308312f5670b931f64692d605e5c2f22b",
+    "backend/tests/test_workflow_event_source_http.py": "2e51c0cdf2e5695996a469517d5fcab4b5604515c7ed6df462359e7d1b84ca67",
+    "frontend-nextjs/components/Automations/EventSourcePicker.tsx": "40896ebc6218888e92bde5c6b8e0cf399bccce47eb8e1cc9e5c2847f08de73c7",
+    "frontend-nextjs/components/Automations/__tests__/EventSourcePicker.test.tsx": "a12adc7eb73fc3e5932cbb8fc2a5abafe5054e3ac1a5f1bf65cca7f955208eb7"
+  },
+  "artifacts": {
+    "README.md": "3cd669d76b41d4c16ba3f06e3020f091e3ae44d33234304004e4342cd40a7b93",
+    "verification.json": "b140196d2702cfa0a88391fe89f0655e4a9c938b0fd09e1894557d9e1d654821"
+  }
+}

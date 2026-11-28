@@ -1099,6 +1099,60 @@ describe('WorkflowAutomation', () => {
     expect(postCalls).toBe(0);
   });
 
+  test('preserves registered event binding at config root across revision saves and reopen', async () => {
+    const binding = { connection_id: 'connection-one', source: 'synthetic-mail',
+      event_type: 'message.created', enabled: true };
+    let stored: any = {
+      id: 'event-workflow', name: 'Saved Event Route', description: 'Route source events',
+      version: '1', revision: 7, enabled: true, triggers: ['event'],
+      event_subscriptions: [{ id: 'trigger-one', ...binding }],
+      nodes: [{ id: 'trigger-one', type: 'trigger', title: 'New message',
+        description: 'Saved source', position: { x: 0, y: 0 }, connections: [],
+        config: { service: 'synthetic-mail', action: 'message.created',
+          event_subscription: binding, parameters: {} } }], connections: [],
+    };
+    const puts: any[] = [];
+    server.use(
+      rest.get('/api/v1/workflows/workflows', (req, res, ctx) =>
+        res(ctx.json([stored]))),
+      rest.get('/api/v1/workflows/workflows/:workflow_id', (req, res, ctx) =>
+        res(ctx.json(stored))),
+      rest.put('/api/v1/workflows/workflows/:workflow_id', (req, res, ctx) => {
+        puts.push(req.body);
+        stored = { ...stored, ...(req.body as any), revision: stored.revision + 1 };
+        return res(ctx.json(stored));
+      }),
+    );
+    const mounted = render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+    await screen.findByText('Saved Event Route');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit workflow' }));
+    await screen.findByTestId('builder-initial-data');
+    fireEvent.change(screen.getByLabelText('Save reason'), {
+      target: { value: 'Keep source binding' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(puts).toHaveLength(1));
+    expect(puts[0].revision).toBe(7);
+    expect(puts[0].nodes[0].id).toBe('trigger-one');
+    expect(puts[0].nodes[0].config.event_subscription).toEqual(binding);
+    expect(puts[0].nodes[0].config.parameters.event_subscription).toBeUndefined();
+    mounted.unmount();
+    render(<WorkflowAutomation />);
+    await screen.findByText('Email Digest');
+    fireEvent.click(screen.getByRole('button', { name: 'My Workflows' }));
+    await screen.findByText('Saved Event Route');
+    fireEvent.click(screen.getByRole('button', { name: 'Edit workflow' }));
+    await screen.findByTestId('builder-initial-data');
+    fireEvent.change(screen.getByLabelText('Save reason'), { target: { value: 'Reopen saved event' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(puts).toHaveLength(2));
+    expect(puts[1].revision).toBe(8);
+    expect(puts[1].nodes[0].config.event_subscription).toEqual(binding);
+    expect(puts[1].nodes[0].config.parameters.event_subscription).toBeUndefined();
+  });
+
   // Test 18e: a stale revision (409) must keep the local graph visible and
   // point the user at an explicit reload instead of silently overwriting.
   test('keeps local changes and shows reload guidance on a stale 409', async () => {

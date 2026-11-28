@@ -1,0 +1,56 @@
+{
+  "source_ref": "c727b286c",
+  "sources": {
+    "backend/tests/test_workflow_event_source_immutable_ids.py": "5f9eeff21115b9afbbb22b06d2981f1ef6d63f6ac743796e0999b4c3bea300ae",
+    "backend/tests/test_microsoft365_immutable_id_transport.py": "95680983e4176fa8939a67c80de393c6a8390f4d2dcb9188cac10980bc6e898f",
+    "backend/tests/test_workflow_event_source_http.py": "ea2bbc2ed5c0bd764b453eef27787cac6a585071ba6fce99d01bfe97fa6ffaf2",
+    "backend/tests/test_workflow_event_source_binding_readback.py": "9671db08d5177b370864a83f389e2803a709cca999662046a85fd1b314bba93c",
+    "backend/core/workflow_event_source_binding.py": "e51c7c9059dc34b37113a9e178f0254c302b18311ad03400b8e9088d6a483b24",
+    "backend/tests/test_workflow_event_source_binding.py": "fe75bd9f27e404a4edec8bc00e301b67e915a9dcfb2d813035e0c00a66e34dfc",
+    "backend/tests/test_workflow_event_source_binding_authority.py": "4f1a028d1c3710934ef1f3de121b7897376a25429e3f2995a2c13177092e6602",
+    "backend/core/workflow_event_activation.py": "43e5cf61f3259650f5d323df5228a9bdc40765f6112ff1723350a52d6d1f8244",
+    "backend/core/workflow_endpoints.py": "e15a0c4cca43708d84b8ba185b091bf049936643e31a633ab34a355591794767",
+    "backend/tests/test_workflow_event_activation.py": "64c21b7c835ecb9f3aaf489330afda5aaca8096c75a30c073bf5f648f6efa19a",
+    "backend/tests/test_workflow_event_source_delta_adapter.py": "ee02597fae8309ac82b74a049afeb66e6099ba3ea0845684bda12ee2666ee155",
+    "backend/tests/test_workflow_event_source_resumption.py": "2cb76f1c46022f294ee6d1f4a4b99f6a0953d4211f5ef4fcd1538a2d34819b5a",
+    "backend/core/workflow_event_source_lifecycle.py": "994300feccc2ffb322934fa51bcba10fbc1a18222a54036ddee69f864d9b7cb1",
+    "backend/integrations/microsoft365_service.py": "85f0ce2699daee7efb86092aa74cbf536071fc55e8f5f61ba6af17c6be05177a",
+    "backend/tests/test_workflow_event_source_lifecycle.py": "6ae00680800515c4a587af696510fbd0aed6542b43b640d10742ad13934d663e",
+    "backend/tests/test_workflow_event_source_lifecycle_adapter.py": "0fca1a28ec8462f9ff4a6c46db5f522e293e8d0dc2d0c8f5dda3eb0f8293c41c",
+    "backend/core/workflow_event_worker.py": "4b4fc73684e0f522b9d13df17b34a38391e010fe966ebbbee7a709093fdd56f2",
+    "backend/tests/test_workflow_event_worker.py": "0361871fa52a0c9d1a49e38c4258c160ddec8e7813d5815f4b76a597fe39099a",
+    "backend/tests/test_workflow_event_source_maintenance.py": "4a04565ff21af6fd373eda5e94f37ca1178f872cf3c69c717a8c27fc4c78eac1",
+    "backend/core/workflow_event_source_renewal.py": "17023b9c890a1539006608282c888d1c2de03379998f5ed38cd452cd7763cee3",
+    "backend/core/workflow_event_source_registration.py": "714c20d62ce58ffb5de951bd89cdb4e5d0e2ed954a3a653e8b6c674a3f15a57a",
+    "backend/core/workflow_event_source_enrollment.py": "d4d3eab942519e861fad4d34d7e1e210b011ea4c512475695118f7586eaba591",
+    "backend/core/workflow_event_source_routes.py": "4d00172dcf5f73e500072c80d7e546e69eb5e84eacba555b7c6e526de7111240",
+    "backend/core/workflow_event_source_adapters.py": "4473958ab283b20ca4d6390496ac12fa91790d93d33d072f01b9d5795dbe54cd",
+    "backend/core/connection_service.py": "9637d736ef8bd66ef2a10fd7cbc8d67d1a296a7c89e9e02c9be6fb5c8aec07db",
+    "backend/core/outbound_operation_claim.py": "e5ae9ba5b9830b6fee4f8614e63ac1ce5401f6b10e4ded2a33cd32cfe73b5893",
+    "backend/tests/test_workflow_event_source_renewal.py": "a8cc7afe06c3d650396a0002c46a88bde640ab2816612784a58b7deba4ebb61a",
+    "backend/tests/test_workflow_event_source_renewal_adapter.py": "719bde97aa22e63ef2b6d635ecacc755752ad8a1c93d6af84aeaefe5eff82b5f",
+    "backend/tests/test_workflow_event_source_enrollment.py": "787d4f072e1c72c6fbc73e2a8af92c2c419498f92c13dfcd408d973251ba6e2f",
+    ".github/workflows/ci.yml": "428bd26ec4e37a428d4876c5fe2aa339fbba29ce72d57ffac4cc25f5de3196f7",
+    "backend/tests/fixtures/ci_backend_additions.json": "77c1d13b40c7fb723e72eda3f7fbd20fc8409d37e8416b2a41f6e3480e788dba"
+  },
+  "baseline": {
+    "source_ref": "11737e1b148ba73dda4603c825bdf06f4d41f82e",
+    "sources": {
+      "backend/tests/test_workflow_event_source_immutable_ids.py": "938a4bf504e763aaa0fb5cee633b315ce8f614d39b0305c05977d5bcec85a486",
+      "backend/core/workflow_event_source_adapters.py": "2316c430bf45163322e9ec71ac8dc1e2b50969901f4ffcb7e63fff12c961cfa9",
+      "backend/core/workflow_event_source_registration.py": "ada71159f833df928359c577fd32a49966465e2b18ce113baae6da49fd8da75a",
+      "backend/core/workflow_event_source_enrollment.py": "96cf5d6d987c1187caa7037c35c8edcac0b9c323f41a3f5ba0b05071fff9f24c",
+      "backend/integrations/microsoft365_service.py": "f84c0a2b93f5dabfd5e5ee65c132ea0074ff68201e99a014f2ca6e408cd2d255",
+      "backend/tests/test_workflow_event_source_enrollment.py": "0382d037deac0f4ea0c8ec643b72d05b7c463b1a8d3b08b1f03313f6aac8a5ed",
+      "backend/tests/test_workflow_event_source_binding.py": "e4811cbe7f0f428e1864a90e4e00f7cb8683ff691dc2af8560cf20adec8a3864"
+    }
+  },
+  "artifacts": {
+    "focused-python311.log": "2bdf5d9e5ea1228b73d87888f0157ac4de2cb3d8f8cdd0e5d4e069273035364b",
+    "before-verification.json": "5b7c2b3804b3444e3ba76b2bb1ebc4c37e6624e17d279406cc58409221de9ea1",
+    "python311.log": "15a5f62f23b6db55ce4f9c17cd670ad59f97dd89e5a86e997b46f53a3eb5b848",
+    "frozen-verification.json": "629dedb1fc8ca920b0692e4e4056a512f9dc13813722af9af47a1e0cab76a426",
+    "TEST_RESULTS.md": "03a747d52a79391ae7e5b83449edbd7d09bfac7c3afc466bf300d6fb7a676adb",
+    "before.log": "f918db7dddf3e494742251ea12aae1d7a5a4ade3aa70724188b20539d89f841b"
+  }
+}

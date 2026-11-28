@@ -1,0 +1,14 @@
+{
+  "source_ref": "11737e1b148ba73dda4603c825bdf06f4d41f82e",
+  "sources": {
+    "backend/tests/test_workflow_event_source_immutable_ids.py": "938a4bf504e763aaa0fb5cee633b315ce8f614d39b0305c05977d5bcec85a486",
+    "backend/core/workflow_event_source_adapters.py": "2316c430bf45163322e9ec71ac8dc1e2b50969901f4ffcb7e63fff12c961cfa9",
+    "backend/core/workflow_event_source_registration.py": "ada71159f833df928359c577fd32a49966465e2b18ce113baae6da49fd8da75a",
+    "backend/core/workflow_event_source_enrollment.py": "96cf5d6d987c1187caa7037c35c8edcac0b9c323f41a3f5ba0b05071fff9f24c",
+    "backend/integrations/microsoft365_service.py": "f84c0a2b93f5dabfd5e5ee65c132ea0074ff68201e99a014f2ca6e408cd2d255",
+    "backend/tests/test_workflow_event_source_enrollment.py": "0382d037deac0f4ea0c8ec643b72d05b7c463b1a8d3b08b1f03313f6aac8a5ed",
+    "backend/tests/test_workflow_event_source_binding.py": "e4811cbe7f0f428e1864a90e4e00f7cb8683ff691dc2af8560cf20adec8a3864"
+  },
+  "artifact_sha256": "f918db7dddf3e494742251ea12aae1d7a5a4ade3aa70724188b20539d89f841b",
+  "result": "7 failed, 1 passed"
+}

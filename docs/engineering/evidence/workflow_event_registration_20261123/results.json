@@ -1,0 +1,10 @@
+{
+  "python311_repository_six_file_selection": "70 passed, 43 warnings, 18 subtests passed in 64.71s (0:01:04)",
+  "python311_fresh_process_and_sql_projection": "2 passed, 7 warnings in 18.30s",
+  "python311_adjacent_template_generated_callers": "65 passed, 32 warnings in 39.00s",
+  "existing_scoped_credentials": "80 controls passed within prior mixed 142-pass run; its four missing-template setup failures were repaired and the full 65-template/generated selection subsequently passed. No credential control failed.",
+  "python314_repository_collection": "Blocked by missing native lancedb._lancedb before tests; not claimed passed. Earlier isolated exact-runtime API/worker harness passed43; no whole-repository 3.14 claim.",
+  "original_failure": "Exact parent endpoint returned HTTP200 and omitted event_subscriptions from durable catalog and response; retained locally before repair.",
+  "scope": "Controlled HTTP authenticated actor dependency; real scratch source metadata; fresh Python process readback; no live provider/source delivery/browser authentication qualification.",
+  "open": "Editor event-trigger controls, verified source intake and full setup-to-audit user journeys remain open; draft stays draft."
+}

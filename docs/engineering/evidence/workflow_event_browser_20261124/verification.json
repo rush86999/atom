@@ -1,0 +1,38 @@
+{
+  "source": "1c62d5bf1b2a5964fda4e25d60b3e632653dfe2d",
+  "browser_save_reopen": true,
+  "provider_creates": 1,
+  "notifications": 1,
+  "settled_panel_bounds": {
+    "x": 1077,
+    "y": 88,
+    "width": 343,
+    "height": 266
+  },
+  "viewport_width": 1440,
+  "core_refused": true,
+  "editor_profile": "full",
+  "principal_transport": "seeded scratch session",
+  "provider_transport": "controlled Graph wire",
+  "harness_source": "490142f1c0aab28c6b8f9065d614d1e91321bc36",
+  "result": "1 passed on Python 3.11",
+  "frozen_counts": {
+    "notifications": 1,
+    "workflow_executions": 1,
+    "task_operation_records": 1
+  },
+  "notification_scope_readback": [
+    "owner",
+    "tenant",
+    "workspace"
+  ],
+  "retained_final_log_sha256": "a75772abe36e5e3eca08417efe1dd281eab1b04f212f09f04fdb166e74047864",
+  "not_qualified": [
+    "full main_api_app boot",
+    "sign-in/current-principal transport",
+    "live provider",
+    "days-long renewal",
+    "new rule creation entirely through browser",
+    "optional skills/external bridge surfaces"
+  ]
+}

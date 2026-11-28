@@ -1,0 +1,16 @@
+{
+  "source_ref": "4208c35b246c9983c354bca43fefd44c8267c0b2",
+  "command": "TESTING=1 DATABASE_URL=sqlite:////private/tmp/atom-renewal-own-receipt-baseline.db SECRET_KEY=synthetic-renewal-test-key PYTHONPATH=\"$PWD/backend\" /usr/local/bin/python3.11 -m pytest -p no:randomly backend/tests/test_workflow_event_source_renewal_receipt_guard.py -q --tb=short --timeout=120 --timeout-method=thread",
+  "exit_code": 1,
+  "result": "24 failed, 1 passed",
+  "sources": {
+    "backend/core/workflow_event_source_renewal.py": "68ed70b6c75212297f7061ff05f3c55be7801c0ea7beef9db170b6779313da02",
+    "backend/core/workflow_event_source_receipt.py": "b9b5f7c8f58f33e42faad87ff1b99c7ec33da14cb787114ca316f02fc05cb97d",
+    "backend/core/outbound_operation_claim.py": "e5ae9ba5b9830b6fee4f8614e63ac1ce5401f6b10e4ded2a33cd32cfe73b5893",
+    "backend/core/workflow_event_source_registration.py": "4c2b33e49708108853e7af4e6592ef8bdec35191a75bf392dae57df4d8b95ad6",
+    "backend/tests/test_workflow_event_source_renewal_receipt_guard.py": "532bb2b52fa8aea913f50639a690b92f0ba6d98d519764fcd49530e1d4ae7907",
+    "backend/tests/test_workflow_event_source_renewal.py": "a8cc7afe06c3d650396a0002c46a88bde640ab2816612784a58b7deba4ebb61a",
+    "backend/tests/test_workflow_event_source_enrollment.py": "787d4f072e1c72c6fbc73e2a8af92c2c419498f92c13dfcd408d973251ba6e2f"
+  },
+  "log_sha256": "cdcc6142ed39c70afd7bd070171c9e9223694be785cbddde07d71fdd32abd076"
+}

@@ -34,6 +34,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Node } from 'reactflow';
 import VariablePicker from './VariablePicker';
 import ManageConnectionsModal from './ManageConnectionsModal';
+import EventSourcePicker from './EventSourcePicker';
 
 interface NodeConfigSidebarProps {
     selectedNode: any;
@@ -116,9 +117,10 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
     }, [config.connectionId]);
 
     useEffect(() => {
-        if (selectedNode?.data?.serviceId) {
+        if (selectedNode?.data?.serviceId && selectedNode.data.serviceId !== 'workflow_event') {
             fetchMetadata(selectedNode.data.serviceId);
         }
+        setMetadata(null);
         const nextConfig = getEditableConfig(selectedNode);
         setConfig(nextConfig);
         setSelectedConnection(nextConfig.connectionId || null);
@@ -544,6 +546,10 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
             {/* Sidebar Content */}
             <ScrollArea className="flex-1">
                 <div className="p-5 space-y-6">
+                    {selectedNode.type === 'trigger' && (selectedNode.data.serviceId === 'workflow_event' || config.event_subscription) && (
+                        <EventSourcePicker key={selectedNode.id} binding={config.event_subscription}
+                            onChange={(binding) => handleInputChange('event_subscription', binding)} />
+                    )}
                     {/* Connection Selection */}
                     {metadata?.auth && (
                         <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
@@ -631,7 +637,9 @@ const NodeConfigSidebar: React.FC<NodeConfigSidebarProps> = ({
                             <div className="h-[1px] flex-1 bg-gray-100 dark:bg-gray-800"></div>
                         </div>
 
-                        {loading ? (
+                        {selectedNode.data.serviceId === 'workflow_event' ? (
+                            <p className="text-xs text-gray-500">Event content is available to later steps as input.event.payload. Save the workflow to apply this trigger.</p>
+                        ) : loading ? (
                             <div className="flex flex-col items-center justify-center py-12 text-gray-400 gap-3">
                                 <Loader2 className="h-6 w-6 animate-spin" />
                                 <span className="text-xs font-medium">Loading parameters...</span>

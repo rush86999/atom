@@ -1,0 +1,20 @@
+{
+  "source": "490142f1c0aab28c6b8f9065d614d1e91321bc36",
+  "sources": {
+    "backend/tests/test_workflow_event_browser.py": "57d5fa3573ccb84f52770ebccdc3c94150d12191aae6445eb66839bb183e80e9",
+    "frontend-nextjs/components/Automations/EventSourcePicker.tsx": "eacd0ac53b4d136e6c3af80dbc5fd4b7daf3eef93dcaeaacc054ceb5a4e4f045",
+    "frontend-nextjs/components/Automations/NodeConfigSidebar.tsx": "9a85a8bd8fb527abf04a6c83c6836f78faeea16f6a714d899e6122323c02af61",
+    "frontend-nextjs/components/Automations/PiecesSidebar.tsx": "5bfda9838d998b95a14cfd082b9bc72aa3b720b1cf352773f2a9a985e31ab5ff",
+    "frontend-nextjs/components/WorkflowAutomation.tsx": "6148a9bbfdfe2ae33fec1740b33391e0843cb3b3b4963839664729f0823c28e8",
+    "backend/core/workflow_event_source_routes.py": "34227c09df42478df6ee3ac0ed2882d8a38406848fac245c4bbd9415f3490aad",
+    "backend/core/workflow_event_intake.py": "f67d238fbe8608b89fdd956373f89099ada4962e0a2f0df67e79ab5649971ff2",
+    "backend/core/workflow_engine.py": "a81a4642848ec7e26d768b3aae7131f123a2e05414590b0e1ff0821fb1356062"
+  },
+  "artifacts": {
+    "core-scope.png": "c74e6109a36a570e3d373273f719c38902085fe59ecc9a62340a9a0e504c6e12",
+    "source-reopened.png": "5c23a58b3b425258cce2ad0615dc5d2945d9d03a56138af9137eb71b137c499e",
+    "README.md": "f62c64aee258ccfca8e2bc63bb5169eb9fdc743b21c840af3859fbbc3ed67511",
+    "source-enrolled.png": "f0661c667d26f237d4e6b91c55d6c0949dd7397d01971f2109d8d1d7d177607b",
+    "verification.json": "ecb655dd2631dc529147be805fccf0ba523f1e39aff04e24f787d2a40a0cc1d6"
+  }
+}

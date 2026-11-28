@@ -1,0 +1,28 @@
+{
+  "at": "2026-11-28T18:46:51.613325+00:00",
+  "worker_status": {
+    "phase": "completed",
+    "exit_code": 0,
+    "model": "opencode-go/deepseek-v4.1-flash",
+    "paid_fallback": false,
+    "attempts": 1,
+    "at": "2026-11-28T18:46:14.194386+00:00"
+  },
+  "public_source_proof": {
+    "repository": "https://github.com/rush86999/atom",
+    "visibility": "PUBLIC",
+    "public_ref": "fdc1288bb2bb7d5133183e3e992df3d9b4811cc0",
+    "path": "backend/core/workflow_event_source_receipt.py",
+    "sha256": "b9b5f7c8f58f33e42faad87ff1b99c7ec33da14cb787114ca316f02fc05cb97d",
+    "url": "https://github.com/rush86999/atom/blob/fdc1288bb2bb7d5133183e3e992df3d9b4811cc0/backend/core/workflow_event_source_receipt.py",
+    "matched_remote_github_content": true,
+    "unpublished_source_included": false,
+    "private_data_included": false
+  },
+  "packet_sha256": "fc751368fe2ff82d7d08d284a8cfc3123fc26fccc09c6db0e0268e2c1d55e616",
+  "output_sha256": "4008b1bf9a6653559f0b2ca11da9bb9086858a6935e32d9ea9febafbeee96bbb",
+  "root_review": "Proposal not applied. Fictitious fixtures/APIs and a misleading physical-formatting negative rejected; semantically equal JSON is valid before observed-storage CAS. Unknown reconciliation can certify exact successful GET readback; it is not required to stay uncertain. Applicable moved-slot/result/supersession cases are independently covered by real fixtures.",
+  "approval_history": "Initial unpublished-source packet rejected and not sent. Retry only after GitHub PUBLIC visibility and byte-identical public pushed blob proof; allowed request contains no unpublished source/private data.",
+  "paid_fallback": false,
+  "tools_executed": false
+}

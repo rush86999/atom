@@ -1,0 +1,12 @@
+{
+  "scope": "internal renewal protocol only",
+  "python311": {
+    "passed": 40,
+    "warnings": 2
+  },
+  "sha256": {
+    "backend/core/workflow_event_source_adapters.py": "4187051e8aa575455c4d59f8af7ea3024eb81b971e05281d5bc69f16fe2d4a13",
+    "backend/tests/test_workflow_event_source_renewal_adapter.py": "719bde97aa22e63ef2b6d635ecacc755752ad8a1c93d6af84aeaefe5eff82b5f",
+    "docs/engineering/evidence/workflow_renewal_adapter_20261128/python311.log": "a2d190dce7cde0f96593550f4844647a63dad9c1ecebe204e66454ee6fe352d5"
+  }
+}

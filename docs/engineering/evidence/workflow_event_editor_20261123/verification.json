@@ -1,0 +1,22 @@
+{
+  "source": "4f3741dc64185f56ac03877ed9a7231f163c3413",
+  "source_sha256": {
+    "frontend-nextjs/components/WorkflowAutomation.tsx": "6148a9bbfdfe2ae33fec1740b33391e0843cb3b3b4963839664729f0823c28e8",
+    "frontend-nextjs/components/Workflow/__tests__/WorkflowAutomation.test.tsx": "110789fec9e126d0ac6d74d64aaf06e98dc6db65ef8fd0fc3457fec7a21d9b95"
+  },
+  "before": {
+    "new_mounted_regression": "failed: config.event_subscription was undefined"
+  },
+  "after": {
+    "editor_suite": 56,
+    "existing_editor_and_execution_detail_ci_step": 69,
+    "failed": 0
+  },
+  "command": "node node_modules/jest/bin/jest.js components/Workflow/__tests__/WorkflowAutomation.test.tsx components/Automations/__tests__/ExecutionDetailView.test.tsx --runInBand --no-coverage --watchman=false",
+  "scope": "Mounted WorkflowAutomation component; canvas and API transport mocked. Revision-aware same-ID save/reopen, root binding preserved, no accidental action parameter.",
+  "limits": [
+    "No browser journey",
+    "No source selection UI or provider intake claim",
+    "No deployment or merge"
+  ]
+}

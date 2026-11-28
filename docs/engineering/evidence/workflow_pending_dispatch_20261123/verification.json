@@ -1,0 +1,11 @@
+{
+  "executed_source": "a6788b44e60bbd4e4a88643753b6ead229434107",
+  "source_files": {
+    "backend/core/execution_state_manager.py": "20eef4fd193fcdca6394cfa53a511e2a9ce63ea69d1873739a0a6999c496f374",
+    "backend/tests/test_workflow_event_pending_dispatch.py": "512591e898b2d3bfad928f1703df5ff88c06e1cf698a0c29b8bbe310b85a63a9",
+    ".github/workflows/ci.yml": "0640403f7b47a2bb2118957e6399884fb28dbf0b9c73210cd9294cc2a95576f9"
+  },
+  "artifacts": {
+    "results.json": "0e522ea44bce1ef087644e50e82ccc38995a5317d0e3e577bf5b1fc3b8815ac5"
+  }
+}

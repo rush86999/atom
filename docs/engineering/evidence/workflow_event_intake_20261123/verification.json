@@ -1,0 +1,37 @@
+{
+  "source": "5e5356022085e2289becf91cbf1c32c692604ba0",
+  "source_sha256": {
+    "backend/core/workflow_event_intake.py": "bb38abc2c001e8abe2835df7a24f9f50f3a07d52520cae2c291bda6153adb8cf",
+    "backend/tests/test_workflow_event_intake.py": "4a5a0fc238637f091a773a8ac1e618e322b7498a91a45dd3f382354cb9c2d2e9",
+    ".github/workflows/ci.yml": "4379de3de5f11cc8c1c3094f63f13847e883998d29ea3ce44a565377427195ad",
+    "backend/tests/fixtures/ci_backend_additions.json": "6325356f1d94e92bda3431737e00f7d5cc55c3bbd3bc20d072a9ebcb4fe8c3f7"
+  },
+  "python311": {
+    "final_intake_suite": {
+      "passed": 10
+    },
+    "preceding_intake_registration_ci_preservation": {
+      "passed": 97,
+      "deselected": 625
+    }
+  },
+  "scope": "Internal post-verification connector entry, real connection/User rows and durable SQLite reservations. No webhook authentication or live provider campaign.",
+  "verified": [
+    "source owner derived from exact active connection",
+    "payload principal ignored for authority",
+    "same provider event returns original execution",
+    "replay after disablement and subscription removal",
+    "changed payload refused",
+    "connection owner transfer cannot acknowledge original receipt",
+    "current owner disablement/scope change refused",
+    "foreign, disabled, legacy and unmatched workflows do not reserve"
+  ],
+  "remaining": [
+    "provider callback exact connection registration",
+    "authenticated connector wiring and payload enrichment",
+    "ordinary source selection UI",
+    "public journey intake through action"
+  ],
+  "deployment": false,
+  "merge": false
+}

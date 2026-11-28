@@ -1,0 +1,25 @@
+{
+  "source": "93327e52e15710cfcc0666df746c736b89b794b5",
+  "source_sha256": {
+    "backend/integrations/microsoft365_service.py": "581904d7ea1974884a1bb6c10a7d03745d7d598b879691f7d6fab0966fd1bdf9",
+    "backend/integrations/outlook_realtime.py": "9a93ca4e46fb7373c024dbcc6cbe1bedeb831ad7ff590b42de95d3ca33996e3a",
+    "backend/tests/test_outlook_subscription_receiver_state.py": "679853aac1d82ad309d97957a5d1d72bb0aaeaa83c7490dfeb7399c8e9613312",
+    ".github/workflows/ci.yml": "043689ae6f876759b72376471599fe13d4975d64898ab1042306d87d98d96897",
+    "backend/tests/fixtures/ci_backend_additions.json": "96571ce2b9b6a37775cefe1d4c989807904e7bd6cd71260ee06bf57ae3418317"
+  },
+  "before": "Enrollment/receiver twin fails: emitted service default differs from persisted receiver state",
+  "after": {
+    "new_controls_passed": 6,
+    "combined_adjacent_and_ci_preservation_passed": 77,
+    "unchanged_shell_matrix_deselected": 625,
+    "python": "3.11"
+  },
+  "transport": "Graph request and token lookup doubled; emitted request payload inspected",
+  "reference": "https://learn.microsoft.com/en-us/graph/change-notifications-delivery-webhooks",
+  "limits": [
+    "No live Graph operation",
+    "No precise connection enrollment or workflow callback qualification",
+    "No Python3.14 repository qualification",
+    "No merge/deployment"
+  ]
+}

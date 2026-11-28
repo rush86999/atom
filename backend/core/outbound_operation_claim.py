@@ -455,6 +455,7 @@ def mark_status(
     expected_payload_sha256: Optional[str] = None,
     result: Optional[Any] = None,
     db_factory=None,
+    transition_effect=None,
 ) -> bool:
     """Persist a claim status transition. Never raises.
 
@@ -476,11 +477,18 @@ def mark_status(
     the write: nothing is persisted and the caller must treat the effect as
     uncertain rather than commit lossy proof.
 
+    A trusted synchronous ``transition_effect(session)`` can attach a local
+    target write to a winning conditional transition. It runs after exactly
+    one operation row matched and before commit; refusal rolls back both.
+    It is never executed for a losing CAS or an unconditional legacy call.
+
     Existing callers that pass no expectation keep the historical
     unconditional primary-key update; that path is NOT a CAS.
     """
     from core.models import TaskOperationRecord
 
+    if transition_effect is not None and (expected_status is None or not callable(transition_effect)):
+        return False
     allowed = None
     if expected_status is not None:
         if isinstance(expected_status, (str, bytes)):
@@ -500,6 +508,7 @@ def mark_status(
             row = db.query(TaskOperationRecord).filter(
                 TaskOperationRecord.id == record_id).first()
             if row is None:
+                db.rollback()
                 return False
             if allowed is not None:
                 from sqlalchemy import update
@@ -521,6 +530,17 @@ def mark_status(
                 ).values(**values).execution_options(
                     synchronize_session=False)
                 updated = db.execute(stmt)
+                if int(updated.rowcount or 0) != 1:
+                    db.rollback()
+                    return False
+                if transition_effect is not None:
+                    import inspect
+                    effect_result = transition_effect(db)
+                    if inspect.isawaitable(effect_result) or inspect.isasyncgen(effect_result):
+                        if inspect.iscoroutine(effect_result):
+                            effect_result.close()
+                        raise TypeError('transition effect must be synchronous')
+                    db.flush()
                 db.expire_all()
                 db.commit()
                 return int(updated.rowcount or 0) == 1
@@ -530,7 +550,7 @@ def mark_status(
             db.commit()
             return True
     except Exception as exc:  # noqa: BLE001
-        logger.error("outbound claim status update failed (%s): %s", status, exc)
+        logger.error("outbound claim status update failed (%s): %s", status, type(exc).__name__)
         return False
 
 

@@ -1,0 +1,126 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-28 12:36:14 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-28 12:36:14 [    INFO] No token storage file found, starting empty
+2026-11-28 12:36:14 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:36:14 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:36:14 [    INFO] EscalationManager initialized
+2026-11-28 12:36:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 12:36:14 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:36:14 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:36:14 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:36:14 [    INFO] EscalationManager initialized
+2026-11-28 12:36:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 12:36:14 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:36:14 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-28 12:36:14 [    INFO] MCP Service initialized
+2026-11-28 12:36:14 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+backend/tests/test_workflow_event_source_immutable_ids.py::test_new_native_enrollment_freezes_and_sends_immutable_mode 
+-------------------------------- live log setup --------------------------------
+2026-11-28 12:36:14 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  2%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_content_read_uses_bound_mailbox_and_immutable_header PASSED [  4%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_delta_reads_always_request_immutable_ids PASSED [  6%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_created_event_identity_excludes_mutable_content_and_generation[subject] PASSED [  8%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_created_event_identity_excludes_mutable_content_and_generation[folder] PASSED [ 10%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_created_event_identity_excludes_mutable_content_and_generation[generation] PASSED [ 12%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_created_event_identity_excludes_mutable_content_and_generation[mailbox] PASSED [ 14%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_legacy_document_keeps_original_plan_and_identity PASSED [ 16%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_default_graph_request_keeps_legacy_headers_and_payload PASSED [ 18%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_immutable_graph_request_adds_only_static_prefer PASSED [ 20%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_invalid_prefer_flag_fails_before_transport[1] PASSED [ 22%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_invalid_prefer_flag_fails_before_transport[0] PASSED [ 25%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_invalid_prefer_flag_fails_before_transport[true] PASSED [ 27%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_invalid_prefer_flag_fails_before_transport[None] PASSED [ 29%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_create_subscription_invalid_immutable_flag_fails_before_transport[1] PASSED [ 31%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_create_subscription_invalid_immutable_flag_fails_before_transport[0] PASSED [ 33%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_create_subscription_invalid_immutable_flag_fails_before_transport[false] PASSED [ 35%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_create_subscription_invalid_immutable_flag_fails_before_transport[None] PASSED [ 37%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_create_subscription_forwards_immutable_prefer PASSED [ 39%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_legacy_create_subscription_emits_no_immutable_option PASSED [ 41%]
+backend/tests/test_microsoft365_immutable_id_transport.py::test_transport_exception_does_not_leak_token_or_raw_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-28 12:36:15 [   ERROR] Create subscription failed: error_class=RuntimeError
+PASSED                                                                   [ 43%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_resolve_is_scoped PASSED [ 45%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_initial_and_empty_next_page PASSED [ 47%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_odata_cursor_is_forwarded_and_unchanged_delta_is_done PASSED [ 50%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_changed_binding_is_refused PASSED [ 52%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_urls_links_and_loops_are_rejected PASSED [ 54%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_reset_and_unavailable_errors_are_typed_and_safe PASSED [ 56%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_rows_are_normalized_tombstones_ignored_and_bad_rows_refused PASSED [ 58%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_credentials_have_no_global_fallback PASSED [ 60%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_legacy_material_is_unchanged PASSED [ 62%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_cursor_rejects_unsafe_suffix_before_transport[#fragment] PASSED [ 64%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_cursor_rejects_unsafe_suffix_before_transport[/%2e%2e] PASSED [ 66%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_cursor_rejects_unsafe_suffix_before_transport[/extra] PASSED [ 68%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_cursor_rejects_unsafe_suffix_before_transport[?x=has space] PASSED [ 70%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_transport_exception_is_safe_and_cancellation_propagates PASSED [ 72%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_binding_and_endpoint_are_exact[https://graph.microsoft.com/v1.0/users/USER-ID/mailFolders/folder%27id/messages/delta] PASSED [ 75%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_binding_and_endpoint_are_exact[https://graph.microsoft.com/beta/users/user-id/mailFolders/folder%27id/messages/delta] PASSED [ 77%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_binding_and_endpoint_are_exact[https://graph.microsoft.com.evil/v1.0/users/user-id/mailFolders/folder%27id/messages/delta] PASSED [ 79%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_binding_and_endpoint_are_exact[https://graph.microsoft.com/v1.0/me/user-id/mailFolders/folder%27id/messages/delta] PASSED [ 81%]
+backend/tests/test_workflow_event_source_delta_adapter.py::test_binding_and_endpoint_are_exact[https://graph.microsoft.com/v1.0/users/user-id/mailFolders/folder%27id/messages/%2e%2e/delta] PASSED [ 83%]
+backend/tests/test_outlook_subscription_receiver_state.py::test_subscription_uses_explicit_receiver_state_in_emitted_payload PASSED [ 85%]
+backend/tests/test_outlook_subscription_receiver_state.py::test_invalid_receiver_state_refuses_before_provider_dispatch[] PASSED [ 87%]
+backend/tests/test_outlook_subscription_receiver_state.py::test_invalid_receiver_state_refuses_before_provider_dispatch[   ] PASSED [ 89%]
+backend/tests/test_outlook_subscription_receiver_state.py::test_invalid_receiver_state_refuses_before_provider_dispatch[True] PASSED [ 91%]
+backend/tests/test_outlook_subscription_receiver_state.py::test_invalid_receiver_state_refuses_before_provider_dispatch[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx] PASSED [ 93%]
+backend/tests/test_outlook_subscription_receiver_state.py::test_realtime_enrollment_and_receiver_share_the_exact_state 
+-------------------------------- live log call ---------------------------------
+2026-11-28 12:36:16 [    INFO] Graph mail subscription active (id=subscription…, channel=webhook)
+2026-11-28 12:36:16 [ WARNING] Graph notification rejected: clientState mismatch
+PASSED                                                                   [ 95%]
+backend/tests/test_outlook_subscription_receiver_state.py::test_subscription_exception_logs_only_error_class 
+-------------------------------- live log call ---------------------------------
+2026-11-28 12:36:16 [   ERROR] Create subscription failed: error_class=RuntimeError
+PASSED                                                                   [ 97%]
+backend/tests/test_outlook_subscription_receiver_state.py::test_graph_error_body_is_not_logged_but_legacy_response_shape_remains 
+-------------------------------- live log call ---------------------------------
+2026-11-28 12:36:16 [   ERROR] Graph API request failed: status=400
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+backend/core/token_storage.py:17
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 48 passed, 2 warnings in 4.82s ========================
