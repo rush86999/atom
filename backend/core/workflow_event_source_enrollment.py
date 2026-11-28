@@ -86,15 +86,15 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
     else:
         document = registrations.prepare_source_registration(**params)
     identity = document['identity']
-    plan = operations.strict_json_roundtrip(adapter.material(document))
-    if not isinstance(plan, dict):
-        raise registrations.SourceRegistrationError('SOURCE_ADAPTER_MATERIAL_INVALID')
-    payload_hash = operations.operation_payload_sha256(
-        workspace_id=identity['workspace_id'], tenant_id=identity['tenant_id'],
-        actor_id=actor_id, agent_id=None, execution_id=document['operation_id'],
-        actor_kind='user', execution_kind='source_registration', action='enroll_workflow_event_source',
-        frozen_args={'request_digest': document['request_digest'], 'plan': plan,
-                     'receiver_state_digest': document['receiver_state_digest']})
+    from core.workflow_event_source_receipt import enrollment_material
+    plan, payload_hash = enrollment_material(document, adapter)
+    from core.workflow_event_source_receipt import inspect_enrollment_operation, verify_enrollment_intent
+    try:
+        with db_factory() as db:
+            inspect_enrollment_operation(db, document)
+    except registrations.SourceRegistrationError:
+        return _outcome(document, 'committed_unverified' if document.get('phase') == 'registered'
+                        else 'effect_unknown', 'committed' if document.get('phase') == 'registered' else 'unknown')
     claim = operations.claim_generic_operation(
         workspace_id=identity['workspace_id'], tenant_id=identity['tenant_id'],
         operation_id=document['operation_id'], action='enroll_workflow_event_source',
@@ -116,9 +116,14 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
             recovered_readback = await adapter.read(observed_subscription_id, private or {})
             if verify_source_subscription(adapter, document, candidate, recovered_readback, db_factory) is not True:
                 return _outcome(document, 'effect_unknown', 'unknown')
+            @contextmanager
+            def reconciliation_factory():
+                with db_factory() as db:
+                    verify_enrollment_intent(db, document, claim['record_id'], status, adapter)
+                    yield db
             if not operations.mark_status(claim['record_id'], operations.SUCCEEDED,
                     expected_status=status, expected_payload_sha256=payload_hash,
-                    result=candidate, db_factory=db_factory):
+                    result=candidate, db_factory=reconciliation_factory):
                 return _outcome(document, 'effect_unknown', 'unknown')
             claim = dict(claim, status=operations.SUCCEEDED, result_json=candidate)
             status = operations.SUCCEEDED
@@ -132,6 +137,12 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
     credentials = {}
     authority_failure = []
     dispatch_snapshot = None
+
+    @contextmanager
+    def persistence_factory():
+        with db_factory() as db:
+            verify_enrollment_intent(db, document, record_id, operations.DISPATCHING, adapter)
+            yield db
 
     @contextmanager
     def dispatch_factory():
@@ -151,6 +162,7 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
                 if row is None or registrations._verified_replay(
                         db, row, document['request_digest'], identity, connection_id, adapter.source) != document:
                     raise registrations.SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
+                verify_enrollment_intent(db, document, record_id, operations.CLAIMED, adapter)
                 private = ConnectionService().get_scoped_connection_credentials(
                     user_id=actor_id, tenant_id=actor['tenant_id'], workspace_id=actor['workspace_id'],
                     connection_id=connection_id, integration_id=adapter.source)
@@ -160,7 +172,14 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
                 credentials.update(private)
                 yield db
             except registrations.SourceRegistrationError as exc:
-                authority_failure.append(exc.code)
+                # A peer may already own the original effect. Report none only
+                # if that exact original row is still provably never dispatched.
+                try:
+                    verify_enrollment_intent(db, document, record_id, operations.CLAIMED, adapter)
+                except registrations.SourceRegistrationError:
+                    pass
+                else:
+                    authority_failure.append(exc.code)
                 raise
 
     if status == operations.CLAIMED:
@@ -195,17 +214,18 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
                            request_digest=document['request_digest'], plan_digest=registrations._digest(plan))
             if not operations.mark_status(record_id, operations.SUCCEEDED,
                     expected_status=operations.DISPATCHING, expected_payload_sha256=payload_hash,
-                    result=receipt, db_factory=db_factory):
+                    result=receipt, db_factory=persistence_factory):
                 return _outcome(document, 'effect_unknown', 'unknown')
         except EnrollmentRefused:
-            operations.mark_status(record_id, operations.FAILED_BEFORE_EFFECT,
+            recorded = operations.mark_status(record_id, operations.FAILED_BEFORE_EFFECT,
                 expected_status=operations.DISPATCHING, expected_payload_sha256=payload_hash,
-                db_factory=db_factory)
-            return _outcome(document, 'not_applied', 'none')
+                db_factory=persistence_factory)
+            return _outcome(document, 'not_applied' if recorded else 'effect_unknown',
+                            'none' if recorded else 'unknown')
         except Exception:
             operations.mark_status(record_id, operations.UNCERTAIN_EFFECT,
                 expected_status=operations.DISPATCHING, expected_payload_sha256=payload_hash,
-                db_factory=db_factory)
+                db_factory=persistence_factory)
             return _outcome(document, 'effect_unknown', 'unknown')
     else:
         receipt = claim.get('result_json')

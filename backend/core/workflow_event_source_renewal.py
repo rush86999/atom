@@ -147,6 +147,11 @@ def _write(db, before, after, event_type, action):
         raise registry.SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
     # Validate strict JSON material, then bind the actual observed storage
     # bytes. Re-serializing before the CAS falsely rejects equivalent spacing.
+    if registry._verified_replay(db, row, before['request_digest'], before['identity'],
+            before['connection_id'], before['source']) != before:
+        raise registry.SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
+    from core.workflow_event_source_receipt import verify_enrollment_receipt
+    verify_enrollment_receipt(db, before)
     observed_value = row.setting_value
     changed = db.execute(update(TenantSetting).where(TenantSetting.id == row.id,
         TenantSetting.setting_value == observed_value).values(
@@ -209,16 +214,8 @@ def _claim_dispatch(db, document, intent):
     registry._claim(db, actor, connection)
     # Recheck original enrollment proof in this transaction as well as the
     # registry read. A stale initial read cannot authorize a now-refuted source.
-    original = db.query(TaskOperationRecord).filter(
-        TaskOperationRecord.workspace_id == identity['workspace_id'],
-        TaskOperationRecord.tenant_id == identity['tenant_id'],
-        TaskOperationRecord.operation_id == document['operation_id']).with_for_update().all()
-    if (len(original) != 1 or original[0].status != operations.SUCCEEDED
-            or original[0].operation_type != 'generic:agent:enroll_workflow_event_source'
-            or original[0].run_id != document['operation_id']
-            or original[0].idempotency_key != document['operation_id']
-            or registry._digest(original[0].result_json) != document['provider_receipt_digest']):
-        raise registry.SourceRegistrationError('SOURCE_ENROLLMENT_UNVERIFIED')
+    # The registry replay below claims the exact original receipt after its
+    # source-row claim, preserving one lock order across all source readers.
     # Also bind exact encrypted grant/expiry to the SQL claim, not only a read.
     grant = db.get(UserConnection, document['connection_id'])
     changed = db.execute(update(UserConnection).where(UserConnection.id == grant.id,
@@ -228,6 +225,8 @@ def _claim_dispatch(db, document, intent):
     if changed.rowcount != 1 or row is None or registry._verified_replay(db, row,
             document['request_digest'], identity, document['connection_id'], document['source']) != document:
         raise registry.SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
+    from core.workflow_event_source_receipt import verify_enrollment_receipt
+    verify_enrollment_receipt(db, document)
 
 
 def _same_source_scope(document, intent, identity, actor, connection):

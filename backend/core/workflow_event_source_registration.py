@@ -44,12 +44,14 @@ def _key(connection_id, source):
     return 'workflow_event_source:' + _digest([connection_id, source])
 
 
-def _authority(db, actor_id, connection_id, source):
+def _authority(db, actor_id, connection_id, source, *, require_manage=True):
     from core.workflow_endpoints import _caller_scope
     from core.rbac_service import Permission, RBACService
+    if type(require_manage) is not bool:
+        raise SourceRegistrationError('SOURCE_OWNER_UNAVAILABLE')
     actor = db.query(User).filter(User.id == actor_id).first()
     if (actor is None or not _actor_is_active(actor) or not _actor_has_run_permission(actor)
-            or not RBACService.check_permission(actor, Permission.WORKFLOW_MANAGE)):
+            or (require_manage and not RBACService.check_permission(actor, Permission.WORKFLOW_MANAGE))):
         raise SourceRegistrationError('SOURCE_OWNER_UNAVAILABLE')
     raw = {field: getattr(actor, field) for field in
            ('id', 'role', 'status', 'is_active', 'tenant_id', 'workspace_id')}
@@ -277,6 +279,8 @@ def activate_source_registration(document, receipt, *, db_factory=None, credenti
                                        document['connection_id'], document['source'])
             if current != document:
                 raise SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
+            from core.workflow_event_source_receipt import verify_enrollment_receipt
+            verify_enrollment_receipt(db, document, receipt=receipt)
             if document.get('phase') == 'registered':
                 if document.get('provider_subscription_id') != receipt['subscription_id']:
                     raise SourceRegistrationError('SOURCE_REGISTRATION_CONFLICT')
@@ -308,42 +312,50 @@ def activate_source_registration(document, receipt, *, db_factory=None, credenti
 
 
 def read_delivery_registration(connection_id, registration_id, *, db_factory=None):
-    """Resolve current source owner from server rows; expose private state only internally."""
-    from core import outbound_operation_claim as operations
-    from core.workflow_endpoints import _caller_scope
-    from core.workflow_event_worker import _load_current_actor
+    """Independent-session read of current source ownership and receipt proof."""
     if db_factory is None:
         from core.database import get_db_session
         db_factory = get_db_session
     with db_factory() as db:
-        row = db.query(UserConnection.id, UserConnection.user_id,
-                       UserConnection.integration_id).filter(
-            UserConnection.id == connection_id, UserConnection.status == 'active').first()
-        if row is None:
-            raise SourceRegistrationError('SOURCE_CONNECTION_UNAVAILABLE')
-        actor = _load_current_actor(db, row.user_id)
-        if actor is None or not _actor_is_active(actor) or not _actor_has_run_permission(actor):
-            raise SourceRegistrationError('SOURCE_OWNER_UNAVAILABLE')
-        identity = _caller_scope(actor)
-        if ConnectionService.get_scoped_connection_metadata(db, user_id=str(actor.id),
-                tenant_id=actor.tenant_id, workspace_id=actor.workspace_id,
-                connection_id=connection_id, integration_id=row.integration_id) is None:
-            raise SourceRegistrationError('SOURCE_AUTHORITY_CHANGED')
-        setting = db.query(TenantSetting).filter(
-            TenantSetting.tenant_id == identity['tenant_id'],
-            TenantSetting.setting_key == _key(connection_id, row.integration_id)).first()
-        if setting is None:
-            raise SourceRegistrationError('SOURCE_REGISTRATION_UNAVAILABLE')
-        document = _read_document(setting)
-        if (document.get('operation_id') != registration_id or document.get('identity') != identity
-                or document.get('source') != row.integration_id or document.get('connection_id') != connection_id):
-            raise SourceRegistrationError('SOURCE_REGISTRATION_UNAVAILABLE')
-        document = _verified_replay(db, setting, document['request_digest'], identity,
-                                    connection_id, row.integration_id)
-        if document.get('phase') == 'registered':
-            claims = operations.generic_operations(identity['workspace_id'], registration_id,
-                                                   db_factory=db_factory, strict=True)
-            if (len(claims) != 1 or claims[0].get('status') != operations.SUCCEEDED
-                    or _digest(claims[0].get('result_json')) != document.get('provider_receipt_digest')):
-                raise SourceRegistrationError('SOURCE_REGISTRATION_UNVERIFIED')
-        return document
+        return _delivery_registration(db, connection_id, registration_id)
+
+
+def claim_delivery_registration(db, document):
+    """Join the exact source proof to a caller-owned admission transaction."""
+    current = _delivery_registration(db, document['connection_id'], document['operation_id'])
+    if current != document:
+        raise SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
+    return current
+
+
+def _delivery_registration(db, connection_id, registration_id):
+    from core.workflow_endpoints import _caller_scope
+    from core.workflow_event_worker import _load_current_actor
+    row = db.query(UserConnection.id, UserConnection.user_id,
+                   UserConnection.integration_id).filter(
+        UserConnection.id == connection_id, UserConnection.status == 'active').first()
+    if row is None:
+        raise SourceRegistrationError('SOURCE_CONNECTION_UNAVAILABLE')
+    actor = _load_current_actor(db, row.user_id)
+    if actor is None or not _actor_is_active(actor) or not _actor_has_run_permission(actor):
+        raise SourceRegistrationError('SOURCE_OWNER_UNAVAILABLE')
+    identity = _caller_scope(actor)
+    if ConnectionService.get_scoped_connection_metadata(db, user_id=str(actor.id),
+            tenant_id=actor.tenant_id, workspace_id=actor.workspace_id,
+            connection_id=connection_id, integration_id=row.integration_id) is None:
+        raise SourceRegistrationError('SOURCE_AUTHORITY_CHANGED')
+    setting = db.query(TenantSetting).filter(
+        TenantSetting.tenant_id == identity['tenant_id'],
+        TenantSetting.setting_key == _key(connection_id, row.integration_id)).first()
+    if setting is None:
+        raise SourceRegistrationError('SOURCE_REGISTRATION_UNAVAILABLE')
+    document = _read_document(setting)
+    if (document.get('operation_id') != registration_id or document.get('identity') != identity
+            or document.get('source') != row.integration_id or document.get('connection_id') != connection_id):
+        raise SourceRegistrationError('SOURCE_REGISTRATION_UNAVAILABLE')
+    document = _verified_replay(db, setting, document['request_digest'], identity,
+                                connection_id, row.integration_id)
+    if document.get('phase') == 'registered':
+        from core.workflow_event_source_receipt import verify_enrollment_receipt
+        verify_enrollment_receipt(db, document)
+    return document

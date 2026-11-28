@@ -177,6 +177,13 @@ async def receive_source_notification(connection_id: str, request: Request,
         if not isinstance(private, dict) or not private.get('access_token'):
             raise HTTPException(503, detail={'code': 'SOURCE_CREDENTIALS_UNAVAILABLE'})
         try:
+            from core.workflow_event_source_binding import snapshot, claim
+            with factory() as db:
+                grant_snapshot = snapshot(db, identity['user_id'], connection_id, document['source'],
+                                          expected_credentials=private, require_manage=False)
+            def source_guard(db):
+                claim(db, grant_snapshot)
+                registrations.claim_delivery_registration(db, document)
             receipt = {'subscription_id': subscription_id}
             observed = await adapter.read(subscription_id, private)
             from core.workflow_event_source_enrollment import verify_source_subscription
@@ -185,7 +192,7 @@ async def receive_source_notification(connection_id: str, request: Request,
             event = await adapter.message_event(item, private, document=document)
             with factory() as db:
                 results = await admit_verified_source_event(db, connection_id=connection_id,
-                    source=document['source'], expected_identity=identity, **event)
+                    source=document['source'], expected_identity=identity, source_guard=source_guard, **event)
         except (EventPayloadConflict, EventScopeConflict):
             raise HTTPException(409, detail={'code': 'SOURCE_EVENT_REFUTED', 'do_not_repeat': True}) from None
         except Exception:

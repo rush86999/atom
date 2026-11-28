@@ -27,7 +27,7 @@ def _receipt_from_state(state):
 
 
 async def admit_verified_source_event(db, *, connection_id, source, event_type,
-                                      provider_event_id, payload, expected_identity=None):
+                                      provider_event_id, payload, expected_identity=None, source_guard=None):
     """Reserve matching saved workflows under the authoritative connection owner.
 
     ``provider_event_id`` identifies a delivery/event, not a mutable resource.
@@ -42,6 +42,8 @@ async def admit_verified_source_event(db, *, connection_id, source, event_type,
         _load_current_actor, _actor_is_active, _actor_has_run_permission,
     )
 
+    if source_guard is not None and not callable(source_guard):
+        raise EventAdmissionError('Source proof guard is unavailable')
     if any(not isinstance(v, str) or not v.strip()
            for v in (connection_id, source, event_type, provider_event_id)):
         raise EventAdmissionError('Exact source and provider event identity are required')
@@ -77,6 +79,8 @@ async def admit_verified_source_event(db, *, connection_id, source, event_type,
         )).values(status=UserConnection.status, updated_at=UserConnection.updated_at))
         if principal.rowcount != 1 or target.rowcount != 1:
             raise EventScopeConflict('Verified source authority changed before reservation')
+        if source_guard is not None:
+            await session.run_sync(source_guard)
 
     # This also covers receipt-only replay: stale ORM snapshots cannot certify
     # current authority. New reservations repeat the claim in their insert TX.

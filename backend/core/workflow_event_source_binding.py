@@ -59,9 +59,9 @@ def _usable_token(credentials):
         _fail('SOURCE_ACCESS_TOKEN_UNAVAILABLE')
 
 
-def snapshot(db, actor_id, connection_id, source, expected_credentials=None):
+def snapshot(db, actor_id, connection_id, source, expected_credentials=None, *, require_manage=True):
     actor, identity, connection = registry._authority(
-        db, actor_id, connection_id, source)
+        db, actor_id, connection_id, source, require_manage=require_manage)
     row = db.get(UserConnection, connection_id)
     if row is None:
         _fail('SOURCE_CREDENTIALS_UNAVAILABLE')
@@ -82,6 +82,7 @@ def snapshot(db, actor_id, connection_id, source, expected_credentials=None):
             and registry._json(credentials) != registry._json(expected_credentials)):
         _fail('SOURCE_CREDENTIALS_CHANGED')
     return {
+        'require_manage': require_manage,
         'actor': actor,
         'identity': identity,
         'connection': connection,
@@ -111,7 +112,8 @@ def claim(db, snapshot):
     actor_id = _field(actor, 'id')
     connection_id = _field(connection, 'id')
     source = _field(connection, 'integration_id')
-    fresh = registry._authority(db, actor_id, connection_id, source)
+    fresh = registry._authority(db, actor_id, connection_id, source,
+                                require_manage=snapshot.get('require_manage', True))
     if fresh != (actor, identity, connection):
         _fail('SOURCE_AUTHORITY_CHANGED')
     registry._claim(db, actor, connection)
