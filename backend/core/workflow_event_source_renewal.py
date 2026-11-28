@@ -2,6 +2,7 @@
 
 No runner or implicit re-creation: unknown PATCH outcomes reconcile by GET only.
 """
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 import uuid
 from sqlalchemy import update
@@ -229,6 +230,59 @@ def _claim_dispatch(db, document, intent):
     verify_enrollment_receipt(db, document)
 
 
+def _claim_operation(db, document, intent, status, result=None, record_id=None):
+    from core.workflow_event_source_receipt import claim_source_operation
+    try:
+        return claim_source_operation(db, document['identity'], intent['operation_id'],
+            _ACTION, _hash(document, intent), status, result, record_id)
+    except registry.SourceRegistrationError:
+        raise registry.SourceRegistrationError('SOURCE_RENEWAL_UNVERIFIED') from None
+
+
+def _inspect_operation(db, document, intent):
+    # These UUIDs are server-owned. Moving either the operation identity or its
+    # original run/key slot cannot authorize allocation of a replacement row.
+    operation_id = intent['operation_id']
+    rows = db.query(TaskOperationRecord.id, TaskOperationRecord.status).filter(
+        (TaskOperationRecord.operation_id == operation_id) |
+        ((TaskOperationRecord.workspace_id == document['identity']['workspace_id']) &
+         (TaskOperationRecord.run_id == operation_id) &
+         (TaskOperationRecord.idempotency_key == operation_id))).all()
+    if not rows:
+        return
+    if len(rows) != 1 or rows[0].status not in (operations.CLAIMED,
+            operations.DISPATCHING, operations.UNCERTAIN_EFFECT, operations.FAILED_BEFORE_EFFECT):
+        raise registry.SourceRegistrationError('SOURCE_RENEWAL_UNVERIFIED')
+    _claim_operation(db, document, intent, rows[0].status, record_id=rows[0].id)
+
+def _claim_source_proof(db, document):
+    row = _row(db, document)
+    if row is None or registry._verified_replay(db, row, document['request_digest'],
+            document['identity'], document['connection_id'], document['source']) != document:
+        raise registry.SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
+    from core.workflow_event_source_receipt import verify_enrollment_receipt
+    verify_enrollment_receipt(db, document)
+
+
+@contextmanager
+def _claim_factory(document, intent, db_factory):
+    with db_factory() as db:
+        _claim_source_proof(db, document)
+        _inspect_operation(db, document, intent)
+        yield db
+
+
+@contextmanager
+def _operation_factory(document, intent, record_id, status, db_factory):
+    with db_factory() as db:
+        # Common source -> original enrollment -> renewal lock order. Current
+        # actor/grant claims remain at dispatch/finalization, not substituted by
+        # this receipt-only guard.
+        _claim_source_proof(db, document)
+        _claim_operation(db, document, intent, status, record_id=record_id)
+        yield db
+
+
 def _same_source_scope(document, intent, identity, actor, connection):
     if identity != document['identity']:
         return False
@@ -301,10 +355,15 @@ def _supersede(document, adapter, at, intent, payload_hash, record_id, db_factor
         _write(db, document, updated, 'workflow_event_source_renewal_prepared',
                'prepare_workflow_event_source_renewal')
         prepared['document'] = updated
+    with db_factory() as db:
+        state = db.get(TaskOperationRecord, record_id)
+        prior_status = state.status if state is not None else None
+    if prior_status not in (operations.CLAIMED, operations.FAILED_BEFORE_EFFECT):
+        return None
     if not operations.mark_status(record_id, operations.FAILED_BEFORE_EFFECT,
-            expected_status=(operations.CLAIMED, operations.FAILED_BEFORE_EFFECT),
-            expected_payload_sha256=payload_hash, db_factory=db_factory,
-            transition_effect=effect):
+            expected_status=prior_status,
+            expected_payload_sha256=payload_hash, db_factory=lambda: _operation_factory(
+                document, intent, record_id, prior_status, db_factory), transition_effect=effect):
         return None
     return prepared.get('document')
 
@@ -388,7 +447,8 @@ async def renew_source(connection_id, registration_id, adapter, db_factory=None,
     identity = document['identity']
     claim = operations.claim_generic_operation(workspace_id=identity['workspace_id'],
         tenant_id=identity['tenant_id'], operation_id=intent['operation_id'], action=_ACTION,
-        payload_hash=payload_hash, execution_id=intent['operation_id'], db_factory=db_factory)
+        payload_hash=payload_hash, execution_id=intent['operation_id'],
+        db_factory=lambda: _claim_factory(document, intent, db_factory))
     status = claim.get('status')
     record_id = claim.get('record_id')
     if record_id and status in (operations.CLAIMED, operations.FAILED_BEFORE_EFFECT):
@@ -417,7 +477,8 @@ async def renew_source(connection_id, registration_id, adapter, db_factory=None,
             payload_hash = _hash(document, intent)
             claim = operations.claim_generic_operation(workspace_id=identity['workspace_id'],
                 tenant_id=identity['tenant_id'], operation_id=intent['operation_id'], action=_ACTION,
-                payload_hash=payload_hash, execution_id=intent['operation_id'], db_factory=db_factory)
+                payload_hash=payload_hash, execution_id=intent['operation_id'],
+                db_factory=lambda: _claim_factory(document, intent, db_factory))
             status = claim.get('status')
     if status == operations.FAILED_BEFORE_EFFECT:
         return _outcome(document, 'not_applied', 'none', intent)
@@ -434,33 +495,47 @@ async def renew_source(connection_id, registration_id, adapter, db_factory=None,
             observed = await adapter.read(document['provider_subscription_id'], credentials)
             if not adapter.verify_renewal(document, _receipt(document, intent), observed, intent['previous_plan']):
                 refused = operations.mark_status(record_id, operations.FAILED_BEFORE_EFFECT,
-                    expected_status=operations.CLAIMED, expected_payload_sha256=payload_hash, db_factory=db_factory)
+                    expected_status=operations.CLAIMED, expected_payload_sha256=payload_hash,
+                    db_factory=lambda: _operation_factory(document, intent, record_id, operations.CLAIMED, db_factory))
                 return _outcome(document, 'refused' if refused else 'effect_unknown',
                     'none' if refused else 'unknown', intent, reason='SOURCE_RENEWAL_TARGET_CHANGED')
         except Exception:
             return _outcome(document, 'readback_unavailable', 'unknown', intent)
         failures = []
-        def dispatch(db):
-            try:
-                _claim_dispatch(db, document, intent)
-            except registry.SourceRegistrationError as exc:
-                failures.append(exc.code)
-                raise
+        @contextmanager
+        def dispatch_factory():
+            with db_factory() as db:
+                try:
+                    _claim_dispatch(db, document, intent)
+                    _claim_operation(db, document, intent, operations.CLAIMED, record_id=record_id)
+                    yield db
+                except registry.SourceRegistrationError as exc:
+                    # None is truthful only if the exact original row still
+                    # independently proves it has never been dispatched.
+                    try:
+                        _claim_operation(db, document, intent, operations.CLAIMED, record_id=record_id)
+                    except registry.SourceRegistrationError:
+                        pass
+                    else:
+                        failures.append(exc.code)
+                    raise
         if not operations.mark_status(record_id, operations.DISPATCHING,
                 expected_status=operations.CLAIMED, expected_payload_sha256=payload_hash,
-                db_factory=db_factory, transition_effect=dispatch):
+                db_factory=dispatch_factory):
             return _outcome(document, 'refused' if failures else 'effect_unknown',
                             'none' if failures else 'unknown', intent)
         try:
             await adapter.renew(document, credentials, intent['plan'])
         except EnrollmentRefused:
             recorded = operations.mark_status(record_id, operations.FAILED_BEFORE_EFFECT,
-                expected_status=operations.DISPATCHING, expected_payload_sha256=payload_hash, db_factory=db_factory)
+                expected_status=operations.DISPATCHING, expected_payload_sha256=payload_hash,
+                db_factory=lambda: _operation_factory(document, intent, record_id, operations.DISPATCHING, db_factory))
             return _outcome(document, 'not_applied' if recorded else 'effect_unknown',
                             'none' if recorded else 'unknown', intent)
         except Exception:
             operations.mark_status(record_id, operations.UNCERTAIN_EFFECT,
-                expected_status=operations.DISPATCHING, expected_payload_sha256=payload_hash, db_factory=db_factory)
+                expected_status=operations.DISPATCHING, expected_payload_sha256=payload_hash,
+                db_factory=lambda: _operation_factory(document, intent, record_id, operations.DISPATCHING, db_factory))
             return _outcome(document, 'effect_unknown', 'unknown', intent)
         status = operations.DISPATCHING
     committed = False
@@ -470,7 +545,8 @@ async def renew_source(connection_id, registration_id, adapter, db_factory=None,
             return _outcome(document, 'effect_unknown', 'unknown', intent)
         if not operations.mark_status(record_id, operations.SUCCEEDED,
                 expected_status=status, expected_payload_sha256=payload_hash,
-                result=_receipt(document, intent), db_factory=db_factory,
+                result=_receipt(document, intent), db_factory=lambda: _operation_factory(
+                    document, intent, record_id, status, db_factory),
                 transition_effect=_finish(document, intent)):
             return _outcome(document, 'effect_unknown', 'unknown', intent)
         committed = True

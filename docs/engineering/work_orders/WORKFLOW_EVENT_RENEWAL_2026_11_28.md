@@ -126,3 +126,27 @@ Three more development probes exposed scope movement during successful/refused/t
 The final transaction join also covers admission. Three expanded development probes reproduced receipt, registration or grant changes during real content fetch still reserving an execution. The callback now captures the checked read grant and passes a server-owned source guard through existing intake authority/reservation hooks. SQLAlchemy AsyncSession.run_sync reuses the same synchronous source verifier inside that exact async transaction; it opens no second store or runner. The guard repeats for receipt-only checks and actual insertion, so a change after preliminary verification still rolls back the reservation. An unverified duplicate neither acknowledges nor replaces its original execution.
 
 Source delivery retains its existing WORKFLOW_RUN permission; source setup/lease management still require WORKFLOW_MANAGE. A private typed snapshot mode reuses the existing authority resolver and raw grant claim without promoting member roles. The positive member-delivery/forbidden-enrollment twin and repeat-at-insert control pass. Original development evidence is labeled separately; the retained admission negative is the expanded three-case rerun, not the preliminary two-case output. Reference: [SQLAlchemy synchronous ORM inside AsyncSession](https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html#running-synchronous-methods-and-functions-under-asyncio). The six focused admission controls and20-control callback neighborhood pass before the final expanded gate.
+
+
+### Renewal operation transition proof follow-through (2026-11-28)
+
+Original enrollment proof checkpoint `c13c5c535` / evidence `fdc1288bb`
+is retained (494 controls +18 subtests). Its success does not certify the
+renewal operation's own metadata across asynchronous provider reads/writes.
+The next Git-bound baseline `4208c35b2` reproduces 24 failures and one valid
+renewal twin: tenant/workspace/operation/action/run/idempotency changes during
+preflight, successful PATCH, confirmed refusal and lost confirmation.
+
+The same existing source-operation scalar/raw-JSON no-op claim is now reused
+for renewal; generic arbiter semantics remain unchanged. Source proof and
+exact operation inspection occur inside the allocation transaction, and exact
+pending-row proof occurs before each dispatch/acknowledgement/status transition.
+A separate development negative also reproduced a new-row allocation after a
+workspace move between preliminary inspection and generic claim. That log is
+labeled working-tree evidence, not a second Git baseline. Restoration permits
+GET-only reconciliation of the same identity; no new PATCH or operation is
+inferred from a moved row. No-effect supersession retains its existing exact
+old/new authority and audit contract. Whole source catch-up acceptance remains
+open: canonical event observations, encrypted durable cursor, activation
+coverage, safe source succession and owner-visible recovery are not supplied
+by this receipt repair.

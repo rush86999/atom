@@ -10,7 +10,6 @@ from core import workflow_event_source_registration as registry
 from core.models import TaskOperationRecord
 
 _ACTION = 'enroll_workflow_event_source'
-_TYPE = 'generic:agent:' + _ACTION
 _PENDING = (operations.CLAIMED, operations.DISPATCHING,
             operations.UNCERTAIN_EFFECT, operations.FAILED_BEFORE_EFFECT)
 
@@ -42,11 +41,16 @@ def enrollment_material(document, adapter=None):
         _fail()
 
 
-def _claim_operation(db, document, payload_hash, status, result, record_id=None):
-    identity = document['identity']; operation_id = document['operation_id']
+def claim_source_operation(db, identity, operation_id, action, payload_hash, status,
+                           result, record_id=None):
+    """Claim exact source-owned operation material in the caller transaction.
+
+    Enrollment and renewal share the same physical ledger and proof, without
+    changing the generic operation arbiter's historical caller contracts.
+    """
     expected = dict(tenant_id=identity['tenant_id'], workspace_id=identity['workspace_id'],
         operation_id=operation_id, run_id=operation_id, idempotency_key=operation_id,
-        operation_type=_TYPE, status=status, payload_sha256=payload_hash)
+        operation_type='generic:agent:' + action, status=status, payload_sha256=payload_hash)
     if not all(type(value) is str and value for value in expected.values()):
         _fail()
     columns = [TaskOperationRecord.id] + [getattr(TaskOperationRecord, key) for key in expected]
@@ -70,6 +74,11 @@ def _claim_operation(db, document, payload_hash, status, result, record_id=None)
     if changed.rowcount != 1:
         _fail()
     return row.id
+
+
+def _claim_operation(db, document, payload_hash, status, result, record_id=None):
+    return claim_source_operation(db, document['identity'], document['operation_id'],
+        _ACTION, payload_hash, status, result, record_id)
 
 
 def verify_enrollment_receipt(db, document, receipt=None, adapter=None):
