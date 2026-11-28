@@ -1,0 +1,126 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-28 12:33:28 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-28 12:33:28 [    INFO] No token storage file found, starting empty
+2026-11-28 12:33:28 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:33:28 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:33:28 [    INFO] EscalationManager initialized
+2026-11-28 12:33:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 12:33:28 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:33:28 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:33:28 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:33:28 [    INFO] EscalationManager initialized
+2026-11-28 12:33:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 12:33:28 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:33:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-28 12:33:28 [    INFO] MCP Service initialized
+2026-11-28 12:33:28 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+backend/tests/test_workflow_event_source_immutable_ids.py::test_new_native_enrollment_freezes_and_sends_immutable_mode 
+-------------------------------- live log setup --------------------------------
+2026-11-28 12:33:29 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [ 12%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_content_read_uses_bound_mailbox_and_immutable_header FAILED [ 25%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_delta_reads_always_request_immutable_ids FAILED [ 37%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_created_event_identity_excludes_mutable_content_and_generation[subject] FAILED [ 50%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_created_event_identity_excludes_mutable_content_and_generation[folder] FAILED [ 62%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_created_event_identity_excludes_mutable_content_and_generation[generation] FAILED [ 75%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_created_event_identity_excludes_mutable_content_and_generation[mailbox] FAILED [ 87%]
+backend/tests/test_workflow_event_source_immutable_ids.py::test_legacy_document_keeps_original_plan_and_identity PASSED [100%]
+
+=================================== FAILURES ===================================
+_________ test_new_native_enrollment_freezes_and_sends_immutable_mode __________
+backend/tests/test_workflow_event_source_immutable_ids.py:34: in test_new_native_enrollment_freezes_and_sends_immutable_mode
+    assert document['source_options'] == {'message_id_type':'immutable'}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'source_options'
+------------------------------ Captured log setup ------------------------------
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+__________ test_content_read_uses_bound_mailbox_and_immutable_header ___________
+backend/tests/test_workflow_event_source_immutable_ids.py:45: in test_content_read_uses_bound_mailbox_and_immutable_header
+    event = asyncio.run(adapter.message_event({'resourceData':{'id':'message-one'}},
+E   TypeError: OutlookMailSourceAdapter.message_event() got an unexpected keyword argument 'document'
+________________ test_delta_reads_always_request_immutable_ids _________________
+backend/tests/test_workflow_event_source_immutable_ids.py:67: in test_delta_reads_always_request_immutable_ids
+    assert calls[-1][1] == {'prefer_immutable_id':True}
+E   AssertionError: assert {} == {'prefer_immutable_id': True}
+E     
+E     Right contains 1 more item:
+E     {'prefer_immutable_id': True}
+E     
+E     Full diff:
+E     + {}
+E     - {
+E     -     'prefer_immutable_id': True,
+E     - }
+_ test_created_event_identity_excludes_mutable_content_and_generation[subject] _
+backend/tests/test_workflow_event_source_immutable_ids.py:75: in test_created_event_identity_excludes_mutable_content_and_generation
+    original = adapter.event_identity('message-one', document=document)
+               ^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'OutlookMailSourceAdapter' object has no attribute 'event_identity'
+_ test_created_event_identity_excludes_mutable_content_and_generation[folder] __
+backend/tests/test_workflow_event_source_immutable_ids.py:75: in test_created_event_identity_excludes_mutable_content_and_generation
+    original = adapter.event_identity('message-one', document=document)
+               ^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'OutlookMailSourceAdapter' object has no attribute 'event_identity'
+_ test_created_event_identity_excludes_mutable_content_and_generation[generation] _
+backend/tests/test_workflow_event_source_immutable_ids.py:75: in test_created_event_identity_excludes_mutable_content_and_generation
+    original = adapter.event_identity('message-one', document=document)
+               ^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'OutlookMailSourceAdapter' object has no attribute 'event_identity'
+_ test_created_event_identity_excludes_mutable_content_and_generation[mailbox] _
+backend/tests/test_workflow_event_source_immutable_ids.py:75: in test_created_event_identity_excludes_mutable_content_and_generation
+    original = adapter.event_identity('message-one', document=document)
+               ^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'OutlookMailSourceAdapter' object has no attribute 'event_identity'
+=============================== warnings summary ===============================
+../../../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+backend/core/token_storage.py:17
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_workflow_event_source_immutable_ids.py::test_new_native_enrollment_freezes_and_sends_immutable_mode
+FAILED backend/tests/test_workflow_event_source_immutable_ids.py::test_content_read_uses_bound_mailbox_and_immutable_header
+FAILED backend/tests/test_workflow_event_source_immutable_ids.py::test_delta_reads_always_request_immutable_ids
+FAILED backend/tests/test_workflow_event_source_immutable_ids.py::test_created_event_identity_excludes_mutable_content_and_generation[subject]
+FAILED backend/tests/test_workflow_event_source_immutable_ids.py::test_created_event_identity_excludes_mutable_content_and_generation[folder]
+FAILED backend/tests/test_workflow_event_source_immutable_ids.py::test_created_event_identity_excludes_mutable_content_and_generation[generation]
+FAILED backend/tests/test_workflow_event_source_immutable_ids.py::test_created_event_identity_excludes_mutable_content_and_generation[mailbox]
+=================== 7 failed, 1 passed, 2 warnings in 2.61s ====================
