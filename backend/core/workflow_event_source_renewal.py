@@ -54,6 +54,7 @@ def verify_current_lease(db, document):
         raise registry.SourceRegistrationError('SOURCE_LEASE_UNVERIFIED')
     intent = lease['intent']
     _verify_intent(document, intent)
+    _verify_superseded(db, document, intent)
     identity = document['identity']
     rows = db.query(TaskOperationRecord).filter(
         TaskOperationRecord.workspace_id == identity['workspace_id'],
@@ -73,7 +74,9 @@ def verify_current_lease(db, document):
 def _verify_intent(document, intent):
     required = {'operation_id', 'requested_at', 'previous_plan', 'plan', 'authority',
                 'source_operation_id', 'subscription_id'}
-    if (not isinstance(intent, dict) or set(intent) not in (required, required | {'lifecycle_request'})
+    optional = {'lifecycle_request', 'supersedes'}
+    if (not isinstance(intent, dict) or not required <= set(intent)
+            or not set(intent) <= required | optional
             or not isinstance(intent['operation_id'], str) or not intent['operation_id']
             or intent['source_operation_id'] != document['operation_id']
             or intent['subscription_id'] != document['provider_subscription_id']
@@ -83,6 +86,13 @@ def _verify_intent(document, intent):
     if ('lifecycle_request' in intent and (not isinstance(intent['lifecycle_request'], str)
             or not intent['lifecycle_request'])):
         raise registry.SourceRegistrationError('SOURCE_RENEWAL_UNVERIFIED')
+    if 'supersedes' in intent:
+        link = intent['supersedes']
+        if (not isinstance(link, dict) or set(link) != {'operation_id', 'payload_sha256'}
+                or not isinstance(link['operation_id'], str) or not link['operation_id']
+                or link['operation_id'] == intent['operation_id']
+                or not isinstance(link['payload_sha256'], str) or len(link['payload_sha256']) != 64):
+            raise registry.SourceRegistrationError('SOURCE_RENEWAL_UNVERIFIED')
     from core.workflow_event_source_adapters import source_adapter
     adapter = source_adapter(document['source'])
     try:
@@ -92,6 +102,24 @@ def _verify_intent(document, intent):
             raise ValueError()
     except (ValueError, KeyError, TypeError):
         raise registry.SourceRegistrationError('SOURCE_RENEWAL_UNVERIFIED') from None
+
+
+def _verify_superseded(db, document, intent):
+    link = intent.get('supersedes')
+    if link is None:
+        return
+    identity = document['identity']
+    rows = db.query(TaskOperationRecord).filter(
+        TaskOperationRecord.workspace_id == identity['workspace_id'],
+        TaskOperationRecord.tenant_id == identity['tenant_id'],
+        TaskOperationRecord.operation_id == link['operation_id']).all()
+    if (len(rows) != 1 or rows[0].status != operations.FAILED_BEFORE_EFFECT
+            or rows[0].result_json is not None
+            or rows[0].run_id != link['operation_id']
+            or rows[0].idempotency_key != link['operation_id']
+            or rows[0].operation_type != 'generic:agent:' + _ACTION
+            or rows[0].payload_sha256 != link['payload_sha256']):
+        raise registry.SourceRegistrationError('SOURCE_LEASE_UNVERIFIED')
 
 
 def _credential_commitment(db, connection_id):
@@ -136,6 +164,25 @@ def _write(db, before, after, event_type, action):
     _audit(db, after, event_type, action)
 
 
+def _new_intent(document, adapter, at, actor, connection, credential_commitment,
+                supersedes=None):
+    intent = dict(operation_id=str(uuid.uuid4()), requested_at=at.isoformat(),
+        previous_plan=_current_plan(document, adapter),
+        plan=adapter.renewal_material(document, now=at),
+        authority=dict(actor=actor, connection=connection,
+            credential_commitment=credential_commitment),
+        source_operation_id=document['operation_id'],
+        subscription_id=document['provider_subscription_id'])
+    challenge = document.get('lifecycle_requests', {}).get('reauthorizationRequired')
+    if challenge is not None:
+        intent['lifecycle_request'] = challenge['digest']
+    if supersedes is not None:
+        intent['supersedes'] = {'operation_id': supersedes['operation_id'],
+                                'payload_sha256': supersedes['payload_sha256']}
+    _verify_intent(document, intent)
+    return intent
+
+
 def _prepare(document, adapter, at, db_factory):
     identity = document['identity']
     with db_factory() as db:
@@ -144,15 +191,8 @@ def _prepare(document, adapter, at, db_factory):
         if current != identity:
             raise registry.SourceRegistrationError('SOURCE_AUTHORITY_CHANGED')
         registry._claim(db, actor, connection)
-        intent = dict(operation_id=str(uuid.uuid4()), requested_at=at.isoformat(),
-            previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
-            authority=dict(actor=actor, connection=connection,
-                credential_commitment=_credential_commitment(db, document['connection_id'])),
-            source_operation_id=document['operation_id'], subscription_id=document['provider_subscription_id'])
-        challenge = document.get('lifecycle_requests', {}).get('reauthorizationRequired')
-        if challenge is not None:
-            intent['lifecycle_request'] = challenge['digest']
-        _verify_intent(document, intent)
+        intent = _new_intent(document, adapter, at, actor, connection,
+                             _credential_commitment(db, document['connection_id']))
         updated = dict(document, pending_lease=intent)
         _write(db, document, updated, 'workflow_event_source_renewal_prepared',
                'prepare_workflow_event_source_renewal')
@@ -166,6 +206,7 @@ def _current_plan(document, adapter):
 
 
 def _claim_dispatch(db, document, intent):
+    _verify_superseded(db, document, intent)
     identity = document['identity']
     actor, current, connection = registry._authority(db, identity['user_id'],
         document['connection_id'], document['source'])
@@ -195,6 +236,86 @@ def _claim_dispatch(db, document, intent):
     if changed.rowcount != 1 or row is None or registry._verified_replay(db, row,
             document['request_digest'], identity, document['connection_id'], document['source']) != document:
         raise registry.SourceRegistrationError('SOURCE_REGISTRATION_CHANGED')
+
+
+def _same_source_scope(document, intent, identity, actor, connection):
+    if identity != document['identity']:
+        return False
+    for current, previous, fields in (
+            (actor, intent['authority']['actor'], ('id', 'tenant_id', 'workspace_id')),
+            (connection, intent['authority']['connection'],
+             ('id', 'user_id', 'tenant_id', 'workspace_id', 'integration_id'))):
+        if not isinstance(previous, dict):
+            return False
+        for key in fields:
+            if (key not in current or key not in previous
+                    or type(current[key]) is not type(previous[key]) or current[key] != previous[key]):
+                return False
+    return True
+
+
+def _supersession_state(document, intent, payload_hash, record_id, db_factory):
+    identity = document['identity']
+    with db_factory() as db:
+        row = db.query(TaskOperationRecord).filter(
+            TaskOperationRecord.id == record_id,
+            TaskOperationRecord.workspace_id == identity['workspace_id'],
+            TaskOperationRecord.tenant_id == identity['tenant_id'],
+            TaskOperationRecord.operation_id == intent['operation_id']).first()
+        if (row is None
+                or row.status not in (operations.CLAIMED, operations.FAILED_BEFORE_EFFECT)
+                or row.result_json is not None
+                or row.run_id != intent['operation_id']
+                or row.idempotency_key != intent['operation_id']
+                or row.operation_type != 'generic:agent:' + _ACTION
+                or row.payload_sha256 != payload_hash):
+            return 'blocked'
+        actor, current, connection = registry._authority(
+            db, identity['user_id'], document['connection_id'], document['source'])
+        if not _same_source_scope(document, intent, current, actor, connection):
+            return 'scope_changed'
+        try:
+            commitment = _credential_commitment(db, document['connection_id'])
+        except registry.SourceRegistrationError as exc:
+            if exc.code == 'SOURCE_CREDENTIALS_UNAVAILABLE':
+                return 'credentials_unavailable'
+            raise
+        authority = intent['authority']
+        if (actor == authority['actor'] and connection == authority['connection']
+                and commitment == authority['credential_commitment']):
+            return 'unchanged'
+        return 'changed'
+
+
+def _supersede(document, adapter, at, intent, payload_hash, record_id, db_factory):
+    identity = document['identity']
+    authority = intent['authority']
+    prepared = {}
+
+    def effect(db):
+        actor, current, connection = registry._authority(
+            db, identity['user_id'], document['connection_id'], document['source'])
+        if not _same_source_scope(document, intent, current, actor, connection):
+            raise registry.SourceRegistrationError('SOURCE_AUTHORITY_CHANGED')
+        commitment = _credential_commitment(db, document['connection_id'])
+        if (actor == authority['actor'] and connection == authority['connection']
+                and commitment == authority['credential_commitment']):
+            raise registry.SourceRegistrationError('SOURCE_AUTHORITY_CHANGED')
+        replacement = _new_intent(
+            document, adapter, at, actor, connection, commitment,
+            supersedes={'operation_id': intent['operation_id'],
+                        'payload_sha256': payload_hash})
+        _claim_dispatch(db, document, replacement)
+        updated = dict(document, pending_lease=replacement)
+        _write(db, document, updated, 'workflow_event_source_renewal_prepared',
+               'prepare_workflow_event_source_renewal')
+        prepared['document'] = updated
+    if not operations.mark_status(record_id, operations.FAILED_BEFORE_EFFECT,
+            expected_status=(operations.CLAIMED, operations.FAILED_BEFORE_EFFECT),
+            expected_payload_sha256=payload_hash, db_factory=db_factory,
+            transition_effect=effect):
+        return None
+    return prepared.get('document')
 
 
 def _finish(document, intent):
@@ -278,6 +399,35 @@ async def renew_source(connection_id, registration_id, adapter, db_factory=None,
         tenant_id=identity['tenant_id'], operation_id=intent['operation_id'], action=_ACTION,
         payload_hash=payload_hash, execution_id=intent['operation_id'], db_factory=db_factory)
     status = claim.get('status')
+    record_id = claim.get('record_id')
+    if record_id and status in (operations.CLAIMED, operations.FAILED_BEFORE_EFFECT):
+        try:
+            state = _supersession_state(document, intent, payload_hash, record_id, db_factory)
+        except registry.SourceRegistrationError as exc:
+            return _outcome(document, 'authority_unavailable', 'unknown', intent, reason=exc.code)
+        except Exception:
+            return _outcome(document, 'operation_unavailable', 'unknown', intent)
+        if state in ('blocked', 'scope_changed'):
+            return _outcome(document, 'operation_unavailable', 'unknown', intent)
+        if state == 'credentials_unavailable':
+            return _outcome(document, 'credentials_unavailable', 'unknown', intent)
+        if state == 'changed':
+            private = await source_credentials(document, adapter, db_factory)
+            if not isinstance(private, dict) or not private.get('access_token'):
+                return _outcome(document, 'credentials_unavailable', 'unknown', intent)
+            replacement = _supersede(document, adapter, at, intent, payload_hash, record_id, db_factory)
+            if replacement is None:
+                return _outcome(document, 'effect_unknown', 'unknown', intent)
+            # At most one supersession per call; reload credentials below so a
+            # concurrent reconnect cannot send the pre-supersession grant.
+            document = replacement
+            intent = document['pending_lease']
+            _verify_intent(document, intent)
+            payload_hash = _hash(document, intent)
+            claim = operations.claim_generic_operation(workspace_id=identity['workspace_id'],
+                tenant_id=identity['tenant_id'], operation_id=intent['operation_id'], action=_ACTION,
+                payload_hash=payload_hash, execution_id=intent['operation_id'], db_factory=db_factory)
+            status = claim.get('status')
     if status == operations.FAILED_BEFORE_EFFECT:
         return _outcome(document, 'not_applied', 'none', intent)
     if status not in (operations.CLAIMED, operations.DISPATCHING, operations.UNCERTAIN_EFFECT) or not claim.get('record_id'):
