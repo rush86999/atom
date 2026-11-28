@@ -1,0 +1,12 @@
+{
+  "source_ref": "c536a2003ebba2e1570fd135dd541310bccaa7de",
+  "result": {
+    "failed": 4,
+    "passed": 5
+  },
+  "sources": {
+    "backend/core/workflow_event_source_renewal.py": "a6c1c3b81df6a33e412a6eb0785c8a2440ebba11d41384386ee85e0a80d5f4df",
+    "backend/tests/test_workflow_event_source_resumption.py": "75c6c65cfc056cb65b2829af9d92106b67e7cbe65b7108a7cf49c571a1c8f659"
+  },
+  "artifact_sha256": "49db48590dacb78d6018140c1f484f88c4b67346770bf1a6b7f6cb299649de36"
+}
