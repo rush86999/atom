@@ -1,0 +1,72 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-28 13:42:58 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-28 13:42:58 [    INFO] No token storage file found, starting empty
+2026-11-28 13:42:58 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:42:58 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:42:58 [    INFO] EscalationManager initialized
+2026-11-28 13:42:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 13:42:58 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:42:58 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:42:58 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:42:58 [    INFO] EscalationManager initialized
+2026-11-28 13:42:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 13:42:58 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:42:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-28 13:42:58 [    INFO] MCP Service initialized
+2026-11-28 13:42:58 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_move_between_inspection_and_claim_does_not_allocate_new_row[workspace_id] 
+-------------------------------- live log setup --------------------------------
+2026-11-28 13:42:58 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:43:00 [   ERROR] generic operation claim failed: SOURCE_RENEWAL_UNVERIFIED
+PASSED                                                                   [ 50%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_move_between_inspection_and_claim_does_not_allocate_new_row[operation_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:43:01 [   ERROR] generic operation claim failed: SOURCE_RENEWAL_UNVERIFIED
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+backend/core/token_storage.py:17
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 2 passed, 37 deselected, 2 warnings in 4.24s =================

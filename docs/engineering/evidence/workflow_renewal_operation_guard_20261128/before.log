@@ -1,0 +1,304 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-28 13:38:34 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-28 13:38:34 [    INFO] No token storage file found, starting empty
+2026-11-28 13:38:34 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:38:34 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:38:34 [    INFO] EscalationManager initialized
+2026-11-28 13:38:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 13:38:34 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:38:34 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:38:34 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:38:34 [    INFO] EscalationManager initialized
+2026-11-28 13:38:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 13:38:34 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:38:34 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-28 13:38:34 [    INFO] MCP Service initialized
+2026-11-28 13:38:35 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[preflight-tenant_id] 
+-------------------------------- live log setup --------------------------------
+2026-11-28 13:38:35 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [  4%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[preflight-workspace_id] FAILED [  8%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[preflight-operation_id] FAILED [ 12%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[preflight-operation_type] FAILED [ 16%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[preflight-run_id] FAILED [ 20%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[preflight-idempotency_key] FAILED [ 24%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[normal-tenant_id] FAILED [ 28%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[normal-workspace_id] FAILED [ 32%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[normal-operation_id] FAILED [ 36%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[normal-operation_type] FAILED [ 40%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[normal-run_id] FAILED [ 44%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[normal-idempotency_key] FAILED [ 48%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[refused-tenant_id] FAILED [ 52%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[refused-workspace_id] FAILED [ 56%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[refused-operation_id] FAILED [ 60%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[refused-operation_type] FAILED [ 64%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[refused-run_id] FAILED [ 68%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[refused-idempotency_key] FAILED [ 72%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[timeout-tenant_id] FAILED [ 76%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[timeout-workspace_id] FAILED [ 80%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[timeout-operation_id] FAILED [ 84%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[timeout-operation_type] FAILED [ 88%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[timeout-run_id] FAILED [ 92%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[timeout-idempotency_key] FAILED [ 96%]
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_unchanged_renewal_receipt_twin PASSED [100%]
+
+=================================== FAILURES ===================================
+_ test_renewal_preserves_peer_operation_at_every_transition[preflight-tenant_id] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'committed', 'enabled': True, ...}
+E   assert ('committed' == 'unknown'
+E     
+E     - unknown
+E     + committed)
+------------------------------ Captured log setup ------------------------------
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+_ test_renewal_preserves_peer_operation_at_every_transition[preflight-workspace_id] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'committed', 'enabled': True, ...}
+E   assert ('committed' == 'unknown'
+E     
+E     - unknown
+E     + committed)
+_ test_renewal_preserves_peer_operation_at_every_transition[preflight-operation_id] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'committed', 'enabled': True, ...}
+E   assert ('committed' == 'unknown'
+E     
+E     - unknown
+E     + committed)
+_ test_renewal_preserves_peer_operation_at_every_transition[preflight-operation_type] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'committed', 'enabled': True, ...}
+E   assert ('committed' == 'unknown'
+E     
+E     - unknown
+E     + committed)
+_ test_renewal_preserves_peer_operation_at_every_transition[preflight-run_id] __
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'committed', 'enabled': True, ...}
+E   assert ('committed' == 'unknown'
+E     
+E     - unknown
+E     + committed)
+_ test_renewal_preserves_peer_operation_at_every_transition[preflight-idempotency_key] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'committed', 'enabled': True, ...}
+E   assert ('committed' == 'unknown'
+E     
+E     - unknown
+E     + committed)
+_ test_renewal_preserves_peer_operation_at_every_transition[normal-tenant_id] __
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'committed', 'enabled': True, ...}
+E   assert ('committed' == 'unknown'
+E     
+E     - unknown
+E     + committed)
+_ test_renewal_preserves_peer_operation_at_every_transition[normal-workspace_id] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'committed', 'enabled': True, ...}
+E   assert ('committed' == 'unknown'
+E     
+E     - unknown
+E     + committed)
+_ test_renewal_preserves_peer_operation_at_every_transition[normal-operation_id] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'committed', 'enabled': True, ...}
+E   assert ('committed' == 'unknown'
+E     
+E     - unknown
+E     + committed)
+_ test_renewal_preserves_peer_operation_at_every_transition[normal-operation_type] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'committed', 'enabled': True, ...}
+E   assert ('committed' == 'unknown'
+E     
+E     - unknown
+E     + committed)
+___ test_renewal_preserves_peer_operation_at_every_transition[normal-run_id] ___
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'committed', 'enabled': True, ...}
+E   assert ('committed' == 'unknown'
+E     
+E     - unknown
+E     + committed)
+_ test_renewal_preserves_peer_operation_at_every_transition[normal-idempotency_key] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'committed', 'enabled': True, ...}
+E   assert ('committed' == 'unknown'
+E     
+E     - unknown
+E     + committed)
+_ test_renewal_preserves_peer_operation_at_every_transition[refused-tenant_id] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': False, 'effect': 'none', 'enabled': True, ...}
+E   assert ('none' == 'unknown'
+E     
+E     - unknown
+E     + none)
+_ test_renewal_preserves_peer_operation_at_every_transition[refused-workspace_id] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': False, 'effect': 'none', 'enabled': True, ...}
+E   assert ('none' == 'unknown'
+E     
+E     - unknown
+E     + none)
+_ test_renewal_preserves_peer_operation_at_every_transition[refused-operation_id] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': False, 'effect': 'none', 'enabled': True, ...}
+E   assert ('none' == 'unknown'
+E     
+E     - unknown
+E     + none)
+_ test_renewal_preserves_peer_operation_at_every_transition[refused-operation_type] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': False, 'effect': 'none', 'enabled': True, ...}
+E   assert ('none' == 'unknown'
+E     
+E     - unknown
+E     + none)
+__ test_renewal_preserves_peer_operation_at_every_transition[refused-run_id] ___
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': False, 'effect': 'none', 'enabled': True, ...}
+E   assert ('none' == 'unknown'
+E     
+E     - unknown
+E     + none)
+_ test_renewal_preserves_peer_operation_at_every_transition[refused-idempotency_key] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:42: in test_renewal_preserves_peer_operation_at_every_transition
+    assert result['effect'] == 'unknown' and result['do_not_repeat'] is True, result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': False, 'effect': 'none', 'enabled': True, ...}
+E   assert ('none' == 'unknown'
+E     
+E     - unknown
+E     + none)
+_ test_renewal_preserves_peer_operation_at_every_transition[timeout-tenant_id] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:48: in test_renewal_preserves_peer_operation_at_every_transition
+    assert row.status == peer_state['status'] and row.result_json is None
+E   AssertionError: assert ('uncertain_effect' == 'dispatching'
+E     
+E     - dispatching
+E     + uncertain_effect)
+_ test_renewal_preserves_peer_operation_at_every_transition[timeout-workspace_id] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:48: in test_renewal_preserves_peer_operation_at_every_transition
+    assert row.status == peer_state['status'] and row.result_json is None
+E   AssertionError: assert ('uncertain_effect' == 'dispatching'
+E     
+E     - dispatching
+E     + uncertain_effect)
+_ test_renewal_preserves_peer_operation_at_every_transition[timeout-operation_id] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:48: in test_renewal_preserves_peer_operation_at_every_transition
+    assert row.status == peer_state['status'] and row.result_json is None
+E   AssertionError: assert ('uncertain_effect' == 'dispatching'
+E     
+E     - dispatching
+E     + uncertain_effect)
+_ test_renewal_preserves_peer_operation_at_every_transition[timeout-operation_type] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:48: in test_renewal_preserves_peer_operation_at_every_transition
+    assert row.status == peer_state['status'] and row.result_json is None
+E   AssertionError: assert ('uncertain_effect' == 'dispatching'
+E     
+E     - dispatching
+E     + uncertain_effect)
+__ test_renewal_preserves_peer_operation_at_every_transition[timeout-run_id] ___
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:48: in test_renewal_preserves_peer_operation_at_every_transition
+    assert row.status == peer_state['status'] and row.result_json is None
+E   AssertionError: assert ('uncertain_effect' == 'dispatching'
+E     
+E     - dispatching
+E     + uncertain_effect)
+_ test_renewal_preserves_peer_operation_at_every_transition[timeout-idempotency_key] _
+backend/tests/test_workflow_event_source_renewal_receipt_guard.py:48: in test_renewal_preserves_peer_operation_at_every_transition
+    assert row.status == peer_state['status'] and row.result_json is None
+E   AssertionError: assert ('uncertain_effect' == 'dispatching'
+E     
+E     - dispatching
+E     + uncertain_effect)
+=============================== warnings summary ===============================
+../../../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+backend/core/token_storage.py:17
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[preflight-tenant_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[preflight-workspace_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[preflight-operation_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[preflight-operation_type]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[preflight-run_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[preflight-idempotency_key]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[normal-tenant_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[normal-workspace_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[normal-operation_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[normal-operation_type]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[normal-run_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[normal-idempotency_key]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[refused-tenant_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[refused-workspace_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[refused-operation_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[refused-operation_type]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[refused-run_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[refused-idempotency_key]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[timeout-tenant_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[timeout-workspace_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[timeout-operation_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[timeout-operation_type]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[timeout-run_id]
+FAILED backend/tests/test_workflow_event_source_renewal_receipt_guard.py::test_renewal_preserves_peer_operation_at_every_transition[timeout-idempotency_key]
+================== 24 failed, 1 passed, 2 warnings in 32.68s ===================
