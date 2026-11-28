@@ -1,0 +1,10 @@
+{
+  "provenance": "Uncommitted development snapshot, not the original Git-bound baseline",
+  "sources": {
+    "backend/core/workflow_event_source_receipt.py": "b9b5f7c8f58f33e42faad87ff1b99c7ec33da14cb787114ca316f02fc05cb97d",
+    "backend/core/workflow_event_source_enrollment.py": "a9e8e89c9946c2ea9900dc8baa2741bf23a086b0d7a4a22997a45036457008d7",
+    "backend/tests/test_workflow_event_source_receipt_persistence.py": "72a5e55e7b9d5d99033ec3291e2dc5bae59539deb671fd2ef65f2740a39289c1"
+  },
+  "artifact_sha256": "90374ed53e38484f49cda404faec366f93d3dfa93a88b8ff6ab8ca6e45275b50",
+  "result": "3 failed"
+}

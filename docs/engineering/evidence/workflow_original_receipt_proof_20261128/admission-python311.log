@@ -1,0 +1,120 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-28 13:23:44 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-28 13:23:44 [    INFO] No token storage file found, starting empty
+2026-11-28 13:23:44 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:23:44 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:23:44 [    INFO] EscalationManager initialized
+2026-11-28 13:23:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 13:23:44 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:23:44 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:23:44 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:23:44 [    INFO] EscalationManager initialized
+2026-11-28 13:23:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 13:23:44 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:23:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-28 13:23:44 [    INFO] MCP Service initialized
+2026-11-28 13:23:44 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+backend/tests/test_workflow_event_source_receipt_admission.py::test_proof_changed_during_content_fetch_cannot_reserve_execution[receipt] 
+-------------------------------- live log setup --------------------------------
+2026-11-28 13:23:45 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:23:46 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 13:23:46 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 13:23:46 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=726045b7-9223-436f-90ed-806157450766 "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 16%]
+backend/tests/test_workflow_event_source_receipt_admission.py::test_proof_changed_during_content_fetch_cannot_reserve_execution[source] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:23:47 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 13:23:47 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 13:23:47 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=fa8629d5-2cb5-473d-a07c-078b24526d6f "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 33%]
+backend/tests/test_workflow_event_source_receipt_admission.py::test_grant_changed_during_content_fetch_cannot_reserve_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:23:48 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 13:23:48 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 13:23:48 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=69a023be-5350-452a-8806-afa66eabb652 "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 50%]
+backend/tests/test_workflow_event_source_receipt_admission.py::test_existing_run_permission_remains_sufficient_for_delivery 
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:23:49 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 13:23:49 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 13:23:49 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 403 Forbidden"
+2026-11-28 13:23:49 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=c4aa107c-60a2-40d8-9561-c885c7a724c1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+backend/tests/test_workflow_event_source_receipt_admission.py::test_guard_repeats_inside_the_actual_reservation_transaction 
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:23:51 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 13:23:51 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 13:23:51 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=b50c279d-b58d-4aa6-a94b-d89b146a2e1f "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 83%]
+backend/tests/test_workflow_event_source_receipt_admission.py::test_unverified_duplicate_does_not_acknowledge_or_replace_original_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:23:52 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/enroll "HTTP/1.1 200 OK"
+2026-11-28 13:23:52 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/workflows "HTTP/1.1 200 OK"
+2026-11-28 13:23:52 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=f8bbaf93-4c6f-4d11-847a-9e67f8152846 "HTTP/1.1 200 OK"
+2026-11-28 13:23:52 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/event-sources/connection/notifications?registration=f8bbaf93-4c6f-4d11-847a-9e67f8152846 "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+backend/core/token_storage.py:17
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+tests/test_workflow_event_source_receipt_admission.py::test_proof_changed_during_content_fetch_cannot_reserve_execution[receipt]
+tests/test_workflow_event_source_receipt_admission.py::test_proof_changed_during_content_fetch_cannot_reserve_execution[source]
+tests/test_workflow_event_source_receipt_admission.py::test_grant_changed_during_content_fetch_cannot_reserve_execution
+tests/test_workflow_event_source_receipt_admission.py::test_existing_run_permission_remains_sufficient_for_delivery
+tests/test_workflow_event_source_receipt_admission.py::test_guard_repeats_inside_the_actual_reservation_transaction
+tests/test_workflow_event_source_receipt_admission.py::test_unverified_duplicate_does_not_acknowledge_or_replace_original_execution
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/workflow_endpoints.py:1479: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    _validate_workflow_dag(workflow.dict())
+
+tests/test_workflow_event_source_receipt_admission.py::test_proof_changed_during_content_fetch_cannot_reserve_execution[receipt]
+tests/test_workflow_event_source_receipt_admission.py::test_proof_changed_during_content_fetch_cannot_reserve_execution[source]
+tests/test_workflow_event_source_receipt_admission.py::test_grant_changed_during_content_fetch_cannot_reserve_execution
+tests/test_workflow_event_source_receipt_admission.py::test_existing_run_permission_remains_sufficient_for_delivery
+tests/test_workflow_event_source_receipt_admission.py::test_guard_repeats_inside_the_actual_reservation_transaction
+tests/test_workflow_event_source_receipt_admission.py::test_unverified_duplicate_does_not_acknowledge_or_replace_original_execution
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/workflow_endpoints.py:1488: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    workflow_dict = workflow.dict()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 6 passed, 14 warnings in 8.79s ========================

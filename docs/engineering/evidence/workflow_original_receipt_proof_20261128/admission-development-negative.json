@@ -1,0 +1,13 @@
+{
+  "provenance": "Expanded three-case uncommitted development rerun; preliminary two-case scratch output superseded, not the original Git-bound baseline",
+  "sources": {
+    "backend/core/workflow_event_source_registration.py": "e50402c370f511c870bde41d15545944450678e386effdbe75f581147599235a",
+    "backend/core/workflow_event_source_enrollment.py": "c84db59c4283aea6714779caf20f13518720ed5d35d54d382b83237a97b71656",
+    "backend/core/workflow_event_source_receipt.py": "b9b5f7c8f58f33e42faad87ff1b99c7ec33da14cb787114ca316f02fc05cb97d",
+    "backend/core/workflow_event_intake.py": "f67d238fbe8608b89fdd956373f89099ada4962e0a2f0df67e79ab5649971ff2",
+    "backend/core/workflow_event_source_routes.py": "4d00172dcf5f73e500072c80d7e546e69eb5e84eacba555b7c6e526de7111240",
+    "backend/tests/test_workflow_event_source_receipt_admission.py": "c8ec3af25942330495b4be8ed8b24d8283f41294275e6b417cd6d936002f85d1"
+  },
+  "artifact_sha256": "faa4e166b0a09ea893320fad2bbc61affa66c60661b63d59b74bb2c8552c414c",
+  "result": "3 failed"
+}

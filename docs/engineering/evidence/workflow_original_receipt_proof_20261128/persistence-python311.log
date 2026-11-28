@@ -1,0 +1,106 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-28 13:13:40 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-28 13:13:40 [    INFO] No token storage file found, starting empty
+2026-11-28 13:13:40 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:13:40 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:13:40 [    INFO] EscalationManager initialized
+2026-11-28 13:13:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 13:13:40 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:13:40 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:13:40 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:13:40 [    INFO] EscalationManager initialized
+2026-11-28 13:13:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 13:13:40 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 13:13:40 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-28 13:13:40 [    INFO] MCP Service initialized
+2026-11-28 13:13:41 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+backend/tests/test_workflow_event_source_receipt_persistence.py::test_scope_moved_during_provider_attempt_is_not_overwritten[normal] 
+-------------------------------- live log setup --------------------------------
+2026-11-28 13:13:41 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:13:42 [   ERROR] outbound claim status update failed (succeeded): SourceRegistrationError
+PASSED                                                                   [  5%]
+backend/tests/test_workflow_event_source_receipt_persistence.py::test_scope_moved_during_provider_attempt_is_not_overwritten[refused] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:13:43 [   ERROR] outbound claim status update failed (failed_before_effect): SourceRegistrationError
+PASSED                                                                   [ 10%]
+backend/tests/test_workflow_event_source_receipt_persistence.py::test_scope_moved_during_provider_attempt_is_not_overwritten[timeout] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:13:44 [   ERROR] Create subscription failed: error_class=TimeoutError
+2026-11-28 13:13:44 [   ERROR] outbound claim status update failed (uncertain_effect): SourceRegistrationError
+PASSED                                                                   [ 15%]
+backend/tests/test_workflow_event_source_enrollment.py::test_enroll_readback_activate_and_replay_never_create_twice PASSED [ 20%]
+backend/tests/test_workflow_event_source_enrollment.py::test_lost_confirmation_is_durable_unknown_and_never_reenrolls 
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:13:46 [   ERROR] Create subscription failed: error_class=TimeoutError
+PASSED                                                                   [ 25%]
+backend/tests/test_workflow_event_source_enrollment.py::test_confirmed_refusal_reports_no_effect_without_another_provider_attempt PASSED [ 30%]
+backend/tests/test_workflow_event_source_enrollment.py::test_readback_mismatch_recovers_from_original_receipt_without_enrolling[resource] PASSED [ 35%]
+backend/tests/test_workflow_event_source_enrollment.py::test_readback_mismatch_recovers_from_original_receipt_without_enrolling[state] PASSED [ 40%]
+backend/tests/test_workflow_event_source_enrollment.py::test_readback_mismatch_recovers_from_original_receipt_without_enrolling[callback] PASSED [ 45%]
+backend/tests/test_workflow_event_source_enrollment.py::test_readback_mismatch_recovers_from_original_receipt_without_enrolling[expiry] PASSED [ 50%]
+backend/tests/test_workflow_event_source_enrollment.py::test_readback_mismatch_recovers_from_original_receipt_without_enrolling[moved_expiry] PASSED [ 55%]
+backend/tests/test_workflow_event_source_enrollment.py::test_readback_mismatch_recovers_from_original_receipt_without_enrolling[identity] PASSED [ 60%]
+backend/tests/test_workflow_event_source_enrollment.py::test_activation_failure_recovers_without_another_provider_effect PASSED [ 65%]
+backend/tests/test_workflow_event_source_enrollment.py::test_competing_enrollments_have_one_provider_create 
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:13:56 [   ERROR] outbound claim status update failed (dispatching): SourceRegistrationError
+PASSED                                                                   [ 70%]
+backend/tests/test_workflow_event_source_enrollment.py::test_authority_change_before_dispatch_refuses_with_no_provider_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:13:58 [   ERROR] outbound claim status update failed (dispatching): SourceRegistrationError
+PASSED                                                                   [ 75%]
+backend/tests/test_workflow_event_source_enrollment.py::test_lost_receipt_persistence_never_creates_second_subscription PASSED [ 80%]
+backend/tests/test_workflow_event_source_enrollment.py::test_changed_adapter_material_conflicts_without_reissuing_original_effect PASSED [ 85%]
+backend/tests/test_workflow_event_source_enrollment.py::test_changed_receipt_shape_is_not_acknowledged_as_verified_replay PASSED [ 90%]
+backend/tests/test_workflow_event_source_enrollment.py::test_missing_credentials_cannot_relabel_original_enrollment_effect[unknown] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 13:14:02 [   ERROR] Create subscription failed: error_class=TimeoutError
+PASSED                                                                   [ 95%]
+backend/tests/test_workflow_event_source_enrollment.py::test_missing_credentials_cannot_relabel_original_enrollment_effect[committed] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+backend/core/token_storage.py:17
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 20 passed, 2 warnings in 24.51s ========================
