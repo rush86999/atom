@@ -30,6 +30,18 @@ async def source_credentials(document, adapter, db_factory):
         return None
 
 
+def verify_source_subscription(adapter, document, receipt, observed, db_factory):
+    """A renewed expiry is usable only after fresh exact local lease proof."""
+    if document.get('current_lease') is None:
+        return adapter.verify(document, receipt, observed)
+    verified = registrations.read_delivery_registration(document['connection_id'],
+        document['operation_id'], db_factory=db_factory)
+    if verified != document:
+        return False
+    return adapter.verify_renewal(document, receipt, observed,
+                                  verified['current_lease']['intent']['plan'])
+
+
 async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
                         db_factory=None, observed_subscription_id=None):
     """No transport retry: a dispatching/uncertain claim needs reconciliation."""
@@ -69,7 +81,7 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
             return _outcome(document, 'effect_unknown', 'unknown')
         try:
             recovered_readback = await adapter.read(observed_subscription_id, private or {})
-            if adapter.verify(document, candidate, recovered_readback) is not True:
+            if verify_source_subscription(adapter, document, candidate, recovered_readback, db_factory) is not True:
                 return _outcome(document, 'effect_unknown', 'unknown')
             if not operations.mark_status(claim['record_id'], operations.SUCCEEDED,
                     expected_status=status, expected_payload_sha256=payload_hash,
@@ -164,7 +176,7 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
     try:
         observed = (recovered_readback if recovered_readback is not None
                     else await adapter.read(receipt['subscription_id'], credentials))
-        if adapter.verify(document, receipt, observed) is not True:
+        if verify_source_subscription(adapter, document, receipt, observed, db_factory) is not True:
             return _outcome(document, 'committed_unverified', 'committed')
         activated = registrations.activate_source_registration(document, receipt, db_factory=db_factory)
         # Read back target/audit in an independent session before certifying.

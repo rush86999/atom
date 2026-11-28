@@ -38,8 +38,16 @@ def enrollment_world(source_world, monkeypatch):
             if provider['mode'] == 'timeout':
                 raise TimeoutError('synthetic lost confirmation')
             return {'status': 'success', 'data': copy.deepcopy(provider['record'])}
+        if method == 'PATCH':
+            if provider['mode'] == 'refused':
+                return {'status': 'error', 'code': 403}
+            provider['record']['expirationDateTime'] = data['expirationDateTime']
+            provider['patched'] = True
+            if provider['mode'] == 'timeout':
+                raise TimeoutError('synthetic lost renewal confirmation')
+            return {'status': 'success', 'data': copy.deepcopy(provider['record'])}
         record = copy.deepcopy(provider['record'])
-        mismatch = provider['wrong_read']
+        mismatch = provider.get('wrong_after_patch') if provider.get('patched') else provider['wrong_read']
         if mismatch == 'state': record['clientState'] = 'different-state'
         elif mismatch == 'callback': record['notificationUrl'] = 'https://example.invalid/other'
         elif mismatch == 'expiry': record['expirationDateTime'] = '2000-01-01T00:00:00Z'

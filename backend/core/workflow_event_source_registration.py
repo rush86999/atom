@@ -83,13 +83,18 @@ def _verified_replay(db, row, request_digest, identity, connection_id, source):
                     request_digest=request_digest, result_digest=_digest(document))
     matches = 0
     for audit in db.query(AuditLog).filter(
-            AuditLog.event_type.in_(['workflow_event_source_prepared', 'workflow_event_source_activated']),
+            AuditLog.event_type.in_(['workflow_event_source_prepared', 'workflow_event_source_activated',
+                'workflow_event_source_renewal_prepared', 'workflow_event_source_renewed']),
             AuditLog.user_id == identity['user_id'], AuditLog.tenant_id == identity['tenant_id'],
             AuditLog.workspace_id == identity['workspace_id'], AuditLog.resource == connection_id,
             AuditLog.success.is_(True)).all():
         try:
-            expected_action = ('prepare_workflow_event_source' if audit.event_type ==
-                               'workflow_event_source_prepared' else 'activate_workflow_event_source')
+            expected_action = {
+                'workflow_event_source_prepared': 'prepare_workflow_event_source',
+                'workflow_event_source_activated': 'activate_workflow_event_source',
+                'workflow_event_source_renewal_prepared': 'prepare_workflow_event_source_renewal',
+                'workflow_event_source_renewed': 'renew_workflow_event_source',
+            }[audit.event_type]
             if audit.action != expected_action:
                 continue
             if json.loads(audit.metadata_json) == expected:
@@ -98,6 +103,9 @@ def _verified_replay(db, row, request_digest, identity, connection_id, source):
             continue
     if matches != 1:
         raise SourceRegistrationError('SOURCE_REGISTRATION_UNVERIFIED')
+    if document.get('current_lease') is not None:
+        from core.workflow_event_source_renewal import verify_current_lease
+        verify_current_lease(db, document)
     # Bind the actual document observed before returning a verified replay.
     result = db.execute(update(TenantSetting).where(
         TenantSetting.id == row.id, TenantSetting.tenant_id == identity['tenant_id'],

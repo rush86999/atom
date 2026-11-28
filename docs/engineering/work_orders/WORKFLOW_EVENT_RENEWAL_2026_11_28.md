@@ -29,3 +29,13 @@ Microsoft documents subscription renewal and lifecycle loss separately from OAut
 Prefer the requested free OpenCode models when available. Use public-source-only bounded packets and independently verify proposed patches. Do not expose private handoffs, credentials or raw logs. A model/configuration failure is not a completed worker task; no paid fallback or unbounded retry is implied. CLI availability must be revalidated after cleanup or reset windows. Keep root as verifier and coordinator.
 
 The owner explicitly requires remote checkpoints. Routine CI observation can be delegated; it grants no merge/deployment authority to the worker. This work order starts no deployment, live account/provider campaign, credential rotation, spend or send operation.
+
+## Callable checkpoint and next maintenance boundary
+
+The internal renewal callable now uses full-document audit proof, one frozen pending lease, exact authority/credential/document claims before PATCH, and atomic current-lease/audit/operation receipt commit. Original enrollment fields remain unchanged. Enrollment replay and callback consumers explicitly verify current lease proof before using its expiry. The native adapter alone remains bound to its original enrollment semantics by default. Qualification results belong to the new evidence bundle; do not infer hosted or whole-app acceptance from local tests.
+
+A single bounded OpenCode Go DeepSeek proposal completed on November28 (CLI reported cost0); the free endpoint returned429. Root corrected the proposal rather than applying it wholesale. No worker tool execution, paid fallback or live application provider campaign occurred.
+
+Next: use the existing workflow_event_worker_loop for periodic lease maintenance, with bounded/fair source traversal and restart tests. OAuth renewal and Graph subscription authorization must both be covered. Microsoft documents separate lifecycle challenges, lost notifications and removal; one PATCH may renew and reauthorize together, and rapid parallel reauthorization/update calls can cause inconsistent state. Lifecycle notification URLs must be registered, authenticated against durable receiver state, persisted before acknowledgment and consumed by the existing worker. Missed/removed events need durable delta recovery and safe subscription succession, not repeated creation after uncertainty. See [Microsoft lifecycle guidance](https://learn.microsoft.com/en-us/graph/change-notifications-lifecycle-events).
+
+Retain the unresolved boundaries: no live-provider qualification, PostgreSQL/soak or multi-worker claim; no full-main/fresh-created-rule browser proof; no days-offline/backfill claim. Do not broaden marketing claims from the callable checkpoint.
