@@ -2,6 +2,7 @@
 from __future__ import annotations
 import asyncio
 import copy
+import json
 import logging
 from typing import Any
 from core.execution_state_manager import frozen_execution_identity
@@ -216,32 +217,126 @@ async def process_pending_event_executions_once(limit=100, *, engine=None, prefl
     return processed
 
 
-_worker_task = None
-_worker_stop = None
+SOURCE_LEASE_BATCH_LIMIT = 25
+SOURCE_LEASE_SOURCE_TIMEOUT_SECONDS = 15.0
+SOURCE_LEASE_INTERVAL_SECONDS = 60.0
+EVENT_POLL_INTERVAL_SECONDS = 2.0
 
-async def workflow_event_worker_loop():
-    # App lifespan already reconciles interrupted RUNNING executions. Only
-    # PENDING events are listed here; this is not another recovery sweep.
-    while not _worker_stop.is_set():
+
+def _source_reference(row):
+    from core.workflow_event_source_registration import _key
+    try:
+        document = json.loads(row.setting_value)
+        if (not isinstance(document, dict) or document.get('schema') != 'workflow.event_source.v1'
+                or document.get('phase') != 'registered' or document.get('enabled') is not True
+                or not isinstance(document.get('identity'), dict)
+                or document['identity'].get('tenant_id') != row.tenant_id
+                or any(not isinstance(document.get(k), str) or not document[k].strip()
+                       for k in ('connection_id', 'source', 'operation_id'))
+                or row.setting_key != _key(document['connection_id'], document['source'])):
+            return None
+        return document['connection_id'], document['operation_id'], document['source']
+    except (ValueError, TypeError, KeyError):
+        return None
+
+
+async def maintain_source_leases_once(after_id=None, limit=SOURCE_LEASE_BATCH_LIMIT,
+                                     db_factory=None, adapter_factory=None):
+    """One bounded keyset page; close the listing transaction before provider I/O.
+
+    Every listed row advances the cursor, including unreadable/disabled/refused
+    entries. Each source has its own timeout so a slow first source cannot
+    discard completed page progress. The operation ledger owns uncertain PATCH.
+    """
+    from core.models import TenantSetting
+    from core.workflow_event_source_renewal import renew_source
+    from core.workflow_event_source_adapters import source_adapter
+    if db_factory is None:
+        from core.database import get_db_session
+        db_factory = get_db_session
+    adapter_factory = source_adapter if adapter_factory is None else adapter_factory
+    if type(limit) is not int or not 1 <= limit <= 100:
+        raise ValueError('Invalid source maintenance page size')
+    with db_factory() as db:
+        query = db.query(TenantSetting).filter(TenantSetting.setting_key.startswith(
+            'workflow_event_source:', autoescape=True))
+        if after_id is not None:
+            query = query.filter(TenantSetting.id > after_id)
+        rows = query.order_by(TenantSetting.id).limit(limit).all()
+        cursor = rows[-1].id if len(rows) == limit else None
+        references = [ref for ref in (_source_reference(row) for row in rows) if ref is not None]
+        scanned = len(rows)
+    attempted = 0
+    for connection_id, operation_id, source in references:
         try:
-            await process_pending_event_executions_once()
+            adapter = adapter_factory(source)
+            attempted += 1
+            await asyncio.wait_for(renew_source(connection_id, operation_id, adapter,
+                db_factory=db_factory), timeout=SOURCE_LEASE_SOURCE_TIMEOUT_SECONDS)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
-            logger.warning("Event poll deferred (%s)", type(exc).__name__)
-        try:
-            await asyncio.wait_for(_worker_stop.wait(), timeout=2.0)
-        except asyncio.TimeoutError:
-            pass
+            logger.warning('Source lease maintenance deferred (%s)', type(exc).__name__)
+    return {'scanned': scanned, 'attempted': attempted, 'after_id': cursor}
+
+
+_worker_task = None
+_worker_stop = None
+_maintenance_task = None
+
+
+async def workflow_event_worker_loop():
+    # One lifespan owner, with independent bounded maintenance work so source
+    # I/O cannot hold up the existing PENDING execution drain.
+    global _maintenance_task
+    cursor = None
+    next_maintenance = 0.0
+    loop = asyncio.get_running_loop()
+    try:
+        while not _worker_stop.is_set():
+            if _maintenance_task is not None and _maintenance_task.done():
+                try:
+                    cursor = _maintenance_task.result()['after_id']
+                except asyncio.CancelledError:
+                    pass
+                except Exception as exc:
+                    logger.warning('Source maintenance page deferred (%s)', type(exc).__name__)
+                _maintenance_task = None
+                next_maintenance = loop.time() + SOURCE_LEASE_INTERVAL_SECONDS
+            try:
+                await process_pending_event_executions_once()
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning('Event poll deferred (%s)', type(exc).__name__)
+            if (not _worker_stop.is_set() and _maintenance_task is None
+                    and loop.time() >= next_maintenance):
+                _maintenance_task = asyncio.create_task(maintain_source_leases_once(after_id=cursor))
+            try:
+                await asyncio.wait_for(_worker_stop.wait(), timeout=EVENT_POLL_INTERVAL_SECONDS)
+            except asyncio.TimeoutError:
+                pass
+    finally:
+        owned = _maintenance_task
+        _maintenance_task = None
+        if owned is not None:
+            if not owned.done():
+                owned.cancel()
+            try:
+                await owned
+            except asyncio.CancelledError:
+                pass
+            except Exception as exc:
+                logger.warning('Source maintenance stopped (%s)', type(exc).__name__)
 
 
 def start_workflow_event_worker():
     global _worker_task, _worker_stop
     if _worker_task is not None and not _worker_task.done():
         return False
+    if _maintenance_task is not None and not _maintenance_task.done():
+        return False
     _worker_stop = asyncio.Event()
-    # The existing lifespan spawn helper returns None. Own the actual task
-    # ourselves so shutdown can always await it, rather than losing its handle.
     _worker_task = asyncio.create_task(workflow_event_worker_loop())
     return True
 

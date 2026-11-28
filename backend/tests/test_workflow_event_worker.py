@@ -113,6 +113,7 @@ def test_worker_owns_one_task_and_awaits_stop(monkeypatch):
         async def tick():
             observed.set()
         monkeypatch.setattr(worker, "process_pending_event_executions_once", tick)
+        monkeypatch.setattr(worker, "maintain_source_leases_once", AsyncMock(return_value={"after_id": None}))
         assert worker.start_workflow_event_worker()
         assert not worker.start_workflow_event_worker()
         task = worker._worker_task

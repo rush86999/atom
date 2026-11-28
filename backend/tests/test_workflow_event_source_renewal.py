@@ -321,3 +321,28 @@ def test_invalid_server_clock_refuses_before_provider_read(due_world, invalid):
     with pytest.raises(registry.SourceRegistrationError, match='SOURCE_LEASE_TIME_INVALID'):
         asyncio.run(renewal.renew_source(**dict(call, now=invalid)))
     assert len(provider['calls']) == before
+
+
+def test_multiple_lease_generations_preserve_original_identity(due_world, monkeypatch):
+    factory, args, provider, original, call = due_world
+    base = datetime.fromisoformat(original['prepared_at'])
+    operation_ids = set()
+    for hours in (60, 120, 180):
+        at = base + timedelta(hours=hours)
+        class ClockMeta(type):
+            def __instancecheck__(cls, value): return isinstance(value, datetime)
+        class Clock(datetime, metaclass=ClockMeta):
+            @classmethod
+            def now(cls, tz=None): return at.astimezone(tz) if tz else at.replace(tzinfo=None)
+        monkeypatch.setattr('core.workflow_event_source_adapters.datetime', Clock)
+        result = asyncio.run(renewal.renew_source(**dict(call, now=at)))
+        assert result['status'] == 'renewed', result
+        current = registry.read_delivery_registration(call['connection_id'], call['registration_id'], db_factory=factory)
+        operation_ids.add(current['current_lease']['intent']['operation_id'])
+        for key, value in original.items(): assert current[key] == value
+        assert asyncio.run(enroll_source(**args))['status'] == 'already_applied'
+    assert len(operation_ids) == 3
+    assert count(provider, 'PATCH') == 3 and count(provider, 'POST') == 1
+    with factory() as db:
+        assert db.query(AuditLog).count() == 8
+        assert db.query(TaskOperationRecord).filter(TaskOperationRecord.status == operations.SUCCEEDED).count() == 4
