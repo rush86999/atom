@@ -98,3 +98,80 @@ def test_legacy_prepared_material_is_not_silently_upgraded(binding_world):
     assert 'provider_binding' not in document
     assert next(c[2] for c in provider['calls'] if c[0]=='POST')['resource'] == "/me/mailFolders('Inbox')/messages"
     assert not any('/me?$select=id' in c[1] for c in provider['calls'])
+
+
+def test_authority_change_during_native_binding_preserves_peer(binding_world):
+    from core.models import User
+    factory, params, args, provider = binding_world
+    def disable():
+        with factory() as peer:
+            peer.get(User, 'owner').is_active = False
+            peer.commit()
+    provider['after_binding'] = disable
+    with pytest.raises(registry.SourceRegistrationError):
+        asyncio.run(enroll_source(**args))
+    assert not any(c[0] == 'POST' for c in provider['calls'])
+    with factory() as db:
+        assert db.get(User, 'owner').is_active is False
+        assert db.query(TenantSetting).count() == db.query(AuditLog).count() == 0
+
+
+def test_reconnect_after_preparation_cannot_dispatch_unchecked_new_grant(binding_world):
+    factory, params, args, provider = binding_world
+    calls = 0
+    def reconnect():
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            with factory() as peer:
+                peer.get(UserConnection, 'connection').credentials = ConnectionService()._encrypt({'access_token':'unchecked-peer'})
+                peer.commit()
+    provider['after_binding'] = reconnect
+    result = asyncio.run(enroll_source(**args))
+    assert result['status'] == 'refused' and result['effect'] == 'none'
+    assert not any(c[0] == 'POST' for c in provider['calls'])
+    with factory() as db:
+        assert db.query(TaskOperationRecord).one().status == 'claimed'
+        assert db.query(AuditLog).count() == 1
+        assert ConnectionService()._decrypt(db.get(UserConnection, 'connection').credentials)['access_token'] == 'unchecked-peer'
+
+
+def test_bound_resource_rejects_forged_binding_shape(binding_world):
+    factory, params, args, provider = binding_world
+    asyncio.run(enroll_source(**args))
+    document = saved(factory)
+    for invalid in ({'user_id':'u'}, {'user_id':'u','folder_id':'f','scope':'other'},
+                    {'user_id':'../peer','folder_id':'f'}, {'user_id':True,'folder_id':'f'}):
+        with pytest.raises(ValueError):
+            args['adapter'].material(dict(document, provider_binding=invalid))
+
+
+def test_missing_credentials_does_not_create_unbound_native_intent(binding_world):
+    factory, params, args, provider = binding_world
+    with factory() as db:
+        db.get(UserConnection, 'connection').credentials = ConnectionService()._encrypt({})
+        db.commit()
+    with pytest.raises(registry.SourceRegistrationError):
+        asyncio.run(enroll_source(**args))
+    assert provider['calls'] == []
+    with factory() as db:
+        assert db.query(TaskOperationRecord).count() == db.query(AuditLog).count() == db.query(TenantSetting).count() == 0
+
+
+def test_legacy_unknown_intent_is_never_replanned_for_new_mailbox(binding_world):
+    factory, params, args, provider = binding_world
+    registry.prepare_source_registration(**params)
+    provider['mode'] = 'timeout'
+    first = asyncio.run(enroll_source(**args))
+    original = saved(factory)
+    with factory() as db:
+        operation = db.query(TaskOperationRecord).one()
+        operation_material = (operation.id, operation.payload_sha256, operation.status, copy.deepcopy(operation.result_json))
+    provider['mailbox'] = 'new-mailbox'
+    again = asyncio.run(enroll_source(**args))
+    assert first['status'] == again['status'] == 'effect_unknown'
+    assert saved(factory) == original and 'provider_binding' not in original
+    assert sum(c[0] == 'POST' for c in provider['calls']) == 1
+    with factory() as db:
+        operation = db.query(TaskOperationRecord).one()
+        assert (operation.id, operation.payload_sha256, operation.status, operation.result_json) == operation_material

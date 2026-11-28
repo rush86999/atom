@@ -74,6 +74,7 @@ def _reset_required(response):
 class OutlookMailSourceAdapter:
     event_types = ('message.created',)
     oauth_provider = 'microsoft'
+    binds_provider_identity = True
     lifecycle_events = ('reauthorizationRequired', 'missed', 'subscriptionRemoved')
 
     def __init__(self, source='outlook', service=None):
@@ -171,6 +172,12 @@ class OutlookMailSourceAdapter:
             items.append({'id': message_id, 'created_at': stamp.astimezone(timezone.utc)})
         return {'items': items, 'cursor': link, 'complete': complete}
 
+    @staticmethod
+    def provider_binding(value):
+        if not isinstance(value, dict) or set(value) != {'user_id', 'folder_id'}:
+            raise ValueError('Native provider binding is invalid')
+        return {name: _id(value[name]) for name in ('user_id', 'folder_id')}
+
     def material(self, document):
         prepared = datetime.fromisoformat(document['prepared_at'])
         if prepared.tzinfo is None:
@@ -178,6 +185,10 @@ class OutlookMailSourceAdapter:
         material = {'resource': "/me/mailFolders('Inbox')/messages", 'change_type': 'created,deleted',
                 'callback_url': document['callback_url'],
                 'expires_at': (prepared + timedelta(hours=71)).astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')}
+        if 'provider_binding' in document:
+            binding = self.provider_binding(document['provider_binding'])
+            material['resource'] = ('/users/' + quote(binding['user_id'], safe='')
+                + '/mailFolders/' + quote(binding['folder_id'], safe='') + '/messages')
         if document.get('lifecycle_events'):
             material['lifecycle_callback_url'] = document['callback_url']
         return material

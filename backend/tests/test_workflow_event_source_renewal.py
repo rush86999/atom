@@ -183,7 +183,9 @@ def test_unavailable_preflight_never_dispatches(due_world):
     _, args, provider, _, call = due_world
     original = args['adapter'].service._make_graph_request.side_effect
     async def wire(method, *rest):
-        if method == 'GET': raise TimeoutError('synthetic read unavailable')
+        # Fail the target-subscription preflight, after current mailbox proof.
+        if method == 'GET' and '/subscriptions/' in rest[0]:
+            raise TimeoutError('synthetic read unavailable')
         return await original(method, *rest)
     args['adapter'].service._make_graph_request.side_effect = wire
     result = asyncio.run(renewal.renew_source(**call))
@@ -294,6 +296,11 @@ calls=[]
 async def transport(method,url,token,data=None):
     calls.append(method)
     assert method=='GET', 'Reconciliation must not mutate the provider'
+    if url.endswith('/me?$select=id'):
+        return {'status':'success','data':{'id':payload['binding']['user_id']}}
+    if url.endswith('/me/mailFolders/Inbox?$select=id'):
+        return {'status':'success','data':{'id':payload['binding']['folder_id']}}
+    assert url == 'https://graph.microsoft.com/v1.0/subscriptions/provider-subscription'
     return {'status':'success','data':payload['record']}
 service._make_graph_request=transport
 result=asyncio.run(renew_source('connection',payload['registration_id'],
@@ -303,13 +310,14 @@ engine.dispose()
 '''
     result = subprocess.run([sys.executable, '-c', script], input=json.dumps({
         'database_url': database_url, 'registration_id': call['registration_id'],
-        'record': provider['record'], 'now': call['now'].isoformat()}),
+        'record': provider['record'], 'binding': document(factory)['provider_binding'],
+        'now': call['now'].isoformat()}),
         text=True, capture_output=True, timeout=60, env={**os.environ, 'TESTING': '1',
             'DATABASE_URL': database_url})
     assert result.returncode == 0, result.stderr[-2500:]
     summary = json.loads(next(line.split('=', 1)[1] for line in result.stdout.splitlines()
                               if line.startswith('RENEWAL_RESULT=')))
-    assert summary == {'status': 'already_applied', 'calls': ['GET']}
+    assert summary == {'status': 'already_applied', 'calls': ['GET'] * 3}
     assert 'current_lease' in document(factory)
     assert count(provider, 'PATCH') == 1
 

@@ -31,6 +31,10 @@ def enrollment_world(source_world, monkeypatch):
         assert token == provider.get('expected_token', 'synthetic')
         provider['calls'].append((method, url, copy.deepcopy(data)))
         await asyncio.sleep(0.01)
+        if method == 'GET' and url.endswith('/me?$select=id'):
+            return {'status': 'success', 'data': {'id': provider.get('mailbox', 'mailbox-one')}}
+        if method == 'GET' and url.endswith('/me/mailFolders/Inbox?$select=id'):
+            return {'status': 'success', 'data': {'id': provider.get('folder', 'inbox-one')}}
         if method == 'POST':
             if provider['mode'] == 'refused':
                 return {'status': 'error', 'code': 403, 'message': 'synthetic refusal'}
@@ -169,7 +173,13 @@ def test_authority_change_before_dispatch_refuses_with_no_provider_effect(enroll
     monkeypatch.setattr(registrations, '_claim', changed)
     result = asyncio.run(enroll_source(**args))
     assert result['status'] == 'refused' and result['effect'] == 'none'
-    assert provider['calls'] == []
+    # Native mailbox binding is now read before intent preparation and again
+    # against the dispatch grant. Refusal permits only those exact GETs.
+    base = 'https://graph.microsoft.com/v1.0'
+    assert provider['calls'] == [
+        ('GET', base + '/me?$select=id', None),
+        ('GET', base + '/me/mailFolders/Inbox?$select=id', None),
+    ] * 2
     with factory() as db:
         assert db.get(User, 'owner').is_active is False
         assert db.query(TaskOperationRecord).one().status == operations.CLAIMED

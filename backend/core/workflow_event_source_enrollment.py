@@ -20,10 +20,15 @@ async def source_credentials(document, adapter, db_factory):
     """Use the exact registered owner and existing durable credential refresh."""
     identity = document['identity']
     try:
-        return await ConnectionService().ensure_scoped_connection_credentials(
+        private = await ConnectionService().ensure_scoped_connection_credentials(
             user_id=identity['user_id'], tenant_id=identity['tenant_id'], workspace_id=identity['workspace_id'],
             connection_id=document['connection_id'], integration_id=adapter.source,
             provider=adapter.oauth_provider, db_factory=db_factory)
+        if isinstance(private, dict) and 'provider_binding' in document:
+            expected = adapter.provider_binding(document['provider_binding'])
+            if await adapter.resolve_delta_binding(private) != expected:
+                raise ValueError('Provider identity changed')
+        return private
     except Exception as exc:
         import logging
         logging.getLogger(__name__).warning('Source credential read unavailable (%s)', type(exc).__name__)
@@ -54,7 +59,29 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
     lifecycle = getattr(adapter, 'lifecycle_events', ())
     if lifecycle:
         params['lifecycle_events'] = list(lifecycle)
-    document = registrations.prepare_source_registration(**params)
+    if getattr(adapter, 'binds_provider_identity', False) is True:
+        document = registrations.prepare_source_registration(**params, probe_only=True)
+        if document is None:
+            # Provider reads precede the first durable intent. Freeze their exact
+            # grant and raw scope in the preparation transaction; never adopt a
+            # reconnect that raced the native identity lookup.
+            with db_factory() as db:
+                _, identity, _ = registrations._authority(db, actor_id, connection_id, adapter.source)
+            reference = dict(identity=identity, connection_id=connection_id, source=adapter.source)
+            private = await source_credentials(reference, adapter, db_factory)
+            if not isinstance(private, dict):
+                raise registrations.SourceRegistrationError('SOURCE_CREDENTIALS_UNAVAILABLE')
+            from core.workflow_event_source_binding import snapshot
+            with db_factory() as db:
+                frozen = snapshot(db, actor_id, connection_id, adapter.source, expected_credentials=private)
+            try:
+                binding = adapter.provider_binding(await adapter.resolve_delta_binding(frozen['credentials']))
+            except Exception:
+                raise registrations.SourceRegistrationError('SOURCE_PROVIDER_BINDING_UNAVAILABLE') from None
+            document = registrations.prepare_source_registration(**params,
+                provider_binding=binding, credential_snapshot=frozen)
+    else:
+        document = registrations.prepare_source_registration(**params)
     identity = document['identity']
     plan = operations.strict_json_roundtrip(adapter.material(document))
     if not isinstance(plan, dict):
@@ -101,6 +128,7 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
     record_id = claim['record_id']
     credentials = {}
     authority_failure = []
+    dispatch_snapshot = None
 
     @contextmanager
     def dispatch_factory():
@@ -109,7 +137,11 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
                 actor, current_identity, connection = registrations._authority(db, actor_id, connection_id, adapter.source)
                 if current_identity != identity:
                     raise registrations.SourceRegistrationError('SOURCE_AUTHORITY_CHANGED')
-                registrations._claim(db, actor, connection)
+                if dispatch_snapshot is not None:
+                    from core.workflow_event_source_binding import claim
+                    claim(db, dispatch_snapshot)
+                else:
+                    registrations._claim(db, actor, connection)
                 row = db.query(TenantSetting).filter(
                     TenantSetting.tenant_id == identity['tenant_id'],
                     TenantSetting.setting_key == registrations._key(connection_id, adapter.source)).first()
@@ -129,8 +161,17 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
                 raise
 
     if status == operations.CLAIMED:
-        if not await source_credentials(document, adapter, db_factory):
+        checked_private = await source_credentials(document, adapter, db_factory)
+        if not checked_private:
             return _outcome(document, 'credentials_unavailable', 'unknown')
+        if 'provider_binding' in document:
+            from core.workflow_event_source_binding import snapshot
+            try:
+                with db_factory() as db:
+                    dispatch_snapshot = snapshot(db, actor_id, connection_id, adapter.source,
+                        expected_credentials=checked_private)
+            except registrations.SourceRegistrationError:
+                return _outcome(document, 'refused', 'none')
         if not operations.mark_status(record_id, operations.DISPATCHING,
                 expected_status=operations.CLAIMED, expected_payload_sha256=payload_hash,
                 db_factory=dispatch_factory):
@@ -177,13 +218,26 @@ async def enroll_source(*, actor_id, connection_id, callback_base_url, adapter,
             or not isinstance(receipt.get('subscription_id'), str) or not receipt['subscription_id']):
         return _outcome(document, 'committed_unverified', 'committed')
     try:
-        observed = (recovered_readback if recovered_readback is not None
+        confirmation = {}
+        if 'provider_binding' in document:
+            # A successful provider effect cannot certify a later reconnect.
+            # Validate a fresh current grant, then bind it through activation
+            # and the independent registry readback without rewriting receipts.
+            confirmed_private = await source_credentials(document, adapter, db_factory)
+            if not isinstance(confirmed_private, dict):
+                return _outcome(document, 'committed_unverified', 'committed')
+            from core.workflow_event_source_binding import snapshot
+            with db_factory() as db:
+                confirmation['credential_snapshot'] = snapshot(db, actor_id, connection_id,
+                    adapter.source, expected_credentials=confirmed_private)
+            credentials = confirmed_private
+        observed = (recovered_readback if recovered_readback is not None and not confirmation
                     else await adapter.read(receipt['subscription_id'], credentials))
         if verify_source_subscription(adapter, document, receipt, observed, db_factory) is not True:
             return _outcome(document, 'committed_unverified', 'committed')
-        activated = registrations.activate_source_registration(document, receipt, db_factory=db_factory)
+        activated = registrations.activate_source_registration(document, receipt, db_factory=db_factory, **confirmation)
         # Read back target/audit in an independent session before certifying.
-        verified = registrations.prepare_source_registration(**params)
+        verified = registrations.prepare_source_registration(**params, **confirmation)
         if verified != activated:
             return _outcome(document, 'committed_unverified', 'committed')
         return _outcome(verified, 'already_applied' if status == operations.SUCCEEDED else 'registered',

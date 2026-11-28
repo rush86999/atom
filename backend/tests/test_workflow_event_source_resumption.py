@@ -237,6 +237,11 @@ service=Microsoft365Service(config={});calls=[];record=p['record']
 async def wire(method,url,token,data=None):
     assert token=='new-synthetic';calls.append(method)
     assert method in ('GET','PATCH')
+    if method=='GET' and url.endswith('/me?$select=id'):
+        return {'status':'success','data':{'id':p['binding']['user_id']}}
+    if method=='GET' and url.endswith('/me/mailFolders/Inbox?$select=id'):
+        return {'status':'success','data':{'id':p['binding']['folder_id']}}
+    assert url == 'https://graph.microsoft.com/v1.0/subscriptions/provider-subscription'
     if method=='PATCH':record['expirationDateTime']=data['expirationDateTime']
     return {'status':'success','data':record}
 service._make_graph_request=wire
@@ -247,12 +252,13 @@ engine.dispose()
 '''
     child = subprocess.run([sys.executable, '-c', script], input=json.dumps({
         'database_url': database_url, 'registration_id': call['registration_id'],
-        'now': call['now'].isoformat(), 'record': provider['record']}), text=True,
+        'now': call['now'].isoformat(), 'record': provider['record'],
+        'binding': document(factory)['provider_binding']}), text=True,
         capture_output=True, timeout=60, env={**os.environ, 'TESTING':'1', 'DATABASE_URL':database_url})
     assert child.returncode == 0, child.stderr[-2000:]
     summary = json.loads(next(l.split('=',1)[1] for l in child.stdout.splitlines() if l.startswith('RESUMPTION_RESULT=')))
     assert summary['status'] == 'renewed', summary
-    assert summary['calls'].count('PATCH') == 1 and summary['calls'].count('GET') == 2
+    assert summary['calls'].count('PATCH') == 1 and summary['calls'].count('GET') == 6
     provider['record'] = summary['record']
     assert operation(factory, refused['operation_id']) == old
     registry.read_delivery_registration(call['connection_id'], call['registration_id'], db_factory=factory)

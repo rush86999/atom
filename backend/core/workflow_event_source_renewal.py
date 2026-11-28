@@ -3,8 +3,6 @@
 No runner or implicit re-creation: unknown PATCH outcomes reconcile by GET only.
 """
 from datetime import datetime, timedelta, timezone
-import hashlib
-import hmac
 import uuid
 from sqlalchemy import update
 from core import outbound_operation_claim as operations
@@ -122,14 +120,8 @@ def _verify_superseded(db, document, intent):
         raise registry.SourceRegistrationError('SOURCE_LEASE_UNVERIFIED')
 
 
-def _credential_commitment(db, connection_id):
-    row = db.get(UserConnection, connection_id)
-    if row is None or not isinstance(row.credentials, str):
-        raise registry.SourceRegistrationError('SOURCE_CREDENTIALS_UNAVAILABLE')
-    material = registry._json({'credentials': row.credentials,
-                              'expires_at': row.expires_at.isoformat() if row.expires_at else None})
-    return hmac.new(ConnectionService().security_config.secret_key.encode(),
-                    material.encode(), hashlib.sha256).hexdigest()
+# Preserve the established private commitment API for frozen renewal intents.
+from core.workflow_event_source_binding import credential_commitment as _credential_commitment
 
 
 def _row(db, document):

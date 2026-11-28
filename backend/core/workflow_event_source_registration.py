@@ -72,6 +72,16 @@ def _claim(db, actor, connection):
         raise SourceRegistrationError('SOURCE_AUTHORITY_CHANGED')
 
 
+
+def _claim_registration_authority(db, actor, identity, connection, credential_snapshot=None):
+    if credential_snapshot is None:
+        return _claim(db, actor, connection)
+    from core.workflow_event_source_binding import claim
+    if (credential_snapshot['actor'] != actor or credential_snapshot['identity'] != identity
+            or credential_snapshot['connection'] != connection):
+        raise SourceRegistrationError('SOURCE_AUTHORITY_CHANGED')
+    claim(db, credential_snapshot)
+
 def _read_document(row):
     try:
         value = json.loads(row.setting_value)
@@ -127,7 +137,8 @@ def _verified_replay(db, row, request_digest, identity, connection_id, source):
 
 
 def prepare_source_registration(*, actor_id, connection_id, source, event_types,
-                                callback_base_url, db_factory=None, lifecycle_events=None):
+                                callback_base_url, db_factory=None, lifecycle_events=None,
+                                probe_only=False, provider_binding=None, credential_snapshot=None):
     """Prepare once; changed enrollment material requires explicit correction.
 
     The caller supplies a server-generated callback URL and adapter-owned event
@@ -144,6 +155,11 @@ def prepare_source_registration(*, actor_id, connection_id, source, event_types,
             or any(not isinstance(v, str) or not v.strip() for v in lifecycle_events)
             or len(set(lifecycle_events)) != len(lifecycle_events)):
         raise SourceRegistrationError('INVALID_SOURCE_LIFECYCLE_EVENTS')
+    if type(probe_only) is not bool:
+        raise SourceRegistrationError('INVALID_SOURCE_REGISTRATION')
+    if provider_binding is not None and (not isinstance(provider_binding, dict) or not provider_binding
+            or credential_snapshot is None):
+        raise SourceRegistrationError('INVALID_SOURCE_PROVIDER_BINDING')
     url = urlsplit(callback_base_url)
     if url.scheme != 'https' or not url.netloc or url.username or url.password or url.fragment:
         raise SourceRegistrationError('INVALID_SOURCE_CALLBACK')
@@ -162,11 +178,13 @@ def prepare_source_registration(*, actor_id, connection_id, source, event_types,
             row = db.query(TenantSetting).filter(
                 TenantSetting.tenant_id == identity['tenant_id'], TenantSetting.setting_key == key).first()
             if row is not None:
-                _claim(db, actor, connection)
+                _claim_registration_authority(db, actor, identity, connection, credential_snapshot)
                 document = _verified_replay(db, row, request_digest, identity, connection_id, source)
                 db.commit()
                 return document
-            _claim(db, actor, connection)
+            if probe_only:
+                return None
+            _claim_registration_authority(db, actor, identity, connection, credential_snapshot)
             operation_id = str(uuid.uuid4())
             receiver_state = secrets.token_urlsafe(32)
             encrypted_state = ConnectionService()._encrypt({'client_state': receiver_state})
@@ -184,6 +202,8 @@ def prepare_source_registration(*, actor_id, connection_id, source, event_types,
                             receiver_state_digest=hashlib.sha256(receiver_state.encode()).hexdigest())
             if lifecycle_events:
                 document['lifecycle_events'] = sorted(lifecycle_events)
+            if provider_binding is not None:
+                document['provider_binding'] = json.loads(_json(provider_binding))
             db.add(TenantSetting(tenant_id=identity['tenant_id'], setting_key=key,
                                  setting_value=_json(document)))
             db.add(AuditLog(event_type='workflow_event_source_prepared', security_level='INFO',
@@ -213,7 +233,7 @@ def prepare_source_registration(*, actor_id, connection_id, source, event_types,
             TenantSetting.tenant_id == identity['tenant_id'], TenantSetting.setting_key == key).first()
         if row is not None:
             if current_digest == request_digest:
-                _claim(db, actor, connection)
+                _claim_registration_authority(db, actor, identity, connection, credential_snapshot)
                 document = _verified_replay(db, row, request_digest, identity, connection_id, source)
                 db.commit()
                 return document
@@ -226,7 +246,7 @@ def public_registration(document):
         'operation_id', 'source', 'connection_id', 'event_types', 'phase', 'enabled')}
 
 
-def activate_source_registration(document, receipt, *, db_factory=None):
+def activate_source_registration(document, receipt, *, db_factory=None, credential_snapshot=None):
     """CAS the observed registration and its activation audit in one transaction."""
     if db_factory is None:
         from core.database import get_db_session
@@ -238,7 +258,7 @@ def activate_source_registration(document, receipt, *, db_factory=None):
                 db, identity['user_id'], document['connection_id'], document['source'])
             if current_identity != identity:
                 raise SourceRegistrationError('SOURCE_AUTHORITY_CHANGED')
-            _claim(db, actor, connection)
+            _claim_registration_authority(db, actor, current_identity, connection, credential_snapshot)
             row = db.query(TenantSetting).filter(
                 TenantSetting.tenant_id == identity['tenant_id'],
                 TenantSetting.setting_key == _key(document['connection_id'], document['source'])).first()
