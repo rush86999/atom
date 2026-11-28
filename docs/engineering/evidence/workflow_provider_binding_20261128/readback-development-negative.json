@@ -1,0 +1,12 @@
+{
+  "provenance": "Uncommitted development snapshot; not the Git-bound original baseline",
+  "sources": {
+    "backend/core/workflow_event_source_binding.py": "e51c7c9059dc34b37113a9e178f0254c302b18311ad03400b8e9088d6a483b24",
+    "backend/core/workflow_event_source_registration.py": "64ecaf427f3a5a03d1c0e20898640df2916c2460f3dd656985abfcd535e66271",
+    "backend/core/workflow_event_source_enrollment.py": "e8770a081676f6a5fd1c22b79ae567faf6ad3c1a44c7d5842a8bb5aba8c3fbef",
+    "backend/core/workflow_event_source_adapters.py": "2316c430bf45163322e9ec71ac8dc1e2b50969901f4ffcb7e63fff12c961cfa9",
+    "backend/tests/test_workflow_event_source_binding_readback.py": "fd164b3e7179605b0018344622bf289b7134adbafe40245c17f58b61b7e686b4"
+  },
+  "artifact_sha256": "5f710bf136b1fdb01a2b05d4bc0595922d8b7d8cb89a939ab1035aa0bdfc6946",
+  "result": "3 failed"
+}

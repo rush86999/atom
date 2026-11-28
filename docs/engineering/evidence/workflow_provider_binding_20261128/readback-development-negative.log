@@ -1,0 +1,96 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-28 12:17:41 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-28 12:17:41 [    INFO] No token storage file found, starting empty
+2026-11-28 12:17:41 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:17:41 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:17:41 [    INFO] EscalationManager initialized
+2026-11-28 12:17:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 12:17:41 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:17:41 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:17:41 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:17:41 [    INFO] EscalationManager initialized
+2026-11-28 12:17:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 12:17:41 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 12:17:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-28 12:17:41 [    INFO] MCP Service initialized
+2026-11-28 12:17:41 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+backend/tests/test_workflow_event_source_binding_readback.py::test_reconnect_during_confirmation_is_committed_unverified[after_post] 
+-------------------------------- live log setup --------------------------------
+2026-11-28 12:17:42 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [ 33%]
+backend/tests/test_workflow_event_source_binding_readback.py::test_reconnect_during_confirmation_is_committed_unverified[after_read] FAILED [ 66%]
+backend/tests/test_workflow_event_source_binding_readback.py::test_reconnect_during_confirmation_is_committed_unverified[after_activation] FAILED [100%]
+
+=================================== FAILURES ===================================
+____ test_reconnect_during_confirmation_is_committed_unverified[after_post] ____
+backend/tests/test_workflow_event_source_binding_readback.py:38: in test_reconnect_during_confirmation_is_committed_unverified
+    assert result['status'] == 'committed_unverified' and result['effect'] == 'committed'
+E   AssertionError: assert ('registered' == 'committed_unverified'
+E     
+E     - committed_unverified
+E     + registered)
+------------------------------ Captured log setup ------------------------------
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+____ test_reconnect_during_confirmation_is_committed_unverified[after_read] ____
+backend/tests/test_workflow_event_source_binding_readback.py:38: in test_reconnect_during_confirmation_is_committed_unverified
+    assert result['status'] == 'committed_unverified' and result['effect'] == 'committed'
+E   AssertionError: assert ('registered' == 'committed_unverified'
+E     
+E     - committed_unverified
+E     + registered)
+_ test_reconnect_during_confirmation_is_committed_unverified[after_activation] _
+backend/tests/test_workflow_event_source_binding_readback.py:38: in test_reconnect_during_confirmation_is_committed_unverified
+    assert result['status'] == 'committed_unverified' and result['effect'] == 'committed'
+E   AssertionError: assert ('registered' == 'committed_unverified'
+E     
+E     - committed_unverified
+E     + registered)
+=============================== warnings summary ===============================
+../../../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+backend/core/token_storage.py:17
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_workflow_event_source_binding_readback.py::test_reconnect_during_confirmation_is_committed_unverified[after_post]
+FAILED backend/tests/test_workflow_event_source_binding_readback.py::test_reconnect_during_confirmation_is_committed_unverified[after_read]
+FAILED backend/tests/test_workflow_event_source_binding_readback.py::test_reconnect_during_confirmation_is_committed_unverified[after_activation]
+======================== 3 failed, 2 warnings in 5.79s =========================
