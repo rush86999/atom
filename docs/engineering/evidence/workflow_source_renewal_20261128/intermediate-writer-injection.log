@@ -1,0 +1,76 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-28 10:30:27 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-28 10:30:27 [    INFO] No token storage file found, starting empty
+2026-11-28 10:30:27 [    INFO] EscalationManager initialized
+2026-11-28 10:30:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 10:30:27 [    INFO] EscalationManager initialized
+2026-11-28 10:30:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 10:30:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-28 10:30:27 [    INFO] MCP Service initialized
+2026-11-28 10:30:27 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+backend/tests/test_workflow_event_source_renewal.py::test_success_atomic_proof_and_enrollment_replay 
+-------------------------------- live log setup --------------------------------
+2026-11-28 10:30:27 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  6%]
+backend/tests/test_workflow_event_source_renewal.py::test_competing_callers_patch_once PASSED [ 12%]
+backend/tests/test_workflow_event_source_renewal.py::test_unknown_reconciles_original_intent_only PASSED [ 18%]
+backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[resource] PASSED [ 25%]
+backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[callback] PASSED [ 31%]
+backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[moved_expiry] PASSED [ 37%]
+backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[state] PASSED [ 43%]
+backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[identity] PASSED [ 50%]
+backend/tests/test_workflow_event_source_renewal.py::test_audit_failure_rolls_back_receipt_and_lease_then_get_recovers 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:30:37 [   ERROR] outbound claim status update failed (succeeded): RuntimeError
+PASSED                                                                   [ 56%]
+backend/tests/test_workflow_event_source_renewal.py::test_dispatch_claim_refuses_peer_change[authority] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:30:43 [   ERROR] outbound claim status update failed (dispatching): OperationalError
+FAILED                                                                   [ 62%]
+backend/tests/test_workflow_event_source_renewal.py::test_dispatch_claim_refuses_peer_change[target] 
+-------------------------------- live log call ---------------------------------
+2026-11-28 10:30:50 [   ERROR] outbound claim status update failed (dispatching): OperationalError
+FAILED                                                                   [ 68%]
+backend/tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[lease] PASSED [ 75%]
+backend/tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[receipt] PASSED [ 81%]
+backend/tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[audit] PASSED [ 87%]
+backend/tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[scope] PASSED [ 93%]
+backend/tests/test_workflow_event_source_renewal.py::test_not_due_and_expired_never_patch PASSED [100%]
+
+=================================== FAILURES ===================================
+______________ test_dispatch_claim_refuses_peer_change[authority] ______________
+backend/tests/test_workflow_event_source_renewal.py:134: in test_dispatch_claim_refuses_peer_change
+    assert result['status'] == 'refused' and result['effect'] == 'none', result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'unknown', 'enabled': True, ...}
+E   assert ('effect_unknown' == 'refused'
+E     
+E     - refused
+E     + effect_unknown)
+------------------------------ Captured log call -------------------------------
+ERROR    core.outbound_operation_claim:outbound_operation_claim.py:553 outbound claim status update failed (dispatching): OperationalError
+_______________ test_dispatch_claim_refuses_peer_change[target] ________________
+backend/tests/test_workflow_event_source_renewal.py:134: in test_dispatch_claim_refuses_peer_change
+    assert result['status'] == 'refused' and result['effect'] == 'none', result
+E   AssertionError: {'connection_id': 'connection', 'do_not_repeat': True, 'effect': 'unknown', 'enabled': True, ...}
+E   assert ('effect_unknown' == 'refused'
+E     
+E     - refused
+E     + effect_unknown)
+------------------------------ Captured log call -------------------------------
+ERROR    core.outbound_operation_claim:outbound_operation_claim.py:553 outbound claim status update failed (dispatching): OperationalError
+=============================== warnings summary ===============================
+../../../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+backend/core/token_storage.py:17
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_dispatch_claim_refuses_peer_change[authority]
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_dispatch_claim_refuses_peer_change[target]
+================== 2 failed, 14 passed, 2 warnings in 28.96s ===================

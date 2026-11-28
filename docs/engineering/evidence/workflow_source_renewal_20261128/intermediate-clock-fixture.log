@@ -1,0 +1,433 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-28 10:29:29 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-28 10:29:29 [    INFO] No token storage file found, starting empty
+2026-11-28 10:29:29 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 10:29:29 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 10:29:29 [    INFO] EscalationManager initialized
+2026-11-28 10:29:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 10:29:29 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 10:29:29 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 10:29:29 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?
+ LIMIT ? OFFSET ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY', 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 10:29:29 [    INFO] EscalationManager initialized
+2026-11-28 10:29:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-28 10:29:29 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-28 10:29:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-28 10:29:29 [    INFO] MCP Service initialized
+2026-11-28 10:29:29 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+backend/tests/test_workflow_event_source_renewal.py::test_success_atomic_proof_and_enrollment_replay 
+-------------------------------- live log setup --------------------------------
+2026-11-28 10:29:30 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [  6%]
+backend/tests/test_workflow_event_source_renewal.py::test_competing_callers_patch_once FAILED [ 12%]
+backend/tests/test_workflow_event_source_renewal.py::test_unknown_reconciles_original_intent_only FAILED [ 18%]
+backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[resource] FAILED [ 25%]
+backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[callback] FAILED [ 31%]
+backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[moved_expiry] FAILED [ 37%]
+backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[state] FAILED [ 43%]
+backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[identity] FAILED [ 50%]
+backend/tests/test_workflow_event_source_renewal.py::test_audit_failure_rolls_back_receipt_and_lease_then_get_recovers FAILED [ 56%]
+backend/tests/test_workflow_event_source_renewal.py::test_dispatch_claim_refuses_peer_change[authority] FAILED [ 62%]
+backend/tests/test_workflow_event_source_renewal.py::test_dispatch_claim_refuses_peer_change[target] FAILED [ 68%]
+backend/tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[lease] FAILED [ 75%]
+backend/tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[receipt] FAILED [ 81%]
+backend/tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[audit] FAILED [ 87%]
+backend/tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[scope] FAILED [ 93%]
+backend/tests/test_workflow_event_source_renewal.py::test_not_due_and_expired_never_patch PASSED [100%]
+
+=================================== FAILURES ===================================
+_______________ test_success_atomic_proof_and_enrollment_replay ________________
+backend/tests/test_workflow_event_source_renewal.py:45: in test_success_atomic_proof_and_enrollment_replay
+    result = asyncio.run(renewal.renew_source(**call))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+------------------------------ Captured log setup ------------------------------
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+______________________ test_competing_callers_patch_once _______________________
+backend/tests/test_workflow_event_source_renewal.py:65: in test_competing_callers_patch_once
+    results = asyncio.run(scenario())
+              ^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/tests/test_workflow_event_source_renewal.py:64: in scenario
+    return await asyncio.gather(renewal.renew_source(**call), renewal.renew_source(**call))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+_________________ test_unknown_reconciles_original_intent_only _________________
+backend/tests/test_workflow_event_source_renewal.py:73: in test_unknown_reconciles_original_intent_only
+    first = asyncio.run(renewal.renew_source(**call))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+__________ test_wrong_readback_never_certifies_or_repatches[resource] __________
+backend/tests/test_workflow_event_source_renewal.py:87: in test_wrong_readback_never_certifies_or_repatches
+    first = asyncio.run(renewal.renew_source(**call))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+__________ test_wrong_readback_never_certifies_or_repatches[callback] __________
+backend/tests/test_workflow_event_source_renewal.py:87: in test_wrong_readback_never_certifies_or_repatches
+    first = asyncio.run(renewal.renew_source(**call))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+________ test_wrong_readback_never_certifies_or_repatches[moved_expiry] ________
+backend/tests/test_workflow_event_source_renewal.py:87: in test_wrong_readback_never_certifies_or_repatches
+    first = asyncio.run(renewal.renew_source(**call))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+___________ test_wrong_readback_never_certifies_or_repatches[state] ____________
+backend/tests/test_workflow_event_source_renewal.py:87: in test_wrong_readback_never_certifies_or_repatches
+    first = asyncio.run(renewal.renew_source(**call))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+__________ test_wrong_readback_never_certifies_or_repatches[identity] __________
+backend/tests/test_workflow_event_source_renewal.py:87: in test_wrong_readback_never_certifies_or_repatches
+    first = asyncio.run(renewal.renew_source(**call))
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+______ test_audit_failure_rolls_back_receipt_and_lease_then_get_recovers _______
+backend/tests/test_workflow_event_source_renewal.py:103: in test_audit_failure_rolls_back_receipt_and_lease_then_get_recovers
+    assert asyncio.run(renewal.renew_source(**call))['status'] == 'effect_unknown'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+______________ test_dispatch_claim_refuses_peer_change[authority] ______________
+backend/tests/test_workflow_event_source_renewal.py:129: in test_dispatch_claim_refuses_peer_change
+    result = asyncio.run(renewal.renew_source(**call))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+_______________ test_dispatch_claim_refuses_peer_change[target] ________________
+backend/tests/test_workflow_event_source_renewal.py:129: in test_dispatch_claim_refuses_peer_change
+    result = asyncio.run(renewal.renew_source(**call))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+_____________ test_current_lease_requires_full_exact_proof[lease] ______________
+backend/tests/test_workflow_event_source_renewal.py:137: in test_current_lease_requires_full_exact_proof
+    assert asyncio.run(renewal.renew_source(**call))['status'] == 'renewed'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+____________ test_current_lease_requires_full_exact_proof[receipt] _____________
+backend/tests/test_workflow_event_source_renewal.py:137: in test_current_lease_requires_full_exact_proof
+    factory, _, _, _, call = due_world
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+_____________ test_current_lease_requires_full_exact_proof[audit] ______________
+backend/tests/test_workflow_event_source_renewal.py:137: in test_current_lease_requires_full_exact_proof
+    factory, _, _, _, call = due_world
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+_____________ test_current_lease_requires_full_exact_proof[scope] ______________
+backend/tests/test_workflow_event_source_renewal.py:137: in test_current_lease_requires_full_exact_proof
+    factory, _, _, _, call = due_world
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py:654: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:216: in renew_source
+    document = _prepare(document, adapter, at, db_factory)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_renewal.py:142: in _prepare
+    previous_plan=_current_plan(document, adapter), plan=adapter.renewal_material(document, now=at),
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend/core/workflow_event_source_adapters.py:57: in renewal_material
+    raise ValueError('Renewal time has no timezone')
+E   ValueError: Renewal time has no timezone
+=============================== warnings summary ===============================
+../../../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+backend/core/token_storage.py:17
+  /Users/rushiparikh/projects/atom/.worktrees/workflow-source-renewal-20261128/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_success_atomic_proof_and_enrollment_replay
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_competing_callers_patch_once
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_unknown_reconciles_original_intent_only
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[resource]
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[callback]
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[moved_expiry]
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[state]
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_wrong_readback_never_certifies_or_repatches[identity]
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_audit_failure_rolls_back_receipt_and_lease_then_get_recovers
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_dispatch_claim_refuses_peer_change[authority]
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_dispatch_claim_refuses_peer_change[target]
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[lease]
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[receipt]
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[audit]
+FAILED backend/tests/test_workflow_event_source_renewal.py::test_current_lease_requires_full_exact_proof[scope]
+================== 15 failed, 1 passed, 2 warnings in 18.22s ===================
